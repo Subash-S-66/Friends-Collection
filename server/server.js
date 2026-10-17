@@ -78,13 +78,25 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Serve static client build if present (for full-stack deployment on Render)
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+if (require('fs').existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Error handler
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Friends Collections Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV}`);
   console.log(`   API: http://localhost:${PORT}/api`);
-  console.log(`   Frontend: ${process.env.CLIENT_URL}\n`);
+  console.log(`   Frontend: ${process.env.CLIENT_URL || 'Integrated SPA'}\n`);
 });
