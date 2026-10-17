@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: friends-collection-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        value: friends.collection06@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: BUSINESS_NAME
+        value: Friends Collections
+      - key: BUSINESS_PHONE
+        value: "9500757024"
+      - key: BUSINESS_EMAIL
+        value: friends.collection06@gmail.com
+      - key: BUSINESS_ADDRESS
+        value: 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 12
+      - key: BUSINESS_INSTAGRAM
+        value: friends_collection_in
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "2000"
+      - key: ORDER_RATE_LIMIT_MAX
+        value: "20"
