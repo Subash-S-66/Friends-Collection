@@ -10,6 +10,13 @@ export const getDiscount = (price, salePrice) => {
 export const getImageUrl = (path) => {
   if (!path) return '/logo.png';
   if (path.startsWith('http')) return path;
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl && path.startsWith('/uploads')) {
+    const backendOrigin = apiUrl.replace(/\/api\/?$/, '');
+    return `${backendOrigin}${path}`;
+  }
+
   return path;
 };
 

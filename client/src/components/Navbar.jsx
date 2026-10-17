@@ -227,11 +227,11 @@ const Navbar = () => {
                 className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-full shadow-sm group-hover:scale-105 transition-transform"
               />
               <div className="flex flex-col">
-                <span className="font-serif text-lg sm:text-2xl font-bold tracking-tight text-primary leading-tight">
-                  Friends
+                <span className="font-logo text-base sm:text-xl font-bold tracking-[0.25em] uppercase text-primary leading-tight group-hover:text-primary-light transition-colors">
+                  FRIENDS
                 </span>
-                <span className="text-[10px] sm:text-xs font-medium tracking-[0.2em] uppercase text-accent-700 -mt-0.5">
-                  Collections
+                <span className="pl-1 text-[9px] sm:text-[11px] font-medium tracking-[0.28em] uppercase text-accent-700 leading-tight mt-0.5">
+                  COLLECTIONS
                 </span>
               </div>
             </Link>
@@ -539,7 +539,14 @@ const Navbar = () => {
             <div className="p-4 flex items-center justify-between border-b border-accent-100">
               <div className="flex items-center gap-2.5">
                 <img src="/logo.png" alt="FC" className="w-9 h-9 object-contain rounded-full" />
-                <span className="font-serif text-lg font-bold text-primary">Friends Collections</span>
+                <div className="flex flex-col">
+                  <span className="font-logo text-sm font-bold tracking-[0.22em] uppercase text-primary leading-tight">
+                    FRIENDS
+                  </span>
+                  <span className="text-[8px] font-medium tracking-[0.26em] uppercase text-accent-700 leading-tight">
+                    COLLECTIONS
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setMobileOpen(false)}

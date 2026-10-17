@@ -15,9 +15,13 @@ const Footer = () => {
                 alt="Friends Collections"
                 className="w-12 h-12 object-contain rounded-full bg-cream-light p-0.5 shadow-md"
               />
-              <div>
-                <span className="font-serif text-2xl font-bold text-white block">Friends</span>
-                <span className="text-xs uppercase tracking-[0.25em] text-accent-300 block -mt-1">Collections</span>
+              <div className="flex flex-col">
+                <span className="font-logo text-xl sm:text-2xl font-bold tracking-[0.25em] uppercase text-white leading-tight block">
+                  FRIENDS
+                </span>
+                <span className="text-[10px] sm:text-xs font-medium tracking-[0.28em] uppercase text-accent-300 leading-tight mt-0.5 block">
+                  COLLECTIONS
+                </span>
               </div>
             </Link>
             <p className="text-sm text-neutral-300 font-light leading-relaxed">

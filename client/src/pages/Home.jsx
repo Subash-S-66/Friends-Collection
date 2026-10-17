@@ -10,6 +10,7 @@ import {
   HiOutlineLocationMarker,
   HiOutlinePhone
 } from 'react-icons/hi';
+import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/formatters';
@@ -345,6 +346,25 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Floating WhatsApp Button (Home Screen Only) */}
+      <a
+        href="https://wa.me/919500757024?text=Hi%20Friends%20Collections%2C%20I%20am%20browsing%20your%20store%20and%20would%20like%20to%20inquire%20about%20your%20collections!"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with us on WhatsApp"
+        className="fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-full shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-white/90 animate-fade-in"
+      >
+        <FaWhatsapp className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0 drop-shadow-xs" />
+        <span className="font-semibold text-xs sm:text-sm tracking-wide text-white drop-shadow-xs whitespace-nowrap">
+          Chat with us
+        </span>
+        {/* Live status ping badge */}
+        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-300 border-2 border-white"></span>
+        </span>
+      </a>
     </div>
   );
 };

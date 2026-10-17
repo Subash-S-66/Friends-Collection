@@ -43,6 +43,7 @@ export default {
         },
       },
       fontFamily: {
+        logo: ['Cinzel', '"Playfair Display"', 'Georgia', 'serif'],
         serif: ['"Playfair Display"', 'Georgia', 'serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
