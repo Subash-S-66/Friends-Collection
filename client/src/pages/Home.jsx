@@ -338,9 +338,10 @@ const Home = () => {
                 href="https://wa.me/919500757024?text=Hi%20Friends%20Collections%2C%20I%20would%20like%20to%20visit%20your%20store"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full text-center px-6 py-3.5 rounded-full border border-accent-300/40 hover:bg-white/10 text-white font-medium text-sm transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
               >
-                Chat with Us on WhatsApp
+                <FaWhatsapp className="w-5 h-5 text-white" />
+                <span>Chat with Us on WhatsApp</span>
               </a>
             </div>
           </div>
