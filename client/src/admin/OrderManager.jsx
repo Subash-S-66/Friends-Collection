@@ -33,8 +33,8 @@ const OrderManager = () => {
       params.append('limit', '15');
 
       const res = await API.get(`/orders/admin/all?${params.toString()}`);
-      setOrders(res.data.orders || []);
-      setTotalPages(res.data.pages || 1);
+      setOrders(Array.isArray(res.data?.orders) ? res.data.orders : (Array.isArray(res.data) ? res.data : []));
+      setTotalPages(res.data?.pages || 1);
     } catch (err) {
       console.error('Error fetching admin orders:', err);
       toast.error('Failed to load orders');

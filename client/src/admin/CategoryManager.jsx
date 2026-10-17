@@ -31,7 +31,7 @@ const CategoryManager = () => {
     setLoading(true);
     try {
       const res = await API.get('/categories/admin/all');
-      setCategories(res.data || []);
+      setCategories(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching categories:', err);
       toast.error('Failed to load categories');
@@ -45,14 +45,15 @@ const CategoryManager = () => {
   }, []);
 
   // Separate parent categories from subcategories
-  const parentCategories = categories.filter((c) => !c.parent);
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const parentCategories = safeCategories.filter((c) => c && !c.parent);
   const filteredParents = parentCategories.filter((c) => {
     if (genderFilter === 'all') return true;
     return c.gender === genderFilter;
   });
 
   const getSubcategories = (pId) =>
-    categories.filter((c) => c.parent && (c.parent._id === pId || c.parent === pId));
+    safeCategories.filter((c) => c && c.parent && ((c.parent._id || c.parent) === pId));
 
   const openAddModal = (presetParentId = '', presetGender = 'women') => {
     setEditingCategory(null);

@@ -56,8 +56,11 @@ const ProductDetail = () => {
 
         // Fetch related products
         if (prod.category?._id) {
-          const relRes = await API.get(`/products?category=${prod.category.slug}&limit=4`);
-          setRelated(relRes.data.products?.filter((p) => p._id !== prod._id) || []);
+          const relRes = await API.get(`/products?category=${prod.category.slug}&limit=4`).catch(() => ({ data: { products: [] } }));
+          const relProducts = Array.isArray(relRes.data?.products)
+            ? relRes.data.products
+            : (Array.isArray(relRes.data) ? relRes.data : []);
+          setRelated(relProducts.filter((p) => p && p._id !== prod._id));
         }
       } catch (error) {
         console.error('Error fetching product details:', error);

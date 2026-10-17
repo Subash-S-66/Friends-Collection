@@ -26,8 +26,8 @@ const Dashboard = () => {
         API.get('/orders/admin/stats'),
         API.get('/orders/admin/all?limit=6')
       ]);
-      setStats(statsRes.data);
-      setRecentOrders(ordersRes.data.orders || []);
+      setStats(statsRes?.data || null);
+      setRecentOrders(Array.isArray(ordersRes.data?.orders) ? ordersRes.data.orders : (Array.isArray(ordersRes.data) ? ordersRes.data : []));
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {

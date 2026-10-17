@@ -31,7 +31,7 @@ const Account = () => {
     }
 
     API.get('/orders/my')
-      .then((res) => setOrders(res.data || []))
+      .then((res) => setOrders(Array.isArray(res.data) ? res.data : []))
       .catch((err) => console.error('Error fetching orders:', err))
       .finally(() => setLoadingOrders(false));
   }, [user, navigate]);

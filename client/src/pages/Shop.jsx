@@ -31,20 +31,22 @@ const Shop = () => {
   // Load categories and tree
   useEffect(() => {
     Promise.all([
-      API.get('/categories'),
+      API.get('/categories').catch(() => ({ data: [] })),
       API.get('/categories/tree').catch(() => ({ data: [] }))
     ])
       .then(([catRes, treeRes]) => {
-        setCategories(catRes.data || []);
-        if (treeRes.data && treeRes.data.length > 0) {
-          setCategoryTree(treeRes.data);
+        const rawCats = Array.isArray(catRes?.data) ? catRes.data : [];
+        const rawTree = Array.isArray(treeRes?.data) ? treeRes.data : [];
+        setCategories(rawCats);
+        if (rawTree.length > 0) {
+          setCategoryTree(rawTree);
         } else {
           // Group flat categories if tree is empty
-          const flat = catRes.data || [];
-          const parents = flat.filter((c) => !c.parent);
+          const flat = rawCats;
+          const parents = flat.filter((c) => c && !c.parent);
           const tree = parents.map((p) => ({
             ...p,
-            subcategories: flat.filter((c) => c.parent && (c.parent._id === p._id || c.parent === p._id))
+            subcategories: flat.filter((c) => c && c.parent && ((c.parent._id || c.parent) === p._id))
           }));
           setCategoryTree(tree);
         }
@@ -121,13 +123,14 @@ const Shop = () => {
     Boolean(maxPrice);
 
   // Filtered categories based on selected gender
+  const safeCategoryTree = Array.isArray(categoryTree) ? categoryTree : [];
   const displayedCategories = selectedGender
-    ? categoryTree.filter((c) => c.gender === selectedGender || c.gender === 'all' || !c.gender)
-    : categoryTree;
+    ? safeCategoryTree.filter((c) => c && (c.gender === selectedGender || c.gender === 'all' || !c.gender))
+    : safeCategoryTree;
 
   // Active category object and its subcategories
-  const activeCatObj = categoryTree.find((c) => c.slug === selectedCategory);
-  const activeSubcategories = activeCatObj?.subcategories || [];
+  const activeCatObj = safeCategoryTree.find((c) => c?.slug === selectedCategory);
+  const activeSubcategories = Array.isArray(activeCatObj?.subcategories) ? activeCatObj.subcategories : [];
 
   return (
     <div className="min-h-screen bg-cream py-8 sm:py-12">

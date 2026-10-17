@@ -59,8 +59,8 @@ const ProductManager = () => {
         API.get('/products/admin/all?limit=100'),
         API.get('/categories/admin/all')
       ]);
-      setProducts(prodRes.data.products || []);
-      setCategories(catRes.data || []);
+      setProducts(Array.isArray(prodRes.data?.products) ? prodRes.data.products : (Array.isArray(prodRes.data) ? prodRes.data : []));
+      setCategories(Array.isArray(catRes?.data) ? catRes.data : []);
     } catch (err) {
       console.error('Error loading products:', err);
       toast.error('Failed to load products');
@@ -74,9 +74,10 @@ const ProductManager = () => {
   }, []);
 
   // Filter parent categories vs subcategories
-  const parentCategories = categories.filter((c) => !c.parent);
-  const availableSubcategories = categories.filter(
-    (c) => c.parent && ((c.parent._id || c.parent) === category)
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const parentCategories = safeCategories.filter((c) => c && !c.parent);
+  const availableSubcategories = safeCategories.filter(
+    (c) => c && c.parent && ((c.parent._id || c.parent) === category)
   );
 
   const openAddModal = () => {
@@ -245,7 +246,8 @@ const ProductManager = () => {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const filteredProducts = safeProducts.filter((p) => {
     const matchesSearch =
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||

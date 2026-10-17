@@ -31,10 +31,17 @@ const Home = () => {
           API.get('/products?sort=newest&limit=8').catch(() => ({ data: { products: [] } })),
           API.get('/settings').catch(() => ({ data: {} }))
         ]);
-        setCategories(catsRes.data || []);
-        setFeatured(featuredRes.data || []);
-        setNewArrivals(newRes.data?.products || []);
-        setSettings(settingsRes.data || {});
+        const safeCats = Array.isArray(catsRes?.data) ? catsRes.data : [];
+        const safeFeatured = Array.isArray(featuredRes?.data) ? featuredRes.data : [];
+        const safeNew = Array.isArray(newRes?.data?.products)
+          ? newRes.data.products
+          : (Array.isArray(newRes?.data) ? newRes.data : []);
+        const safeSettings = settingsRes?.data && typeof settingsRes.data === 'object' ? settingsRes.data : {};
+
+        setCategories(safeCats);
+        setFeatured(safeFeatured);
+        setNewArrivals(safeNew);
+        setSettings(safeSettings);
       } catch (error) {
         console.error('Error fetching home data:', error);
       } finally {
@@ -197,8 +204,8 @@ const Home = () => {
 
           {/* Categories: Clean 2-column on Mobile, 3-col on Tablet, 5-col on Desktop */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
-            {categories
-              .filter((c) => !c.parent)
+            {(Array.isArray(categories) ? categories : [])
+              .filter((c) => c && !c.parent)
               .filter((c) => selectedGender === 'all' || c.gender === selectedGender || c.gender === 'all' || !c.gender)
               .map((cat) => (
                 <Link

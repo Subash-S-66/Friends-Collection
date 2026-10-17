@@ -22,7 +22,7 @@ const BannerManager = () => {
     setLoading(true);
     try {
       const res = await API.get('/banners/admin/all');
-      setBanners(res.data || []);
+      setBanners(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error loading banners:', err);
       toast.error('Failed to load banners');

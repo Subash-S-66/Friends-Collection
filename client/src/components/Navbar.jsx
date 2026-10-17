@@ -168,9 +168,9 @@ const Navbar = () => {
   }, []);
 
   // Filter categories by gender
-  const allCategories = categoryTree.length > 0 ? categoryTree : [...defaultWomenTree, ...defaultMenTree];
-  const womenCategories = allCategories.filter((c) => c.gender === 'women' || !c.gender);
-  const menCategories = allCategories.filter((c) => c.gender === 'men');
+  const allCategories = Array.isArray(categoryTree) && categoryTree.length > 0 ? categoryTree : [...defaultWomenTree, ...defaultMenTree];
+  const womenCategories = allCategories.filter((c) => c && (c.gender === 'women' || !c.gender));
+  const menCategories = allCategories.filter((c) => c && c.gender === 'men');
 
   // Handle smooth mouse enter/leave for mega menu
   const handleMouseEnter = (gender) => {
