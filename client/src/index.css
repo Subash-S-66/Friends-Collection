@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-cream text-neutral-900 font-sans antialiased min-h-screen flex flex-col selection:bg-accent-200 selection:text-primary-900;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif text-neutral-900 tracking-tight;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #F5EFEB;
+}
+::-webkit-scrollbar-thumb {
+  background: #C88A65;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #54142D;
+}
+
+/* Utility to completely hide scrollbars on horizontal tabs & shelves */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

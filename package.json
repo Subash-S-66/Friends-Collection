@@ -1,0 +1,22 @@
+{
+  "name": "friends-collection",
+  "version": "1.0.0",
+  "description": "Friends Collections - Full-stack E-commerce Platform",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "client": "npm --prefix client run dev",
+    "server": "npm --prefix server run dev",
+    "seed": "npm --prefix server run seed"
+  },
+  "keywords": [
+    "ecommerce",
+    "react",
+    "express",
+    "mongodb",
+    "vite",
+    "clothing-store"
+  ],
+  "author": "Friends Collections",
+  "license": "ISC"
+}

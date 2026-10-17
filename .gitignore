@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Production builds
+dist/
+build/
+client/dist/
+.vercel/
+
+# Environment files
+.env
+.env.*
+.env.local
+!.env.example
+
+# Uploads & Temp files
+server/uploads/*
+!server/uploads/.gitkeep
+!server/uploads/logo.png
+!server/uploads/card.png
+file_*.png
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# System and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
