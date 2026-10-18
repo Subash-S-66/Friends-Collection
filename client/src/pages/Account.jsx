@@ -782,18 +782,6 @@ const Account = () => {
                 )}
               </button>
             )}
-
-            {user && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs mb-1"
-                title="Sign Out of account"
-              >
-                <HiOutlineLogout className="w-3.5 h-3.5 text-red-500" />
-                <span>Logout</span>
-              </button>
-            )}
           </div>
 
           {/* Quick Search By Order ID */}

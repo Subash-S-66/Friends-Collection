@@ -405,17 +405,6 @@ const Navbar = () => {
                       )}
                     </AnimatePresence>
                   </div>
-
-                  {/* Direct 1-Click Logout Button on Desktop */}
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs"
-                    title="Sign Out / Logout"
-                  >
-                    <HiOutlineLogout className="w-3.5 h-3.5 text-red-500" />
-                    <span>Logout</span>
-                  </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
