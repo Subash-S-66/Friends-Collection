@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getProducts,
   getProduct,
+  getSearchSuggestions,
   getFeatured,
   getHomepageBundle,
   getRelated,
@@ -31,6 +32,7 @@ const flushProductCache = (req, res, next) => {
 router.get('/', cacheMiddleware(60), getProducts);
 router.get('/featured/list', cacheMiddleware(180), getFeatured);
 router.get('/homepage-bundle', cacheMiddleware(180), getHomepageBundle);
+router.get('/search/suggestions', cacheMiddleware(10), getSearchSuggestions);
 router.get('/:slug', cacheMiddleware(60), getProduct);
 router.get('/:slug/related', cacheMiddleware(180), getRelated);
 

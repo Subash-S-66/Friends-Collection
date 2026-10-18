@@ -19,6 +19,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import API from '../utils/api';
+import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -627,28 +628,15 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* Collapsible Search Bar */}
+        {/* Collapsible Search Bar (Amazon & Flipkart Style with Product Images & Live Dropdown) */}
         {searchOpen && (
-          <div className="border-t border-b border-accent-200 bg-white shadow-md px-4 py-3 animate-slide-down">
+          <div className="border-t border-b border-accent-200 bg-white shadow-xl px-4 py-3 animate-slide-down relative z-40">
             <div className="max-w-2xl mx-auto">
-              <form onSubmit={handleSearch} className="relative flex items-center">
-                <HiOutlineSearch className="absolute left-3.5 w-5 h-5 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Search silk sarees, anarkalis, linen shirts, festive kurtas..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-10 py-2.5 bg-white border border-accent-200 rounded-full text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(false)}
-                  className="absolute right-3 p-1 rounded-full text-neutral-400 hover:text-neutral-700"
-                >
-                  <HiOutlineX className="w-5 h-5" />
-                </button>
-              </form>
+              <SearchAutocomplete
+                autoFocus={true}
+                onClose={() => setSearchOpen(false)}
+                placeholder="Search silk sarees, anarkalis, linen shirts, festive kurtas..."
+              />
             </div>
           </div>
         )}
@@ -697,6 +685,15 @@ const Navbar = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              {/* Quick Search Autocomplete in Mobile Drawer */}
+              <div className="relative">
+                <SearchAutocomplete
+                  autoFocus={false}
+                  onClose={() => setMobileOpen(false)}
+                  placeholder="Search dresses, sarees, kurtis..."
+                />
+              </div>
+
               {/* Home & Shop All Links */}
               <div className="grid grid-cols-2 gap-2">
                 <Link

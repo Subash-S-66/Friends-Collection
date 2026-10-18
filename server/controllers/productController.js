@@ -44,8 +44,16 @@ exports.getProducts = async (req, res, next) => {
     }
 
     // Search
-    if (search) {
-      query.$text = { $search: search };
+    if (search && search.trim()) {
+      const cleanSearch = search.trim();
+      const escaped = cleanSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      query.$or = [
+        { title: regex },
+        { tags: regex },
+        { colors: regex },
+        { description: regex }
+      ];
     }
 
     // Price range
@@ -84,6 +92,99 @@ exports.getProducts = async (req, res, next) => {
       page: Number(page),
       pages: Math.ceil(total / Number(limit)),
       total
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get live search suggestions with images (Amazon / Flipkart style)
+// @route   GET /api/products/search/suggestions
+exports.getSearchSuggestions = async (req, res, next) => {
+  try {
+    const q = (req.query.q || '').trim();
+
+    if (!q) {
+      // Return popular trending dresses when search is focused but empty
+      const trending = await Product.find({ isActive: true, stock: { $gt: 0 } })
+        .populate('category', 'name slug gender')
+        .populate('subcategory', 'name slug')
+        .sort({ views: -1, createdAt: -1 })
+        .limit(6)
+        .select('title slug price salePrice images category subcategory gender stock tags')
+        .lean();
+
+      return res.json({
+        products: trending,
+        categories: [],
+        suggestions: [
+          'Pure Silk Sarees',
+          'Bridal Lehengas',
+          'Designer Kurtis',
+          'Men Formal Shirts',
+          'Kids Festive Wear'
+        ],
+        query: ''
+      });
+    }
+
+    const escaped = q.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const regex = new RegExp(escaped, 'i');
+
+    const [products, categories, totalCount] = await Promise.all([
+      Product.find({
+        isActive: true,
+        $or: [
+          { title: regex },
+          { tags: regex },
+          { colors: regex },
+          { description: regex }
+        ]
+      })
+        .populate('category', 'name slug gender')
+        .populate('subcategory', 'name slug')
+        .sort({ stock: -1, views: -1, createdAt: -1 })
+        .limit(6)
+        .select('title slug price salePrice images category subcategory gender stock tags')
+        .lean(),
+
+      Category.find({
+        isActive: true,
+        name: regex
+      })
+        .limit(4)
+        .select('name slug gender parent')
+        .lean(),
+
+      Product.countDocuments({
+        isActive: true,
+        $or: [
+          { title: regex },
+          { tags: regex },
+          { colors: regex },
+          { description: regex }
+        ]
+      })
+    ]);
+
+    // Extract relevant matching tags/keywords
+    const suggestionsSet = new Set();
+    products.forEach((p) => {
+      if (Array.isArray(p.tags)) {
+        p.tags.forEach((t) => {
+          if (t && t.toLowerCase().includes(q.toLowerCase())) {
+            suggestionsSet.add(t);
+          }
+        });
+      }
+    });
+
+    res.json({
+      products,
+      categories,
+      total: totalCount,
+      suggestions: Array.from(suggestionsSet).slice(0, 4),
+      query: q
     });
   } catch (error) {
     next(error);
