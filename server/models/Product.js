@@ -30,6 +30,12 @@ productSchema.pre('save', function(next) {
   if (this.isModified('title')) {
     this.slug = slugify(this.title, { lower: true, strict: true }) + '-' + Date.now().toString(36);
   }
+
+  // Synchronize total product stock with variants whenever variants exist
+  if (this.variants && this.variants.length > 0) {
+    this.stock = this.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+  }
+
   next();
 });
 

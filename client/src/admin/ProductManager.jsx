@@ -141,15 +141,34 @@ const ProductManager = () => {
     setSalePrice(prod.salePrice ? prod.salePrice.toString() : '');
     setSelectedSizes(prod.sizes || []);
     setSelectedColors(prod.colors || []);
-    setVariants(prod.variants && prod.variants.length > 0 ? prod.variants : [
-      { color: 'Default', size: 'Standard', stock: prod.stock || 10, sku: '' }
-    ]);
     const cleanExisting = (prod.images || []).filter(
       (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
     );
     setExistingImages(cleanExisting);
     setImages([]);
     setImagePreviews([]);
+
+    // Populate variant stock matrix
+    let initialVariants = prod.variants && prod.variants.length > 0 ? prod.variants : [];
+    if (initialVariants.length === 0 && ((prod.sizes && prod.sizes.length > 0) || (prod.colors && prod.colors.length > 0))) {
+      const colors = prod.colors && prod.colors.length > 0 ? prod.colors : ['Standard'];
+      const sizes = prod.sizes && prod.sizes.length > 0 ? prod.sizes : ['Standard'];
+      initialVariants = [];
+      colors.forEach((c) => {
+        sizes.forEach((s) => {
+          initialVariants.push({
+            color: c,
+            size: s,
+            stock: Math.max(1, Math.floor((prod.stock || 10) / (colors.length * sizes.length))),
+            sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`
+          });
+        });
+      });
+    }
+    setVariants(initialVariants.length > 0 ? initialVariants : [
+      { color: 'Standard', size: 'Standard', stock: prod.stock || 10, sku: '' }
+    ]);
+
     setModalOpen(true);
   };
 
@@ -173,16 +192,27 @@ const ProductManager = () => {
     });
   };
 
-  // Quick generate matrix of variants
+  // Quick generate matrix of variants preserving any already entered stock
   const handleAutoGenerateVariants = () => {
+    const existingMap = new Map();
+    variants.forEach((v) => {
+      const k = `${(v.color || 'Standard').toLowerCase()}::${(v.size || 'Standard').toLowerCase()}`;
+      existingMap.set(k, v.stock);
+    });
+
+    const colors = selectedColors.length > 0 ? selectedColors : ['Standard'];
+    const sizes = selectedSizes.length > 0 ? selectedSizes : ['Standard'];
     const matrix = [];
-    selectedColors.forEach((color) => {
-      selectedSizes.forEach((size) => {
+
+    colors.forEach((color) => {
+      sizes.forEach((size) => {
+        const k = `${color.toLowerCase()}::${size.toLowerCase()}`;
+        const existingStock = existingMap.get(k);
         matrix.push({
           color,
           size,
-          stock: 5,
-          sku: `FC-${color.substring(0, 3).toUpperCase()}-${size}`
+          stock: existingStock !== undefined ? existingStock : 5,
+          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${size.replace(/[^A-Z0-9]/g, '')}`
         });
       });
     });

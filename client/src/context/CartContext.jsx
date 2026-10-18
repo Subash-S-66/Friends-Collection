@@ -21,6 +21,19 @@ export const CartProvider = ({ children }) => {
   }, [items]);
 
   const addToCart = useCallback((product, quantity = 1, size = '', color = '') => {
+    // Derive variant-specific stock
+    let itemStock = product.stock !== undefined && product.stock !== null ? product.stock : 99;
+    if (product.variants && product.variants.length > 0) {
+      const match = product.variants.find(
+        (v) =>
+          (!size || !v.size || v.size.toLowerCase() === size.toLowerCase()) &&
+          (!color || !v.color || v.color.toLowerCase() === color.toLowerCase())
+      );
+      itemStock = match ? match.stock : 0;
+    }
+
+    if (itemStock <= 0) return;
+
     setItems(prev => {
       const existingIndex = prev.findIndex(
         item => item.product === product._id && item.size === size && item.color === color
@@ -28,8 +41,8 @@ export const CartProvider = ({ children }) => {
 
       if (existingIndex >= 0) {
         const updated = [...prev];
-        const maxStock = product.stock !== undefined && product.stock !== null ? product.stock : 99;
-        updated[existingIndex].quantity = Math.min(maxStock, updated[existingIndex].quantity + quantity);
+        updated[existingIndex].stock = itemStock;
+        updated[existingIndex].quantity = Math.min(itemStock, updated[existingIndex].quantity + quantity);
         return updated;
       }
 
@@ -40,10 +53,10 @@ export const CartProvider = ({ children }) => {
         originalPrice: product.price,
         size,
         color,
-        quantity,
+        quantity: Math.min(itemStock, quantity),
         image: product.images?.[0] || '',
         slug: product.slug,
-        stock: product.stock
+        stock: itemStock
       }];
     });
     setIsCartOpen(true);

@@ -160,15 +160,19 @@ const ProductDetail = () => {
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
 
-  // Variant matching
+  // Variant matching with normalized string matching
   const hasVariants = product.variants && product.variants.length > 0;
   const currentVariant = hasVariants
-    ? product.variants.find((v) => (!selectedColor || v.color === selectedColor) && (!selectedSize || v.size === selectedSize))
+    ? product.variants.find(
+        (v) =>
+          (!selectedColor || !v.color || v.color.trim().toLowerCase() === selectedColor.trim().toLowerCase()) &&
+          (!selectedSize || !v.size || v.size.trim().toLowerCase() === selectedSize.trim().toLowerCase())
+      )
     : null;
 
   const currentStock = currentVariant !== null && currentVariant !== undefined
     ? currentVariant.stock
-    : product.stock;
+    : (hasVariants ? 0 : product.stock);
 
   const isOutOfStock = currentStock <= 0;
 
@@ -180,6 +184,15 @@ const ProductDetail = () => {
   const allSizes = hasVariants
     ? Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean)))
     : product.sizes || [];
+
+  // Clamp quantity to available variant stock
+  useEffect(() => {
+    if (currentStock > 0 && quantity > currentStock) {
+      setQuantity(currentStock);
+    } else if (quantity < 1 && currentStock > 0) {
+      setQuantity(1);
+    }
+  }, [currentStock, quantity]);
 
   const handleAddToCart = () => {
     if (isOutOfStock || isProcessing || added) return;
@@ -399,25 +412,41 @@ const ProductDetail = () => {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {allColors.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setSelectedColor(color)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                          selectedColor === color
-                            ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
-                            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    ))}
+                    {allColors.map((color) => {
+                      const colorStock = hasVariants
+                        ? product.variants
+                            .filter((v) => v.color?.trim().toLowerCase() === color.trim().toLowerCase())
+                            .reduce((sum, v) => sum + (v.stock || 0), 0)
+                        : product.stock;
+                      const isColorSoldOut = colorStock <= 0;
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setSelectedColor(color)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all relative ${
+                            selectedColor === color
+                              ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
+                              : isColorSoldOut
+                              ? 'bg-neutral-100 text-neutral-400 line-through border border-dashed border-neutral-300'
+                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                          }`}
+                        >
+                          <span>{color}</span>
+                          {isColorSoldOut && (
+                            <span className="text-[9px] ml-1.5 text-red-500 font-normal no-underline">
+                              (Sold Out)
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Size Variant Selector with Flipkart-style Strikethrough for 0 Stock */}
+              {/* Size Variant Selector with individual variant stock feedback */}
               {allSizes.length > 0 && (
                 <div className="pt-2 space-y-2">
                   <div className="flex items-center justify-between">
@@ -429,30 +458,47 @@ const ProductDetail = () => {
                   <div className="flex flex-wrap gap-2.5">
                     {allSizes.map((size) => {
                       const sizeVariant = hasVariants
-                        ? product.variants.find((v) => (!selectedColor || v.color === selectedColor) && v.size === size)
+                        ? product.variants.find(
+                            (v) =>
+                              (!selectedColor || !v.color || v.color.trim().toLowerCase() === selectedColor.trim().toLowerCase()) &&
+                              v.size?.trim().toLowerCase() === size.trim().toLowerCase()
+                          )
                         : null;
-                      const sizeStock = sizeVariant ? sizeVariant.stock : product.stock;
+                      const sizeStock = sizeVariant ? sizeVariant.stock : (hasVariants ? 0 : product.stock);
                       const isSizeSoldOut = sizeStock <= 0;
+                      const isSizeSelected = selectedSize === size;
 
                       return (
                         <button
                           key={size}
                           type="button"
                           onClick={() => setSelectedSize(size)}
-                          className={`min-w-12 h-11 px-3.5 rounded-xl text-xs font-bold transition-all relative ${
-                            selectedSize === size
+                          className={`min-w-14 h-12 px-3 rounded-xl text-xs font-bold transition-all relative flex flex-col items-center justify-center ${
+                            isSizeSelected
                               ? isSizeSoldOut
                                 ? 'bg-red-50 text-red-700 border-2 border-red-400'
-                                : 'bg-primary text-white shadow-md border-2 border-primary'
+                                : 'bg-primary text-white shadow-md border-2 border-primary ring-2 ring-primary/20'
                               : isSizeSoldOut
-                              ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 line-through'
-                              : 'bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-400'
+                              ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 opacity-60'
+                              : 'bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-400 hover:shadow-xs'
                           }`}
                         >
-                          <span>{size}</span>
-                          {isSizeSoldOut && (
-                            <span className="block text-[8px] font-normal no-underline text-red-500 -mt-1">
+                          <span className={isSizeSoldOut ? 'line-through text-neutral-400' : ''}>{size}</span>
+                          {isSizeSoldOut ? (
+                            <span className="block text-[8px] font-bold text-red-600 no-underline leading-none mt-0.5">
                               Sold Out
+                            </span>
+                          ) : sizeStock <= 3 ? (
+                            <span className={`block text-[8px] font-bold leading-none mt-0.5 ${
+                              isSizeSelected ? 'text-amber-200' : 'text-amber-600'
+                            }`}>
+                              {sizeStock} left
+                            </span>
+                          ) : (
+                            <span className={`block text-[8px] font-medium leading-none mt-0.5 ${
+                              isSizeSelected ? 'text-accent-200' : 'text-neutral-400'
+                            }`}>
+                              {sizeStock} in stock
                             </span>
                           )}
                         </button>
@@ -465,19 +511,30 @@ const ProductDetail = () => {
               {/* Dynamic Variant Stock Status Indicator */}
               <div className="pt-2">
                 {isOutOfStock ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-neutral-900 text-white shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    Currently Out of Stock in this combination
-                  </span>
+                  <div className="p-3.5 rounded-2xl bg-red-50/90 border border-red-200 text-red-900 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 animate-ping" />
+                      <span className="text-xs font-bold">
+                        Out of Stock in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize || 'this selection'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotifyModalOpen(true)}
+                      className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-xs whitespace-nowrap"
+                    >
+                      {isWaitlisted ? 'Waitlisted' : 'Notify Me'}
+                    </button>
+                  </div>
                 ) : currentStock <= 3 ? (
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-xs animate-pulse">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Hurry, Only {currentStock} Left in {selectedColor} {selectedSize}!
+                    Hurry, Only {currentStock} Left in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize}!
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    In Stock & Ready for Dispatch ({currentStock} available)
+                    In Stock & Ready for Dispatch ({currentStock} available in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize})
                   </span>
                 )}
               </div>
