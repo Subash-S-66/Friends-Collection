@@ -84,9 +84,9 @@ const AdminLayout = () => {
         />
       )}
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation - Fixed to viewport so it never scrolls with page */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -173,8 +173,8 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area - Offset by fixed sidebar width on desktop */}
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
         {/* Top Navbar */}
         <header className="bg-white border-b border-neutral-200 py-3.5 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
           <div className="flex items-center gap-3">
