@@ -14,15 +14,31 @@ const orderSchema = new mongoose.Schema({
   orderId: { type: String, unique: true },
   items: [orderItemSchema],
   customer: {
-    name: { type: String, required: true },
-    phone: { type: String, required: true },
+    name: { type: String, required: [true, 'Customer name is required'], trim: true },
+    phone: {
+      type: String,
+      required: [true, 'Customer mobile number is mandatory to place an order'],
+      trim: true,
+      match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit Indian mobile number']
+    },
     secondaryPhone: { type: String, trim: true, default: '' },
-    email: { type: String, required: true, trim: true, lowercase: true },
+    email: {
+      type: String,
+      required: [true, 'Customer email address is mandatory to place an order'],
+      trim: true,
+      lowercase: true,
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email address']
+    },
     address: {
-      street: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      pincode: { type: String, required: true }
+      street: { type: String, required: [true, 'Street address is required'], trim: true },
+      city: { type: String, required: [true, 'City is required'], trim: true },
+      state: { type: String, required: [true, 'State is required'], trim: true },
+      pincode: {
+        type: String,
+        required: [true, 'Postal pincode is required'],
+        trim: true,
+        match: [/^\d{6}$/, 'Please enter a valid 6-digit pincode']
+      }
     }
   },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

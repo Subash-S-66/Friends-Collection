@@ -530,6 +530,10 @@ const Checkout = () => {
     }
   };
 
+  const cleanPhoneInput = (formData.phone || '').toString().replace(/\D/g, '');
+  const isPhoneValid = /^[6-9]\d{9}$/.test(cleanPhoneInput);
+  const isEmailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test((formData.email || '').toString().trim());
+
   return (
     <div className="min-h-screen bg-cream py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -681,8 +685,14 @@ const Checkout = () => {
                     <label className="block text-xs font-bold text-neutral-700">
                       Mobile Number (Mandatory) <span className="text-red-500">*</span>
                     </label>
-                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                      Primary Contact
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                      isPhoneValid
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : formData.phone.length > 0
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      {isPhoneValid ? '✓ 10 Digits Valid' : 'Primary Contact'}
                     </span>
                   </div>
                   <div className="relative">
@@ -695,9 +705,24 @@ const Checkout = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="95007 57024"
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all bg-neutral-50/50 ${
+                        formData.phone.length > 0 && !isPhoneValid
+                          ? 'border-red-400 focus:ring-red-400 focus:border-red-400 bg-red-50/20'
+                          : isPhoneValid
+                          ? 'border-emerald-400 focus:ring-emerald-400 focus:border-emerald-400 bg-emerald-50/10'
+                          : 'border-accent-200 focus:ring-primary focus:border-transparent'
+                      }`}
                     />
                   </div>
+                  {formData.phone.length > 0 && !isPhoneValid ? (
+                    <p className="text-[11px] text-red-600 font-medium mt-1">
+                      Must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 ({cleanPhoneInput.length}/10 digits).
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      Required for order dispatch SMS alerts and delivery verification.
+                    </p>
+                  )}
                 </div>
 
                 {/* Option for 2nd Number */}
@@ -732,8 +757,14 @@ const Checkout = () => {
                     <label className="block text-xs font-bold text-neutral-700">
                       Email Address (Mandatory) <span className="text-red-500">*</span>
                     </label>
-                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                      Receipt & Tax Invoice
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                      isEmailValid
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : formData.email.length > 0
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      {isEmailValid ? '✓ Verified Format' : 'Receipt & Tax Invoice'}
                     </span>
                   </div>
                   <input
@@ -743,11 +774,23 @@ const Checkout = () => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="priya@example.com"
-                    className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all bg-neutral-50/50 ${
+                      formData.email.length > 0 && !isEmailValid
+                        ? 'border-red-400 focus:ring-red-400 focus:border-red-400 bg-red-50/20'
+                        : isEmailValid
+                        ? 'border-emerald-400 focus:ring-emerald-400 focus:border-emerald-400 bg-emerald-50/10'
+                        : 'border-accent-200 focus:ring-primary focus:border-transparent'
+                    }`}
                   />
-                  <p className="text-[11px] text-neutral-400 mt-1">
-                    Your official order confirmation & PDF tax invoice will be delivered here.
-                  </p>
+                  {formData.email.length > 0 && !isEmailValid ? (
+                    <p className="text-[11px] text-red-600 font-medium mt-1">
+                      Please enter a valid email format (e.g. name@domain.com) to receive your invoice.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      Your official order confirmation & PDF tax invoice will be delivered here.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1078,6 +1121,13 @@ const Checkout = () => {
                 </>
               )}
             </button>
+
+            {(!isPhoneValid || !isEmailValid) && (
+              <p className="text-center text-[11px] font-semibold text-amber-800 bg-amber-50 py-2 px-3 rounded-xl border border-amber-200/80 flex items-center justify-center gap-1.5">
+                <HiOutlineExclamationCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Valid 10-digit mobile number and email address are required to place order.</span>
+              </p>
+            )}
 
             <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-500 pt-2">
               <HiOutlineShieldCheck className="w-4 h-4 text-emerald-600" />

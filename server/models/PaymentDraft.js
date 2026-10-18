@@ -19,10 +19,21 @@ const paymentDraftSchema = new mongoose.Schema({
   },
   items: [paymentDraftItemSchema],
   customer: {
-    name: { type: String, required: true },
-    phone: { type: String, required: true },
+    name: { type: String, required: [true, 'Customer name is required'], trim: true },
+    phone: {
+      type: String,
+      required: [true, 'Customer mobile number is mandatory to place an order'],
+      trim: true,
+      match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit Indian mobile number']
+    },
     secondaryPhone: { type: String, default: '' },
-    email: { type: String, required: true, trim: true, lowercase: true },
+    email: {
+      type: String,
+      required: [true, 'Customer email address is mandatory to place an order'],
+      trim: true,
+      lowercase: true,
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email address']
+    },
     address: {
       street: { type: String, required: true },
       city: { type: String, required: true },

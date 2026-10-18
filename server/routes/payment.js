@@ -548,6 +548,10 @@ router.post('/webhook', async (req, res) => {
               );
             }
 
+            if (draft.user) {
+              await User.findByIdAndUpdate(draft.user, { $set: { cart: [] } }).catch(() => {});
+            }
+
             draft.status = 'completed';
             await draft.save();
 
