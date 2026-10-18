@@ -4,63 +4,103 @@ const User = require('../models/User');
 /**
  * Checks live database stock for each cart item and enriches it
  */
+/**
+ * Checks live database stock for each cart item in a SINGLE batch query and enriches it
+ */
 const enrichItemsWithLiveStock = async (items) => {
-  if (!Array.isArray(items)) return [];
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  const norm = (s) => (s || '').toString().trim().toLowerCase();
+
+  // Extract unique valid product ObjectIds
+  const prodIds = Array.from(
+    new Set(
+      items
+        .map((i) => (i.product?._id || i.product || '').toString())
+        .filter((id) => id && id.length === 24)
+    )
+  );
+
+  let productMap = new Map();
+  if (prodIds.length > 0) {
+    try {
+      const prods = await Product.find({ _id: { $in: prodIds } }).lean();
+      prods.forEach((p) => {
+        productMap.set(p._id.toString(), p);
+      });
+    } catch (err) {
+      console.warn('Error batch fetching products for cart:', err.message);
+    }
+  }
 
   const enriched = [];
   for (const item of items) {
-    const prodId = item.product?._id || item.product;
+    const prodId = (item.product?._id || item.product || '').toString();
     if (!prodId) continue;
 
-    try {
-      const prod = await Product.findById(prodId).lean();
-      if (!prod) {
-        enriched.push({
-          ...item,
-          product: prodId,
-          stock: 0,
-          isOutOfStock: true,
-          productUnavailable: true
-        });
-        continue;
-      }
-
-      // Check variant specific stock if size or color specified
-      let currentStock = prod.stock !== undefined && prod.stock !== null ? prod.stock : 0;
-      if (prod.variants && prod.variants.length > 0) {
-        const match = prod.variants.find(
-          (v) =>
-            (!item.size || !v.size || v.size.trim().toLowerCase() === (item.size || '').trim().toLowerCase()) &&
-            (!item.color || !v.color || v.color.trim().toLowerCase() === (item.color || '').trim().toLowerCase())
-        );
-        currentStock = match ? match.stock : 0;
-      }
-
-      const isOutOfStock = currentStock <= 0;
-
-      enriched.push({
-        product: prod._id,
-        title: prod.title || item.title || '',
-        price: prod.salePrice || prod.price || item.price || 0,
-        originalPrice: prod.price || item.originalPrice || 0,
-        size: item.size || '',
-        color: item.color || '',
-        quantity: isOutOfStock
-          ? (item.quantity || 1)
-          : Math.min(item.quantity || 1, Math.max(1, currentStock)),
-        image: prod.images?.[0] || item.image || '',
-        slug: prod.slug || item.slug || '',
-        stock: currentStock,
-        isOutOfStock
-      });
-    } catch {
+    const prod = productMap.get(prodId);
+    if (!prod) {
       enriched.push({
         ...item,
         product: prodId,
         stock: 0,
-        isOutOfStock: true
+        isOutOfStock: true,
+        productUnavailable: true
       });
+      continue;
     }
+
+    const targetSize = norm(item.size);
+    const targetColor = norm(item.color);
+
+    // Check variant specific stock if size or color specified
+    let currentStock = prod.stock !== undefined && prod.stock !== null ? Number(prod.stock) : 0;
+    if (prod.variants && prod.variants.length > 0) {
+      // 1. Try matching both size and color
+      let match = prod.variants.find((v) => {
+        const vSize = norm(v.size);
+        const vColor = norm(v.color);
+        return (
+          (!targetSize || !vSize || vSize === targetSize || targetSize.startsWith(vSize)) &&
+          (!targetColor || !vColor || vColor === targetColor)
+        );
+      });
+
+      // 2. If no exact match, try size match only
+      if (!match && targetSize) {
+        match = prod.variants.find((v) => {
+          const vSize = norm(v.size);
+          return vSize && (vSize === targetSize || targetSize.startsWith(vSize));
+        });
+      }
+
+      // 3. If no size match, try color match only
+      if (!match && targetColor) {
+        match = prod.variants.find((v) => norm(v.color) === targetColor);
+      }
+
+      if (match) {
+        currentStock = Number(match.stock) || 0;
+      }
+    }
+
+    const isOutOfStock = currentStock <= 0;
+
+    enriched.push({
+      product: prod._id,
+      title: prod.title || item.title || '',
+      price: prod.salePrice || prod.price || item.price || 0,
+      originalPrice: prod.price || item.originalPrice || 0,
+      size: item.size || '',
+      color: item.color || '',
+      quantity: isOutOfStock
+        ? (item.quantity || 1)
+        : Math.min(item.quantity || 1, Math.max(1, currentStock)),
+      image: prod.images?.[0] || item.image || '',
+      slug: prod.slug || item.slug || '',
+      stock: currentStock,
+      isOutOfStock
+    });
   }
 
   return enriched;
@@ -107,9 +147,13 @@ exports.syncCart = async (req, res, next) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const norm = (s) => (s || '').toString().trim().toLowerCase();
     const existingMap = new Map();
+
     (user.cart || []).forEach((item) => {
-      const key = `${item.product.toString()}_${item.size || ''}_${item.color || ''}`;
+      const prodId = (item.product?._id || item.product || '').toString();
+      if (!prodId) return;
+      const key = `${prodId}__${norm(item.size)}__${norm(item.color)}`;
       existingMap.set(key, item);
     });
 
@@ -117,7 +161,7 @@ exports.syncCart = async (req, res, next) => {
     for (const item of incomingItems) {
       const prodId = (item.product?._id || item.product || '').toString();
       if (!prodId) continue;
-      const key = `${prodId}_${item.size || ''}_${item.color || ''}`;
+      const key = `${prodId}__${norm(item.size)}__${norm(item.color)}`;
 
       if (existingMap.has(key)) {
         const existing = existingMap.get(key);

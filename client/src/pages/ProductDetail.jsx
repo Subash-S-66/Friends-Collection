@@ -199,18 +199,19 @@ const ProductDetail = () => {
     if (product?.gender === 'kids' && customChildSize.trim()) {
       return `${selectedSize || 'Custom'} (${customChildSize.trim()})`;
     }
-    return selectedSize || 'Standard';
+    return selectedSize || (product?.sizes?.[0] || '');
   };
 
   const handleAddToCart = () => {
-    if (isOutOfStock || isProcessing || added) return;
+    if (isOutOfStock) return;
     setIsProcessing(true);
-    addToCart(product, quantity, getFinalSize(), selectedColor);
+    const finalSize = getFinalSize();
+    addToCart(product, quantity, finalSize, selectedColor);
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
       setIsProcessing(false);
-    }, 1500);
+    }, 1000);
   };
 
   const handleBuyNow = () => {
@@ -432,7 +433,11 @@ const ProductDetail = () => {
                         <button
                           key={color}
                           type="button"
-                          onClick={() => setSelectedColor(color)}
+                          onClick={() => {
+                            setSelectedColor(color);
+                            setAdded(false);
+                            setIsProcessing(false);
+                          }}
                           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all relative ${
                             selectedColor === color
                               ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
@@ -487,7 +492,11 @@ const ProductDetail = () => {
                         <button
                           key={size}
                           type="button"
-                          onClick={() => setSelectedSize(size)}
+                          onClick={() => {
+                            setSelectedSize(size);
+                            setAdded(false);
+                            setIsProcessing(false);
+                          }}
                           className={`min-w-14 h-12 px-3 rounded-xl text-xs font-bold transition-all relative flex flex-col items-center justify-center ${
                             isSizeSelected
                               ? isSizeSoldOut

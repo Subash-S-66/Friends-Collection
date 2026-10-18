@@ -48,11 +48,6 @@ const CartDrawer = () => {
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
   const remainingForFree = freeShippingThreshold - subtotal;
 
-  useEffect(() => {
-    if (isCartOpen) {
-      refreshCartStock();
-    }
-  }, [isCartOpen, refreshCartStock]);
 
   return (
     <AnimatePresence>

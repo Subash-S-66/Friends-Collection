@@ -22,10 +22,16 @@ async function getEffectiveAvailableStock(productId, size = '', color = '', excl
   const product = await Product.findById(productId);
   if (!product) return 0;
 
+  const norm = (s) => (s || '').toString().trim().toLowerCase();
+  const targetSize = norm(size);
+  const targetColor = norm(color);
+
   let baseStock = Number(product.stock) || 0;
   if (product.variants && product.variants.length > 0) {
     const v = product.variants.find(
-      (v) => (!size || v.size === size) && (!color || v.color === color)
+      (v) =>
+        (!targetSize || !v.size || norm(v.size) === targetSize || targetSize.startsWith(norm(v.size))) &&
+        (!targetColor || !v.color || norm(v.color) === targetColor)
     );
     if (v) baseStock = Number(v.stock) || 0;
   }
@@ -251,8 +257,12 @@ exports.placeOrder = async (req, res, next) => {
       // Decrease stock by item.quantity (e.g. -1 for 1 item, -2 for 2 items)
       product.stock = Math.max(0, product.stock - item.quantity);
       if (product.variants && product.variants.length > 0) {
+        const itemSize = norm(item.size);
+        const itemColor = norm(item.color);
         const vIndex = product.variants.findIndex(
-          (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
+          (v) =>
+            (!itemSize || !v.size || norm(v.size) === itemSize || itemSize.startsWith(norm(v.size))) &&
+            (!itemColor || !v.color || norm(v.color) === itemColor)
         );
         if (vIndex >= 0) {
           product.variants[vIndex].stock = Math.max(0, product.variants[vIndex].stock - item.quantity);

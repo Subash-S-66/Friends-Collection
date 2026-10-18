@@ -10,6 +10,15 @@ export const useCart = () => useContext(CartContext);
 const CART_KEY = 'fc_cart';
 const ADDRESS_KEY = 'fc_saved_address';
 
+const norm = (s) => (s || '').toString().trim().toLowerCase();
+
+const isSameCartItem = (a, b) => {
+  const prodA = String(a.product?._id || a.product || '');
+  const prodB = String(b.product?._id || b.product || '');
+  if (!prodA || prodA !== prodB) return false;
+  return norm(a.size) === norm(b.size) && norm(a.color) === norm(b.color);
+};
+
 export const CartProvider = ({ children }) => {
   const { user } = useAuth();
   const [items, setItems] = useState(() => {
@@ -23,9 +32,15 @@ export const CartProvider = ({ children }) => {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const isInitialSyncRef = useRef(false);
+  const syncTimerRef = useRef(null);
+  const latestItemsRef = useRef(items);
 
-  // Helper to persist to localStorage
+  // Keep latestItemsRef synchronized
+  useEffect(() => {
+    latestItemsRef.current = items;
+  }, [items]);
+
+  // Helper to persist to localStorage immediately
   const saveToLocal = (cartItems) => {
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
@@ -55,7 +70,7 @@ export const CartProvider = ({ children }) => {
           if (Array.isArray(res.data?.items)) {
             setItems(res.data.items);
             saveToLocal(res.data.items);
-            isInitialSyncRef.current = true;
+            latestItemsRef.current = res.data.items;
           }
         })
         .catch((err) => {
@@ -68,29 +83,62 @@ export const CartProvider = ({ children }) => {
       return () => {
         isMounted = false;
       };
-    } else {
-      isInitialSyncRef.current = false;
     }
   }, [user?._id]);
 
-  // Sync back to cloud whenever items change (and user is logged in)
+  // Sync back to cloud with debouncing (350ms) to prevent competing requests on rapid clicks
   const syncToCloud = useCallback((updatedItems) => {
     saveToLocal(updatedItems);
-    if (user && user._id) {
-      API.put('/cart', { items: updatedItems }).catch((err) => {
-        console.warn('Background cloud cart update error:', err);
-      });
+    latestItemsRef.current = updatedItems;
+
+    if (!user || !user._id) return;
+
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
     }
+
+    syncTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await API.put('/cart', { items: updatedItems });
+        // Only adopt server items if no newer local changes have happened during the request
+        if (Array.isArray(res.data?.items) && latestItemsRef.current === updatedItems) {
+          setItems(res.data.items);
+          saveToLocal(res.data.items);
+          latestItemsRef.current = res.data.items;
+        }
+      } catch (err) {
+        console.warn('Background cloud cart update error:', err);
+      }
+    }, 350);
   }, [user]);
 
-  // Refresh live stock validation for all items currently in cart
+  // Refresh live stock validation without clobbering uncommitted local items
   const refreshCartStock = useCallback(async () => {
     if (user && user._id) {
       try {
         const res = await API.get('/cart');
         if (Array.isArray(res.data?.items)) {
-          setItems(res.data.items);
-          saveToLocal(res.data.items);
+          const serverItems = res.data.items;
+          const currentLocal = latestItemsRef.current;
+
+          // Merge: update live stock & prices for existing items, but NEVER delete items that exist locally!
+          const merged = currentLocal.map((localItem) => {
+            const serverMatch = serverItems.find((s) => isSameCartItem(s, localItem));
+            if (serverMatch) {
+              return {
+                ...localItem,
+                stock: serverMatch.stock,
+                isOutOfStock: serverMatch.isOutOfStock,
+                price: serverMatch.price,
+                title: serverMatch.title || localItem.title
+              };
+            }
+            return localItem;
+          });
+
+          setItems(merged);
+          saveToLocal(merged);
+          latestItemsRef.current = merged;
         }
       } catch (e) {
         console.warn('Error refreshing cloud cart stock:', e);
@@ -101,33 +149,61 @@ export const CartProvider = ({ children }) => {
   const addToCart = useCallback((product, quantity = 1, size = '', color = '') => {
     if (!product) return false;
 
-    // Derive variant-specific or general stock
-    let itemStock = product.stock !== undefined && product.stock !== null ? product.stock : 99;
+    const cleanSize = (size || '').toString().trim();
+    const cleanColor = (color || '').toString().trim();
+    const targetSize = norm(cleanSize);
+    const targetColor = norm(cleanColor);
+
+    // Derive variant-specific stock with graceful fallbacks
+    let itemStock = product.stock !== undefined && product.stock !== null ? Number(product.stock) : 99;
     if (product.variants && product.variants.length > 0) {
-      const match = product.variants.find(
-        (v) =>
-          (!size || !v.size || v.size.toLowerCase() === size.toLowerCase()) &&
-          (!color || !v.color || v.color.toLowerCase() === color.toLowerCase())
-      );
-      itemStock = match ? match.stock : 0;
+      // 1. Exact match (size + color)
+      let match = product.variants.find((v) => {
+        const vSize = norm(v.size);
+        const vColor = norm(v.color);
+        return (
+          (!targetSize || !vSize || vSize === targetSize || targetSize.startsWith(vSize)) &&
+          (!targetColor || !vColor || vColor === targetColor)
+        );
+      });
+
+      // 2. Match size only
+      if (!match && targetSize) {
+        match = product.variants.find((v) => {
+          const vSize = norm(v.size);
+          return vSize && (vSize === targetSize || targetSize.startsWith(vSize));
+        });
+      }
+
+      // 3. Match color only
+      if (!match && targetColor) {
+        match = product.variants.find((v) => norm(v.color) === targetColor);
+      }
+
+      if (match) {
+        itemStock = Number(match.stock) || 0;
+      }
     }
 
-    // Amazon/Flipkart strict check: Do not add if out of stock
+    // Do not add if strictly out of stock
     if (itemStock <= 0) {
-      toast.error('Sorry, this dress is currently out of stock!', {
+      toast.error('Sorry, this variant is currently out of stock!', {
         icon: '⚠️',
         duration: 3500
       });
       return false;
     }
 
+    const prodId = String(product._id || product);
+    const targetItem = {
+      product: prodId,
+      size: cleanSize,
+      color: cleanColor
+    };
+
     setItems((prev) => {
-      const existingIndex = prev.findIndex(
-        (item) =>
-          (item.product === product._id || item.product?._id === product._id) &&
-          item.size === size &&
-          item.color === color
-      );
+      // Find existing item by exact product ID + size + color
+      const existingIndex = prev.findIndex((item) => isSameCartItem(item, targetItem));
 
       let nextItems;
       if (existingIndex >= 0) {
@@ -147,15 +223,16 @@ export const CartProvider = ({ children }) => {
           quantity: Math.min(itemStock, currentQty + quantity)
         };
       } else {
+        // Distinct size, distinct color, or new product -> add as separate line item!
         nextItems = [
           ...prev,
           {
-            product: product._id,
+            product: prodId,
             title: product.title,
             price: product.salePrice || product.price,
             originalPrice: product.price,
-            size,
-            color,
+            size: cleanSize,
+            color: cleanColor,
             quantity: Math.min(itemStock, quantity),
             image: product.images?.[0] || '',
             slug: product.slug,
@@ -169,6 +246,7 @@ export const CartProvider = ({ children }) => {
       return nextItems;
     });
 
+    // Open shopping bag immediately in 0ms
     setIsCartOpen(true);
     return true;
   }, [syncToCloud]);
@@ -181,7 +259,7 @@ export const CartProvider = ({ children }) => {
 
       const maxStock =
         updated[index].stock !== undefined && updated[index].stock !== null
-          ? updated[index].stock
+          ? Number(updated[index].stock)
           : 99;
 
       if (maxStock <= 0) {
@@ -210,6 +288,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = useCallback(() => {
     setItems([]);
     saveToLocal([]);
+    latestItemsRef.current = [];
     try {
       localStorage.removeItem(CART_KEY);
     } catch (e) {
@@ -231,7 +310,7 @@ export const CartProvider = ({ children }) => {
   const outOfStockCount = outOfStockItems.length;
   const hasOutOfStockItems = outOfStockCount > 0;
 
-  // Subtotal and total count include ONLY available in-stock items (Amazon/Flipkart rule)
+  // Subtotal and total count include ONLY available in-stock items
   const totalItems = availableItems.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = availableItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
