@@ -621,36 +621,6 @@ const Checkout = () => {
           </p>
         </div>
 
-        {/* 10-Minute Stock Reservation Banner */}
-        {holdState.active && (
-          <div className="mb-8 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-amber-500/10 border border-amber-300/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md animate-pulse">
-                <HiOutlineClock className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-serif font-bold text-sm sm:text-base text-neutral-900">
-                    Stock Reserved for You
-                  </h4>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                    10-Min Hold Active
-                  </span>
-                </div>
-                <p className="text-xs text-neutral-600 mt-0.5">
-                  We are temporarily holding your {items.length === 1 ? 'item' : 'items'} so no other customer can buy it out from under you while you enter your delivery address.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-2xl border border-amber-200 shadow-xs shrink-0 self-start sm:self-center">
-              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Hold Expires In:</span>
-              <span className="font-mono text-xl font-black text-primary tracking-wider">
-                {formatTimer(holdState.remainingSeconds)}
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Conflict / Already Reserved Banner */}
         {holdState.conflict && (
