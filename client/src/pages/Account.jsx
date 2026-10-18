@@ -666,9 +666,10 @@ const Account = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-red-600 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer shadow-2xs"
+                title="Sign Out of account"
               >
-                <HiOutlineLogout className="w-4 h-4" />
+                <HiOutlineLogout className="w-4 h-4 text-red-500" />
                 <span>Sign Out</span>
               </button>
             </div>
@@ -753,6 +754,18 @@ const Account = () => {
                 {activeTab === 'address' && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
                 )}
+              </button>
+            )}
+
+            {user && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs mb-1"
+                title="Sign Out of account"
+              >
+                <HiOutlineLogout className="w-3.5 h-3.5 text-red-500" />
+                <span>Logout</span>
               </button>
             )}
           </div>

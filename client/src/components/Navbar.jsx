@@ -11,8 +11,10 @@ import {
   HiChevronUp,
   HiOutlineArrowNarrowRight,
   HiOutlineSparkles,
-  HiOutlineChevronRight
+  HiOutlineChevronRight,
+  HiOutlineLogout
 } from 'react-icons/hi';
+import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
@@ -38,9 +40,29 @@ const Navbar = () => {
   const [mobileExpandedCat, setMobileExpandedCat] = useState(null);
 
   const { totalItems, setIsCartOpen } = useCart();
-  const { user, isAdmin, openAuthModal } = useAuth();
+  const { user, isAdmin, openAuthModal, logout } = useAuth();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Close user dropdown on outside click
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+    toast.success('Signed out successfully.');
+    navigate('/');
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -295,15 +317,94 @@ const Navbar = () => {
 
               {/* User Account / Sign In Popup */}
               {user ? (
-                <Link
-                  to={isAdmin ? '/admin' : '/account'}
-                  className="p-2 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative"
-                  aria-label="User Account"
-                  title={`Logged in as ${user.name}`}
-                >
-                  <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="absolute bottom-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
-                </Link>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="relative" ref={userMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="p-2 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative cursor-pointer flex items-center justify-center"
+                      aria-label="User Account Menu"
+                      title={`Logged in as ${user.name}`}
+                    >
+                      <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <span className="absolute bottom-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    <AnimatePresence>
+                      {userMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-accent-100 py-2 z-50 overflow-hidden text-left"
+                        >
+                          <div className="px-4 py-3 border-b border-neutral-100 bg-cream/40">
+                            <p className="text-xs font-bold text-neutral-900 truncate">{user.name}</p>
+                            <p className="text-[11px] text-neutral-500 truncate">{user.email}</p>
+                            {user.phone && (
+                              <p className="text-[10px] text-neutral-400 font-mono mt-0.5">+91 {user.phone}</p>
+                            )}
+                          </div>
+
+                          <div className="py-1">
+                            <Link
+                              to="/account"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-accent-50 hover:text-primary transition-colors"
+                            >
+                              <span>🛍️</span>
+                              <span>My Orders & Live Tracking</span>
+                            </Link>
+
+                            <Link
+                              to="/account?tab=address"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-accent-50 hover:text-primary transition-colors"
+                            >
+                              <span>📍</span>
+                              <span>Saved Addresses</span>
+                            </Link>
+
+                            {isAdmin && (
+                              <Link
+                                to="/admin"
+                                onClick={() => setUserMenuOpen(false)}
+                                className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-primary hover:bg-primary-50 transition-colors"
+                              >
+                                <span>⚙️</span>
+                                <span>Admin Dashboard</span>
+                              </Link>
+                            )}
+                          </div>
+
+                          <div className="pt-1 border-t border-neutral-100">
+                            <button
+                              type="button"
+                              onClick={handleLogout}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left"
+                            >
+                              <HiOutlineLogout className="w-4 h-4 text-red-500" />
+                              <span>Sign Out / Logout</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Direct 1-Click Logout Button on Desktop */}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer shadow-2xs"
+                    title="Sign Out / Logout"
+                  >
+                    <HiOutlineLogout className="w-3.5 h-3.5 text-red-500" />
+                    <span>Logout</span>
+                  </button>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link
@@ -752,25 +853,36 @@ const Navbar = () => {
                 </Link>
 
                 {user ? (
-                  <>
-                    <div className="px-3 pt-2 text-[11px] font-bold text-accent-700 uppercase tracking-wider">
+                  <div className="space-y-1.5 pt-2">
+                    <div className="px-3 text-[11px] font-bold text-accent-700 uppercase tracking-wider">
                       Signed in as {user.name}
                     </div>
                     <Link
                       to="/account"
                       onClick={() => setMobileOpen(false)}
-                      className="block px-3 py-2 rounded-lg text-xs text-neutral-700 hover:bg-accent-100/60"
+                      className="block px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-accent-100/60"
                     >
                       My Profile & Saved Address
                     </Link>
                     <Link
                       to="/account/orders"
                       onClick={() => setMobileOpen(false)}
-                      className="block px-3 py-2 rounded-lg text-xs text-neutral-700 hover:bg-accent-100/60"
+                      className="block px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-accent-100/60"
                     >
                       My Orders
                     </Link>
-                  </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer mt-1"
+                    >
+                      <HiOutlineLogout className="w-4 h-4 text-red-500" />
+                      <span>Sign Out / Logout</span>
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     <Link
