@@ -56,13 +56,13 @@ const AppLayout = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className={`flex flex-col ${isAdminRoute ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
       {!isAdminRoute && <Navbar />}
       <CartDrawer />
       <AuthModal />
       <DynamicAlertModal />
 
-      <div className="flex-1">
+      <div className={`flex-1 ${isAdminRoute ? 'h-full overflow-hidden' : ''}`}>
         <Routes>
           {/* Storefront Routes */}
           <Route path="/" element={<Home />} />

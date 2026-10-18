@@ -77,7 +77,7 @@ const AdminLayout = () => {
   const allNavItems = navSections.flatMap((s) => s.items);
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
+    <div className="h-screen w-full bg-neutral-50 flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -86,14 +86,14 @@ const AdminLayout = () => {
         />
       )}
 
-      {/* Sidebar Navigation - Fixed to viewport so it never scrolls with page */}
+      {/* Sidebar Navigation - Rigid pinned column on desktop, sliding drawer on mobile */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 h-full ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand Header */}
-        <div className="p-5 border-b border-primary-900 flex items-center justify-between">
+        {/* Brand Header - Pinned at top of sidebar */}
+        <div className="shrink-0 p-5 border-b border-primary-900 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <img src="/logo.png" alt="FC" className="w-10 h-10 rounded-full bg-cream p-0.5 object-cover shadow-sm" />
             <div>
@@ -105,14 +105,14 @@ const AdminLayout = () => {
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-primary-900"
+            className="lg:hidden p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-primary-900 cursor-pointer"
           >
             <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Sectioned Navigation Links */}
-        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+        {/* Sectioned Navigation Links - Scrolls independently if links exceed vertical viewport */}
+        <nav className="flex-1 p-4 space-y-6 overflow-y-auto overscroll-contain">
           {navSections.map((section) => (
             <div key={section.title} className="space-y-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 block">
@@ -156,8 +156,8 @@ const AdminLayout = () => {
           ))}
         </nav>
 
-        {/* Storefront Link & Logout */}
-        <div className="p-4 border-t border-primary-900 space-y-2">
+        {/* Storefront Link & Logout - Pinned at bottom of sidebar */}
+        <div className="shrink-0 p-4 border-t border-primary-900 space-y-2">
           <Link
             to="/"
             target="_blank"
@@ -171,7 +171,7 @@ const AdminLayout = () => {
               logout();
               navigate('/login');
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors cursor-pointer"
           >
             <HiOutlineLogout className="w-4 h-4" />
             <span>Sign Out</span>
@@ -179,14 +179,14 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* Main Content Area - Offset by fixed sidebar width on desktop */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
-        {/* Top Navbar */}
-        <header className="bg-white border-b border-neutral-200 py-3.5 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      {/* Main Content Area - Full height column with independent scrolling content */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Navbar - Pinned at top, never scrolls */}
+        <header className="shrink-0 bg-white border-b border-neutral-200 py-3.5 px-4 sm:px-8 flex items-center justify-between shadow-xs z-30">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-neutral-600 hover:bg-neutral-100"
+              className="lg:hidden p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 cursor-pointer"
             >
               <HiOutlineMenu className="w-6 h-6" />
             </button>
@@ -208,8 +208,8 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        {/* Dynamic Nested Page Content */}
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
+        {/* Dynamic Nested Page Content - ONLY this area scrolls smoothly */}
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto overscroll-contain">
           <Outlet />
         </main>
       </div>
