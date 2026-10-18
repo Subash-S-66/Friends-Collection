@@ -151,13 +151,13 @@ const Home = () => {
 
             {/* Right Column: Branded Visual Showcase */}
             <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/30 overflow-hidden flex items-center justify-center">
+              <div className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group hover:border-accent-300/70 transition-all duration-500">
                 {currentBanner?.image ? (
                   <img
                     src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
                     alt={currentBanner.title || 'Friends Collections'}
                     onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                    className="w-full h-full object-cover rounded-2xl shadow-inner"
+                    className="w-full h-full object-cover rounded-2xl shadow-inner group-hover:scale-102 transition-transform duration-700 ease-out"
                   />
                 ) : (
                   <img
@@ -166,6 +166,8 @@ const Home = () => {
                     className="w-full h-full object-contain bg-white rounded-2xl p-6 shadow-inner"
                   />
                 )}
+                {/* Subtle luxury inner glow */}
+                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20 pointer-events-none" />
               </div>
             </div>
           </div>
