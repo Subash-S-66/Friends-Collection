@@ -67,7 +67,8 @@ async function generateInvoicePdf(order, customSettings = null) {
     try {
       const doc = new PDFDocument({
         size: 'A4',
-        margin: 36,
+        margin: 32,
+        bufferPages: true,
         info: {
           Title: `${cfg.invoiceTitle || 'Tax Invoice'} - ${order.orderId}`,
           Author: cfg.companyName || 'Friends Collections',
@@ -101,246 +102,291 @@ async function generateInvoicePdf(order, customSettings = null) {
       const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
 
       // ==========================================
-      // 1. TOP HEADER BANNER
+      // 1. TOP HEADER BANNER (Page 1)
       // ==========================================
-      doc.rect(0, 0, doc.page.width, 102).fill(PRIMARY);
+      doc.rect(0, 0, doc.page.width, 92).fill(PRIMARY);
 
       // Store Title
       doc.fillColor('#FFFFFF')
         .font('Helvetica-Bold')
-        .fontSize(22)
-        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), 36, 24, { characterSpacing: 1.2 });
+        .fontSize(20)
+        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), 32, 18, { characterSpacing: 1.2 });
 
       // Tagline
       doc.fillColor('#E2BFB3')
         .font('Helvetica')
-        .fontSize(8.5)
-        .text((cfg.tagline || 'LUXURY ETHNIC & CONTEMPORARY WEAR').toUpperCase(), 36, 50, { characterSpacing: 0.8 });
+        .fontSize(8)
+        .text((cfg.tagline || 'LUXURY ETHNIC & CONTEMPORARY WEAR').toUpperCase(), 32, 42, { characterSpacing: 0.8 });
 
       // Contact & Address
-      const contactLine = `${cfg.address || '7/4 Perambur High Road, Jamalia, Chennai'} | Phone: ${cfg.phone || '+91 95007 57024'}`;
+      const contactLine = `${cfg.address || '7/4 Perambur High Road, Jamalia, Chennai – 600012'} | Phone: ${cfg.phone || '+91 95007 57024'}`;
       doc.fillColor('#F5EDE4')
         .font('Helvetica')
-        .fontSize(8)
-        .text(contactLine, 36, 66, { width: doc.page.width - 240 });
+        .fontSize(7.5)
+        .text(contactLine, 32, 55, { width: doc.page.width - 230 });
 
       if (cfg.email) {
         doc.fillColor('#E2BFB3')
           .font('Helvetica')
-          .fontSize(7.5)
-          .text(`Email: ${cfg.email}`, 36, 80);
+          .fontSize(7)
+          .text(`Email: ${cfg.email}`, 32, 68);
       }
 
       // Invoice Badge on Top Right
-      doc.rect(doc.page.width - 190, 22, 154, 58).fillAndStroke('#2E060C', ACCENT);
+      doc.rect(doc.page.width - 190, 16, 158, 60).fillAndStroke('#2E060C', ACCENT);
       const shortTitle = (cfg.invoiceTitle || 'TAX INVOICE').split('&')[0].trim();
       doc.fillColor('#FFFFFF')
         .font('Helvetica-Bold')
-        .fontSize(9.5)
-        .text(shortTitle, doc.page.width - 180, 30, { align: 'center', width: 134 });
+        .fontSize(9)
+        .text(shortTitle, doc.page.width - 180, 23, { align: 'center', width: 138 });
 
       doc.fillColor('#D4AF37')
         .font('Helvetica-Bold')
-        .fontSize(11)
-        .text(order.orderId || 'FC-ORDER', doc.page.width - 180, 45, { align: 'center', width: 134 });
+        .fontSize(10.5)
+        .text(order.orderId || 'FC-ORDER', doc.page.width - 180, 38, { align: 'center', width: 138 });
 
       if (cfg.gstin) {
         doc.fillColor('#E2BFB3')
           .font('Helvetica')
           .fontSize(7.5)
-          .text(`GSTIN: ${cfg.gstin}`, doc.page.width - 180, 62, { align: 'center', width: 134 });
+          .text(`GSTIN: ${cfg.gstin}`, doc.page.width - 180, 54, { align: 'center', width: 138 });
       }
 
       // ==========================================
       // 2. METADATA CARDS (Bill To & Order Details)
       // ==========================================
-      const boxY = 118;
-      const boxHeight = 116;
-      const boxWidth = (doc.page.width - 72 - 14) / 2;
+      const boxY = 104;
+      const boxHeight = 104;
+      const boxWidth = (doc.page.width - 64 - 14) / 2;
 
       // Left Box: Delivery Address
-      doc.roundedRect(36, boxY, boxWidth, boxHeight, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
+      doc.roundedRect(32, boxY, boxWidth, boxHeight, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
-        .fontSize(9.5)
-        .text('BILLED & DELIVERED TO:', 48, boxY + 12);
+        .fontSize(9)
+        .text('BILLED & DELIVERED TO:', 44, boxY + 10);
 
       const customer = order.customer || {};
       const addr = customer.address || {};
 
       doc.fillColor(DARK)
         .font('Helvetica-Bold')
-        .fontSize(10)
-        .text(customer.name || 'Valued Customer', 48, boxY + 28);
+        .fontSize(9.5)
+        .text(customer.name || 'Valued Customer', 44, boxY + 24);
 
       doc.fillColor(MUTED)
         .font('Helvetica')
-        .fontSize(8.5)
-        .text(addr.street || '', 48, boxY + 43, { width: boxWidth - 24 })
-        .text(`${addr.city || 'Chennai'}, ${addr.state || 'Tamil Nadu'} - ${addr.pincode || ''}`, 48, boxY + 57)
-        .text(`Primary Phone: +91 ${customer.phone || ''}`, 48, boxY + 72);
+        .fontSize(8)
+        .text(addr.street || '', 44, boxY + 38, { width: boxWidth - 24 })
+        .text(`${addr.city || 'Chennai'}, ${addr.state || 'Tamil Nadu'} - ${addr.pincode || ''}`, 44, boxY + 50)
+        .text(`Primary Phone: +91 ${customer.phone || ''}`, 44, boxY + 63);
 
       if (customer.secondaryPhone) {
-        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 48, boxY + 86);
+        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 76);
       } else if (customer.email) {
-        doc.text(`Email: ${customer.email}`, 48, boxY + 86);
+        doc.text(`Email: ${customer.email}`, 44, boxY + 76);
       }
 
       // Right Box: Order & Payment Info
-      const rightBoxX = 36 + boxWidth + 14;
+      const rightBoxX = 32 + boxWidth + 14;
       doc.roundedRect(rightBoxX, boxY, boxWidth, boxHeight, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
 
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
-        .fontSize(9.5)
-        .text('ORDER & PAYMENT DETAILS:', rightBoxX + 12, boxY + 12);
+        .fontSize(9)
+        .text('ORDER & PAYMENT DETAILS:', rightBoxX + 12, boxY + 10);
 
-      doc.fillColor(MUTED).font('Helvetica').fontSize(8.5);
-      doc.text('Order Date:', rightBoxX + 12, boxY + 28);
-      doc.fillColor(DARK).font('Helvetica-Bold').text(orderDate, rightBoxX + 90, boxY + 28);
+      doc.fillColor(MUTED).font('Helvetica').fontSize(8);
+      doc.text('Order Date:', rightBoxX + 12, boxY + 24);
+      doc.fillColor(DARK).font('Helvetica-Bold').text(orderDate, rightBoxX + 88, boxY + 24);
 
-      doc.fillColor(MUTED).font('Helvetica').text('Expected Date:', rightBoxX + 12, boxY + 43);
-      doc.fillColor(GREEN).font('Helvetica-Bold').text(deliveryRange, rightBoxX + 90, boxY + 43);
+      doc.fillColor(MUTED).font('Helvetica').text('Expected Date:', rightBoxX + 12, boxY + 38);
+      doc.fillColor(GREEN).font('Helvetica-Bold').text(deliveryRange, rightBoxX + 88, boxY + 38);
 
-      doc.fillColor(MUTED).font('Helvetica').text('Payment Method:', rightBoxX + 12, boxY + 58);
+      doc.fillColor(MUTED).font('Helvetica').text('Payment Method:', rightBoxX + 12, boxY + 51);
       const methodLabel = order.paymentMethod === 'razorpay' ? 'Razorpay Online' : 'Cash on Delivery (COD)';
-      doc.fillColor(DARK).font('Helvetica-Bold').text(methodLabel, rightBoxX + 90, boxY + 58);
+      doc.fillColor(DARK).font('Helvetica-Bold').text(methodLabel, rightBoxX + 88, boxY + 51);
 
-      doc.fillColor(MUTED).font('Helvetica').text('Payment Status:', rightBoxX + 12, boxY + 73);
+      doc.fillColor(MUTED).font('Helvetica').text('Payment Status:', rightBoxX + 12, boxY + 64);
       const statusLabel = isPaid ? 'PAID / CONFIRMED' : 'PAYMENT PENDING';
-      doc.fillColor(isPaid ? GREEN : '#C05621').font('Helvetica-Bold').text(statusLabel, rightBoxX + 90, boxY + 73);
+      doc.fillColor(isPaid ? GREEN : '#C05621').font('Helvetica-Bold').text(statusLabel, rightBoxX + 88, boxY + 64);
 
       if (order.paymentDetails?.razorpayPaymentId) {
-        doc.fillColor(MUTED).font('Helvetica').text('Transaction ID:', rightBoxX + 12, boxY + 88);
-        doc.fillColor(DARK).font('Helvetica').text(order.paymentDetails.razorpayPaymentId, rightBoxX + 90, boxY + 88);
+        doc.fillColor(MUTED).font('Helvetica').text('Transaction ID:', rightBoxX + 12, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').text(order.paymentDetails.razorpayPaymentId, rightBoxX + 88, boxY + 77);
       } else {
-        doc.fillColor(MUTED).font('Helvetica').text('Fulfillment:', rightBoxX + 12, boxY + 88);
-        doc.fillColor(DARK).font('Helvetica').text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 90, boxY + 88);
+        doc.fillColor(MUTED).font('Helvetica').text('Fulfillment:', rightBoxX + 12, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 88, boxY + 77);
       }
 
       if (cfg.gstin) {
-        doc.fillColor(MUTED).font('Helvetica').text('Store GSTIN:', rightBoxX + 12, boxY + 101);
-        doc.fillColor(DARK).font('Helvetica-Bold').text(cfg.gstin, rightBoxX + 90, boxY + 101);
+        doc.fillColor(MUTED).font('Helvetica').text('Store GSTIN:', rightBoxX + 12, boxY + 90);
+        doc.fillColor(DARK).font('Helvetica-Bold').text(cfg.gstin, rightBoxX + 88, boxY + 90);
       }
 
       // ==========================================
       // 3. ITEMS TABLE
       // ==========================================
-      let tableY = boxY + boxHeight + 16;
       const colX = {
-        num: 36,
-        item: 60,
-        variant: 260,
-        qty: 370,
-        price: 430,
-        total: 500
+        num: 32,
+        item: 56,
+        variant: 265,
+        qty: 375,
+        price: 415,
+        total: 475
       };
 
-      // Table Header Row
-      doc.rect(36, tableY, doc.page.width - 72, 24).fill(PRIMARY);
-      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5);
-      doc.text('#', colX.num + 6, tableY + 7);
-      doc.text('DRESS / ITEM', colX.item, tableY + 7);
-      doc.text('VARIANT / SIZE', colX.variant, tableY + 7);
-      doc.text('QTY', colX.qty, tableY + 7, { align: 'center', width: 40 });
-      doc.text('UNIT PRICE', colX.price, tableY + 7, { align: 'right', width: 55 });
-      doc.text('TOTAL', colX.total, tableY + 7, { align: 'right', width: 55 });
+      function renderTableHeader(y) {
+        doc.rect(32, y, doc.page.width - 64, 22).fill(PRIMARY);
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5);
+        doc.text('#', colX.num + 6, y + 6);
+        doc.text('DRESS / ITEM', colX.item, y + 6);
+        doc.text('VARIANT / SIZE', colX.variant, y + 6);
+        doc.text('QTY', colX.qty, y + 6, { align: 'center', width: 35 });
+        doc.text('UNIT PRICE', colX.price, y + 6, { align: 'right', width: 55 });
+        doc.text('TOTAL', colX.total, y + 6, { align: 'right', width: 56 });
+      }
 
-      tableY += 24;
+      let tableY = 220;
+      renderTableHeader(tableY);
+      tableY += 22;
 
       const items = Array.isArray(order.items) ? order.items : [];
-      items.forEach((it, index) => {
-        const rowBg = index % 2 === 0 ? '#FFFFFF' : '#FAF8F5';
-        doc.rect(36, tableY, doc.page.width - 72, 28).fill(rowBg);
-        doc.rect(36, tableY, doc.page.width - 72, 28).stroke(BORDER_COLOR);
+      const MAX_PAGE_1_TABLE_Y = 660;
+      const MAX_PAGE_2_TABLE_Y = 660;
 
-        doc.fillColor(DARK).font('Helvetica').fontSize(8.5);
-        doc.text(String(index + 1), colX.num + 6, tableY + 9);
+      items.forEach((it, index) => {
+        // Multi-page page break: If this row will exceed page boundary, start page 2
+        if (tableY + 25 > (doc.bufferedPageRange().count === 1 ? MAX_PAGE_1_TABLE_Y : MAX_PAGE_2_TABLE_Y)) {
+          doc.addPage();
+          doc.rect(0, 0, doc.page.width, 42).fill(PRIMARY);
+          doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(11)
+            .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), 32, 14, { characterSpacing: 1 });
+          doc.fillColor('#D4AF37').font('Helvetica-Bold').fontSize(8.5)
+            .text(`${(cfg.invoiceTitle || 'TAX INVOICE').split('&')[0].trim()} (CONTINUED) • #${order.orderId}`, doc.page.width - 250, 16, { align: 'right', width: 218 });
+
+          tableY = 54;
+          renderTableHeader(tableY);
+          tableY += 22;
+        }
+
+        const rowBg = index % 2 === 0 ? '#FFFFFF' : '#FAF8F5';
+        doc.rect(32, tableY, doc.page.width - 64, 25).fill(rowBg);
+        doc.rect(32, tableY, doc.page.width - 64, 25).stroke(BORDER_COLOR);
+
+        doc.fillColor(DARK).font('Helvetica').fontSize(8);
+        doc.text(String(index + 1), colX.num + 6, tableY + 8);
 
         // Item Title
         doc.font('Helvetica-Bold')
-          .text(it.title || 'Designer Dress', colX.item, tableY + 9, { width: 190, lineBreak: false });
+          .text(it.title || 'Designer Dress', colX.item, tableY + 8, { width: 200, lineBreak: false });
 
         // Variant / Color / Size
         const varTxt = [it.color, it.size].filter(Boolean).join(' • ') || 'Standard';
-        doc.font('Helvetica').fillColor(MUTED).text(varTxt, colX.variant, tableY + 9, { width: 100 });
+        doc.font('Helvetica').fillColor(MUTED).text(varTxt, colX.variant, tableY + 8, { width: 100, lineBreak: false });
 
         // Qty
-        doc.fillColor(DARK).text(String(it.quantity || 1), colX.qty, tableY + 9, { align: 'center', width: 40 });
+        doc.fillColor(DARK).text(String(it.quantity || 1), colX.qty, tableY + 8, { align: 'center', width: 35 });
 
         // Unit Price
-        doc.text(`INR ${Number(it.price || 0).toLocaleString('en-IN')}`, colX.price, tableY + 9, { align: 'right', width: 55 });
+        doc.text(`INR ${Number(it.price || 0).toLocaleString('en-IN')}`, colX.price, tableY + 8, { align: 'right', width: 55 });
 
         // Row Total
-        const rowTotal = (Number(it.price || 0) * Number(it.quantity || 1));
+        const rowTotal = Number(it.price || 0) * Number(it.quantity || 1);
         doc.font('Helvetica-Bold')
-          .text(`INR ${rowTotal.toLocaleString('en-IN')}`, colX.total, tableY + 9, { align: 'right', width: 55 });
+          .text(`INR ${rowTotal.toLocaleString('en-IN')}`, colX.total, tableY + 8, { align: 'right', width: 56 });
 
-        tableY += 28;
+        tableY += 25;
       });
 
       // ==========================================
       // 4. SUMMARY & TOTALS SECTION
       // ==========================================
-      const totalsY = tableY + 12;
+      let totalsY = tableY + 10;
+      if (totalsY + 74 > doc.page.height - 85) {
+        doc.addPage();
+        totalsY = 40;
+      }
+
       const totalsWidth = 220;
-      const totalsX = doc.page.width - 36 - totalsWidth;
+      const totalsX = doc.page.width - 32 - totalsWidth;
+      doc.roundedRect(totalsX, totalsY, totalsWidth, 74, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
 
-      doc.roundedRect(totalsX, totalsY, totalsWidth, 80, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
-
-      doc.fillColor(MUTED).font('Helvetica').fontSize(8.5);
-      doc.text('Subtotal:', totalsX + 16, totalsY + 12);
+      doc.fillColor(MUTED).font('Helvetica').fontSize(8);
+      doc.text('Subtotal:', totalsX + 14, totalsY + 10);
       doc.fillColor(DARK).font('Helvetica-Bold')
-        .text(`INR ${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, totalsX + 120, totalsY + 12, { align: 'right', width: 85 });
+        .text(`INR ${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, totalsX + 110, totalsY + 10, { align: 'right', width: 96 });
 
       doc.fillColor(MUTED).font('Helvetica')
-        .text('Delivery Charge:', totalsX + 16, totalsY + 28);
+        .text('Delivery Charge:', totalsX + 14, totalsY + 24);
       const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
       doc.fillColor(GREEN).font('Helvetica-Bold')
-        .text(shipTxt, totalsX + 120, totalsY + 28, { align: 'right', width: 85 });
+        .text(shipTxt, totalsX + 110, totalsY + 24, { align: 'right', width: 96 });
 
       // Horizontal line
-      doc.moveTo(totalsX + 16, totalsY + 44).lineTo(totalsX + totalsWidth - 16, totalsY + 44).stroke(BORDER_COLOR);
+      doc.moveTo(totalsX + 14, totalsY + 39).lineTo(totalsX + totalsWidth - 14, totalsY + 39).stroke(BORDER_COLOR);
 
       // Grand Total
-      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
-        .text('Grand Total:', totalsX + 16, totalsY + 54);
-      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(12)
-        .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 100, totalsY + 53, { align: 'right', width: 105 });
+      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10.5)
+        .text('Grand Total:', totalsX + 14, totalsY + 48);
+      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11.5)
+        .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 90, totalsY + 47, { align: 'right', width: 116 });
 
       // Left of Totals: Delivery Guarantee Banner
-      const guaranteeX = 36;
-      const guaranteeWidth = totalsX - guaranteeX - 16;
-      doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, 80, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
-      doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9.5)
-        .text('ESTIMATED ARRIVAL WINDOW', guaranteeX + 14, totalsY + 12);
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11)
-        .text(deliveryRange, guaranteeX + 14, totalsY + 28);
-      doc.fillColor(MUTED).font('Helvetica').fontSize(8)
-        .text('Hand-inspected & packaged with love at our Jamalia boutique. Track live status using your Order Reference on our website.', guaranteeX + 14, totalsY + 46, { width: guaranteeWidth - 28 });
+      const guaranteeX = 32;
+      const guaranteeWidth = totalsX - guaranteeX - 12;
+      doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, 74, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
+      doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
+        .text('ESTIMATED ARRIVAL WINDOW', guaranteeX + 12, totalsY + 10);
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5)
+        .text(deliveryRange, guaranteeX + 12, totalsY + 24);
+      doc.fillColor(MUTED).font('Helvetica').fontSize(7.5)
+        .text('Hand-inspected & packaged with love at our Jamalia boutique. Track live status using your Order Reference on our website.', guaranteeX + 12, totalsY + 40, { width: guaranteeWidth - 24 });
 
       // ==========================================
-      // 5. FOOTER & AUTHENTICITY NOTE
+      // 5. FOOTER & AUTHENTICITY NOTE (Strictly pinned to last page with no overflow)
       // ==========================================
-      const footerY = doc.page.height - 80;
-      doc.rect(36, footerY, doc.page.width - 72, 1).fill(BORDER_COLOR);
+      const footerY = doc.page.height - 62;
+      const prevBottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 5; // Prevent any accidental page break
+
+      doc.rect(32, footerY, doc.page.width - 64, 0.75).fill(BORDER_COLOR);
 
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
-        .fontSize(9)
-        .text(cfg.footerNote || 'Thank You for Shopping with Friends Collections!', 36, footerY + 8, { align: 'center', width: doc.page.width - 72 });
+        .fontSize(8.5)
+        .text(cfg.footerNote || 'Thank You for Shopping with Friends Collections!', 32, footerY + 6, { align: 'center', width: doc.page.width - 64, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
-        .fontSize(7.5)
-        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Jamalia, Perambur, Chennai - 600012', 36, footerY + 22, { align: 'center', width: doc.page.width - 72 })
-        .text(cfg.notes || 'This is an authentic computer-generated Tax Invoice and requires no physical signature.', 36, footerY + 34, { align: 'center', width: doc.page.width - 72 });
+        .fontSize(7)
+        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Jamalia, Perambur, Chennai - 600012', 32, footerY + 18, { align: 'center', width: doc.page.width - 64, lineBreak: false });
+
+      doc.fillColor(MUTED)
+        .font('Helvetica')
+        .fontSize(7)
+        .text(cfg.notes || 'This is an authentic computer-generated Tax Invoice and requires no physical signature.', 32, footerY + 30, { width: 340, lineBreak: false });
 
       if (cfg.authorizedSignatory) {
         doc.fillColor(PRIMARY)
           .font('Helvetica-Bold')
-          .fontSize(8)
-          .text(cfg.authorizedSignatory, 36, footerY + 48, { align: 'right', width: doc.page.width - 72 });
+          .fontSize(7.5)
+          .text(cfg.authorizedSignatory, doc.page.width - 210, footerY + 30, { align: 'right', width: 178, lineBreak: false });
+      }
+
+      doc.page.margins.bottom = prevBottomMargin;
+
+      // Stamp Page Numbers if multi-page
+      const range = doc.bufferedPageRange();
+      const totalPages = range.count;
+      for (let i = range.start; i < range.start + totalPages; i++) {
+        doc.switchToPage(i);
+        if (totalPages > 1) {
+          doc.fillColor(i === 0 ? '#E2BFB3' : '#D4AF37')
+            .font('Helvetica-Bold')
+            .fontSize(7.5)
+            .text(`Page ${i + 1} of ${totalPages}`, doc.page.width - 100, i === 0 ? 76 : 28, { align: 'right', width: 68 });
+        }
       }
 
       doc.end();
