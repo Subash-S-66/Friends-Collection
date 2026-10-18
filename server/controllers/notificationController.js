@@ -9,8 +9,10 @@ const {
 // @route   POST /api/notifications/subscribe
 exports.subscribeBackInStock = async (req, res, next) => {
   try {
-    const { productId, color, size, email: bodyEmail } = req.body;
+    const { productId, color, size, email: bodyEmail, phone, name } = req.body;
     const email = (req.user?.email || bodyEmail || '').trim().toLowerCase();
+    const contactPhone = (phone || req.user?.phone || '').trim();
+    const customerName = (name || req.user?.name || '').trim();
 
     if (!productId) {
       return res.status(400).json({ message: 'Product ID is required' });
@@ -39,16 +41,22 @@ exports.subscribeBackInStock = async (req, res, next) => {
     });
 
     if (subscription) {
+      if (contactPhone) subscription.phone = contactPhone;
+      if (customerName) subscription.name = customerName;
+      if (req.user?._id && !subscription.user) subscription.user = req.user._id;
+
       // If already notified before, reset notification status
       if (subscription.notified) {
         subscription.notified = false;
         subscription.notifiedAt = null;
-        await subscription.save();
       }
+      await subscription.save();
     } else {
       subscription = await NotificationSubscription.create({
         user: req.user ? req.user._id : null,
         email,
+        phone: contactPhone,
+        name: customerName,
         product: product._id,
         variant,
         notified: false
@@ -56,11 +64,14 @@ exports.subscribeBackInStock = async (req, res, next) => {
     }
 
     // Send confirmation email via Nodemailer
-    await sendBackInStockSubscriptionEmail({
+    sendBackInStockSubscriptionEmail({
       to: email,
-      name: req.user?.name,
+      name: customerName,
+      phone: contactPhone,
       product,
       variant
+    }).catch(err => {
+      console.error('Error sending subscription confirmation email:', err.message);
     });
 
     res.status(200).json({
@@ -98,16 +109,12 @@ exports.checkSubscription = async (req, res, next) => {
   }
 };
 
-// @desc    Notify subscribers when an item is restocked (admin)
-// @route   POST /api/notifications/admin/notify/:productId
-exports.notifySubscribers = async (req, res, next) => {
+// Helper: Notify all pending waitlisted customers for a product / variant
+exports.notifyWaitlistedCustomers = async (productId, color = '', size = '') => {
   try {
-    const { productId } = req.params;
-    const { color, size } = req.body;
-
     const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+    if (!product || (product.stock !== undefined && product.stock <= 0)) {
+      return { notifiedCount: 0 };
     }
 
     const query = {
@@ -118,20 +125,20 @@ exports.notifySubscribers = async (req, res, next) => {
     if (color) query['variant.color'] = color;
     if (size) query['variant.size'] = size;
 
-    const subscriptions = await NotificationSubscription.find(query).populate('user', 'name email');
-    if (subscriptions.length === 0) {
-      return res.json({
-        message: 'No pending waitlist subscribers for this item',
-        notifiedCount: 0
-      });
+    const subscriptions = await NotificationSubscription.find(query).populate('user', 'name email phone');
+    if (!subscriptions || subscriptions.length === 0) {
+      return { notifiedCount: 0 };
     }
 
     let successCount = 0;
     for (const sub of subscriptions) {
       try {
+        const recipientName = sub.name || sub.user?.name || '';
+        const recipientPhone = sub.phone || sub.user?.phone || '';
         await sendBackInStockAlertEmail({
           to: sub.email,
-          name: sub.user?.name,
+          name: recipientName,
+          phone: recipientPhone,
           product,
           variant: sub.variant
         });
@@ -144,9 +151,32 @@ exports.notifySubscribers = async (req, res, next) => {
       }
     }
 
+    console.log(`📢 [Restock Alert] Successfully emailed ${successCount} waitlisted customers for "${product.title}"`);
+    return { notifiedCount: successCount };
+  } catch (error) {
+    console.error('❌ [Restock Alert Error] notifyWaitlistedCustomers:', error);
+    return { notifiedCount: 0, error: error.message };
+  }
+};
+
+// @desc    Notify subscribers when an item is restocked (admin)
+// @route   POST /api/notifications/admin/notify/:productId
+exports.notifySubscribers = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { color, size } = req.body;
+
+    const result = await exports.notifyWaitlistedCustomers(productId, color, size);
+    if (result.notifiedCount === 0) {
+      return res.json({
+        message: 'No pending waitlist subscribers for this item or item still out of stock',
+        notifiedCount: 0
+      });
+    }
+
     res.json({
-      message: `Successfully notified ${successCount} waitlisted customers via email!`,
-      notifiedCount: successCount
+      message: `Successfully notified ${result.notifiedCount} waitlisted customers via email!`,
+      notifiedCount: result.notifiedCount
     });
   } catch (error) {
     next(error);

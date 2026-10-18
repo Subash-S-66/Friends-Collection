@@ -13,6 +13,16 @@ const notificationSubscriptionSchema = new mongoose.Schema({
     trim: true,
     index: true
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  name: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',

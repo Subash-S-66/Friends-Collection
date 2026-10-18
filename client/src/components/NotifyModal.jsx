@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   HiOutlineBell,
   HiOutlineX,
   HiOutlineMail,
-  HiOutlineCheck,
-  HiOutlineLockClosed,
-  HiOutlineSparkles,
-  HiOutlineKey
+  HiOutlinePhone,
+  HiOutlineUser,
+  HiOutlineCheck
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -15,123 +15,128 @@ import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters'
 import GoogleAuthButton from './GoogleAuthButton';
 
 const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, onSubscribed }) => {
-  const { user, requestToken, verifyToken, login } = useAuth();
-
-  // Active auth mode: 'token' (default for quick email code), 'google', 'password'
-  const [authMode, setAuthMode] = useState('token');
+  const { user } = useAuth();
 
   // Form states
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successDone, setSuccessDone] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
-  if (!isOpen || !product) return null;
+  // Sync initial values from logged-in user
+  useEffect(() => {
+    if (user) {
+      if (user.email) setEmail(user.email);
+      if (user.name) setName(user.name);
+      if (user.phone) setPhone(user.phone);
+    }
+  }, [user, isOpen]);
+
+  // Handle escape key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !product || typeof document === 'undefined') return null;
 
   const variantDesc = [selectedColor, selectedSize].filter(Boolean).join(' • ');
 
-  // Direct subscription for logged in user or post-login
-  const handleDirectSubscribe = async (userEmail, userName) => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (loading) return;
+
+    const targetEmail = (user?.email || email || '').trim();
+    if (!targetEmail || !/\S+@\S+\.\S+/.test(targetEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    const cleanPhone = phone.trim().replace(/[^\d+]/g, '');
+    if (cleanPhone && cleanPhone.replace(/\D/g, '').length < 10) {
+      toast.error('Please enter a valid 10-digit phone number');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await API.post('/notifications/subscribe', {
         productId: product._id,
         color: selectedColor || '',
         size: selectedSize || '',
-        email: userEmail || user?.email
+        email: targetEmail,
+        phone: cleanPhone,
+        name: (user?.name || name || '').trim()
       });
 
-      toast.success(res.data.message || 'Waitlist confirmed! Check your email.', {
+      toast.success(res.data.message || 'Waitlist confirmed! Restock confirmation sent to your email.', {
         icon: '🔔',
-        duration: 4500
+        duration: 5000
       });
 
+      setSubmittedEmail(targetEmail);
       setSuccessDone(true);
       if (onSubscribed) onSubscribed();
     } catch (err) {
       console.error('Subscription error:', err);
-      toast.error(err.response?.data?.message || 'Failed to subscribe to waitlist');
+      toast.error(err.response?.data?.message || 'Failed to subscribe to waitlist. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 1. Send 6-digit verification token via Nodemailer
-  const handleSendToken = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-    if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await requestToken(email);
-      toast.success(res.message || '6-digit verification code sent to your email!', {
-        icon: '📬'
-      });
-      setCodeSent(true);
-    } catch (err) {
-      console.error('Token request error:', err);
-      toast.error(err.response?.data?.message || 'Failed to send verification code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2. Verify 6-digit token, log in, and auto-subscribe
-  const handleVerifyTokenAndSubscribe = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-    if (!code || code.length < 6) {
-      toast.error('Please enter the 6-digit code sent to your email');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const authData = await verifyToken(email, code, name);
-      toast.success(`Welcome ${authData.user.name || email}!`, { icon: '✨' });
-      // Now auto-subscribe
-      await handleDirectSubscribe(authData.user.email, authData.user.name);
-    } catch (err) {
-      console.error('Token verification error:', err);
-      toast.error(err.response?.data?.message || 'Invalid or expired verification code');
-      setLoading(false);
-    }
-  };
-
-  // 3. Password login then auto-subscribe
-  const handlePasswordLoginAndSubscribe = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-    setLoading(true);
-    try {
-      const authData = await login(email, password);
-      toast.success(`Welcome back ${authData.user.name}!`);
-      await handleDirectSubscribe(authData.user.email, authData.user.name);
-    } catch (err) {
-      console.error('Password login error:', err);
-      toast.error(err.response?.data?.message || 'Invalid email or password');
-      setLoading(false);
-    }
-  };
-
-  // 4. Google Auth success callback
   const handleGoogleSuccess = async (googleUser) => {
-    await handleDirectSubscribe(googleUser.email, googleUser.name);
+    if (googleUser?.email) {
+      setEmail(googleUser.email);
+      if (googleUser.name) setName(googleUser.name);
+      // Auto submit with Google user details
+      setLoading(true);
+      try {
+        const res = await API.post('/notifications/subscribe', {
+          productId: product._id,
+          color: selectedColor || '',
+          size: selectedSize || '',
+          email: googleUser.email,
+          phone: phone.trim().replace(/[^\d+]/g, ''),
+          name: googleUser.name || ''
+        });
+        toast.success(`Waitlist confirmed for ${googleUser.name || googleUser.email}!`, { icon: '🔔' });
+        setSubmittedEmail(googleUser.email);
+        setSuccessDone(true);
+        if (onSubscribed) onSubscribed();
+      } catch (err) {
+        console.error('Subscription error:', err);
+        toast.error('Failed to subscribe to waitlist');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-accent-100 relative max-h-[92vh] overflow-y-auto">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-fade-in"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-accent-100 relative max-h-[92vh] overflow-y-auto transform transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="absolute top-5 right-5 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
           aria-label="Close modal"
         >
@@ -148,8 +153,8 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
           </h3>
           <p className="text-xs text-neutral-500 max-w-xs mx-auto">
             {successDone
-              ? "We've registered your alert. We'll send you an email the instant it restocks!"
-              : "Never miss out. Get notified by email as soon as this item is back in our boutique."}
+              ? "We've registered your alert. We'll send you an email the instant this garment restocks!"
+              : "Never miss out. Enter your details to get an instant email when this design arrives."}
           </p>
         </div>
 
@@ -169,7 +174,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
             </h4>
             {variantDesc && (
               <span className="text-[11px] text-accent-800 font-semibold block truncate">
-                Selected: {variantDesc}
+                Variant: {variantDesc}
               </span>
             )}
             <span className="text-xs font-bold text-primary block mt-0.5">
@@ -178,271 +183,163 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
           </div>
         </div>
 
-        {/* ======================================================== */}
-        {/* CASE 1: SUCCESS CONFIRMED STATE                          */}
-        {/* ======================================================== */}
+        {/* Success Confirmed State */}
         {successDone ? (
           <div className="space-y-4 py-2 text-center">
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 space-y-1.5">
-              <div className="flex items-center justify-center gap-1.5 font-bold text-sm">
-                <HiOutlineCheck className="w-5 h-5 text-emerald-600" />
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 space-y-1.5 text-left">
+              <div className="flex items-center gap-2 font-bold text-sm text-emerald-900">
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <HiOutlineCheck className="w-4 h-4" />
+                </div>
                 <span>Waitlist Confirmed!</span>
               </div>
               <p className="text-xs leading-relaxed text-emerald-700">
-                A confirmation email has been dispatched via <strong>Nodemailer</strong> to{' '}
-                <span className="font-bold underline">{user?.email || email}</span>.
+                A confirmation has been sent to{' '}
+                <strong className="underline text-emerald-900">{submittedEmail || email}</strong>.
+              </p>
+              <p className="text-[11px] text-emerald-600">
+                When new stock arrives at our boutique, you'll receive a notification email with direct checkout access and exclusive boutique contact assistance.
+              </p>
+            </div>
+
+            {/* Boutique Assistance Card */}
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-left space-y-1">
+              <span className="text-[11px] font-bold text-neutral-700 block">
+                Have questions or urgent wedding requirements?
+              </span>
+              <p className="text-xs text-neutral-600">
+                📞 Call Store: <a href="tel:+919500757024" className="font-bold text-primary">+91 95007 57024</a>
+              </p>
+              <p className="text-xs text-neutral-600">
+                💬 WhatsApp:{' '}
+                <a
+                  href={`https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20have%20waitlisted%20for%20${encodeURIComponent(product.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-emerald-600"
+                >
+                  Chat with Boutique (+91 95007 57024)
+                </a>
               </p>
             </div>
 
             <button
               type="button"
-              onClick={onClose}
-              className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
             >
               Done & Return to Boutique
             </button>
           </div>
-        ) : user ? (
-          /* ======================================================== */
-          /* CASE 2: USER IS ALREADY LOGGED IN                        */
-          /* ======================================================== */
-          <div className="space-y-4 py-2">
-            <div className="p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-1">
-              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block">
-                Logged in Account:
-              </span>
-              <p className="text-xs font-bold text-neutral-900">
-                {user.name} ({user.email})
-              </p>
-              <p className="text-[11px] text-neutral-500">
-                We will email restock notifications directly to this verified address.
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+            {/* If Logged In */}
+            {user ? (
+              <div className="p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-1">
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                  Logged in Account:
+                </span>
+                <p className="text-xs font-bold text-neutral-900">
+                  {user.name} ({user.email})
+                </p>
+                <p className="text-[11px] text-neutral-500">
+                  We'll email restock alerts directly to this verified address.
+                </p>
+              </div>
+            ) : (
+              /* If Guest: Email Input */
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <HiOutlineMail className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="yourname@gmail.com"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Mobile / WhatsApp Number (for both guest & user) */}
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1 flex items-center justify-between">
+                <span>Phone / WhatsApp Number</span>
+                <span className="text-[10px] font-normal text-neutral-400">Optional</span>
+              </label>
+              <div className="relative">
+                <HiOutlinePhone className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. 9500757024"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+              <p className="text-[10px] text-neutral-400 mt-1">
+                Receive an optional SMS/WhatsApp alert when restocked
               </p>
             </div>
 
+            {/* Name (if guest) */}
+            {!user && (
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1 flex items-center justify-between">
+                  <span>Your Name</span>
+                  <span className="text-[10px] font-normal text-neutral-400">Optional</span>
+                </label>
+                <div className="relative">
+                  <HiOutlineUser className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Priya Sharma"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Main Action Button */}
             <button
-              type="button"
-              onClick={() => handleDirectSubscribe(user.email, user.name)}
+              type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
+              className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
                   <HiOutlineBell className="w-4 h-4" />
-                  <span>Notify Me at {user.email}</span>
+                  <span>Notify Me When Available</span>
                 </>
               )}
             </button>
-          </div>
-        ) : (
-          /* ======================================================== */
-          /* CASE 3: USER IS NOT LOGGED IN                            */
-          /* ======================================================== */
-          <div className="space-y-4 pt-1">
-            <div className="text-center">
-              <span className="text-xs font-bold text-neutral-700 block">
-                Sign in to activate restock alerts
-              </span>
-              <span className="text-[11px] text-neutral-400">
-                Choose Google or verify your email manually with a 6-digit token
-              </span>
-            </div>
 
-            {/* Google OAuth Section */}
-            <div className="pt-1 pb-2 border-b border-neutral-100 flex flex-col items-center">
-              <GoogleAuthButton onSuccess={handleGoogleSuccess} text="continue_with" />
-            </div>
-
-            {/* Divider */}
-            <div className="relative text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-neutral-200" />
+            {/* Guest Quick Google Sign-In */}
+            {!user && (
+              <div className="pt-2 border-t border-neutral-100 flex flex-col items-center gap-2">
+                <span className="text-[11px] text-neutral-400">Or quick subscribe with</span>
+                <GoogleAuthButton onSuccess={handleGoogleSuccess} text="continue_with" />
               </div>
-              <span className="relative px-3 bg-white text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                Or Manual Authentication
-              </span>
-            </div>
-
-            {/* Switcher: Token (OTP) vs Password */}
-            <div className="flex bg-neutral-100 p-1 rounded-xl text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('token'); setCodeSent(false); }}
-                className={`flex-1 py-1.5 rounded-lg transition-all ${
-                  authMode === 'token' ? 'bg-white text-primary shadow-xs' : 'text-neutral-500 hover:text-neutral-900'
-                }`}
-              >
-                🔑 6-Digit Email Token
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode('password')}
-                className={`flex-1 py-1.5 rounded-lg transition-all ${
-                  authMode === 'password' ? 'bg-white text-primary shadow-xs' : 'text-neutral-500 hover:text-neutral-900'
-                }`}
-              >
-                🔒 Password Login
-              </button>
-            </div>
-
-            {/* SUB-FLOW A: 6-DIGIT EMAIL TOKEN VERIFICATION */}
-            {authMode === 'token' && (
-              !codeSent ? (
-                <form onSubmit={handleSendToken} className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <HiOutlineMail className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="yourname@gmail.com"
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <HiOutlineKey className="w-4 h-4" />
-                        <span>Send 6-Digit Verification Code</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyTokenAndSubscribe} className="space-y-3">
-                  <div className="p-2.5 rounded-xl bg-accent-50 border border-accent-200/60 text-center">
-                    <span className="text-[11px] text-accent-900 font-semibold block">
-                      Code dispatched via Nodemailer to:
-                    </span>
-                    <strong className="text-xs text-primary font-bold">{email}</strong>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Your Name (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Priya Sharma"
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Enter 6-Digit Code *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="123456"
-                      className="w-full px-3 py-2.5 rounded-xl border-2 border-accent-300 text-center text-lg font-mono tracking-[0.3em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <HiOutlineCheck className="w-4 h-4" />
-                        <span>Verify & Confirm Waitlist</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCodeSent(false)}
-                    className="text-[11px] text-neutral-500 hover:text-primary font-semibold block mx-auto pt-1"
-                  >
-                    ← Change Email or Resend
-                  </button>
-                </form>
-              )
             )}
-
-            {/* SUB-FLOW B: STANDARD PASSWORD LOGIN */}
-            {authMode === 'password' && (
-              <form onSubmit={handlePasswordLoginAndSubscribe} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <HiOutlineMail className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <HiOutlineLockClosed className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <HiOutlineSparkles className="w-4 h-4" />
-                      <span>Sign In & Subscribe</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
+          </form>
         )}
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default NotifyModal;

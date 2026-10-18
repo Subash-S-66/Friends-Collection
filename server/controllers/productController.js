@@ -310,6 +310,7 @@ exports.updateProduct = async (req, res, next) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    const prevStock = product.stock || 0;
     const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, stock, tags, isFeatured, isActive, existingImages } = req.body;
 
     if (title) product.title = title;
@@ -358,6 +359,15 @@ exports.updateProduct = async (req, res, next) => {
     product.images = finalImages;
 
     await product.save();
+
+    // If restocked from 0, automatically alert waitlisted customers!
+    if (prevStock <= 0 && product.stock > 0) {
+      const { notifyWaitlistedCustomers } = require('./notificationController');
+      notifyWaitlistedCustomers(product._id).catch(err => {
+        console.error('Error notifying waitlisted customers in updateProduct:', err.message);
+      });
+    }
+
     const populated = await Product.findById(product._id)
       .populate('category', 'name slug')
       .populate('subcategory', 'name slug');
@@ -374,6 +384,8 @@ exports.updateStock = async (req, res, next) => {
     const { stock, delta } = req.body;
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const prevStock = product.stock || 0;
 
     if (delta !== undefined) {
       product.stock = Math.max(0, (product.stock || 0) + Number(delta));
@@ -395,6 +407,15 @@ exports.updateStock = async (req, res, next) => {
     }
 
     await product.save();
+
+    // If restocked from 0, automatically alert waitlisted customers!
+    if (prevStock <= 0 && product.stock > 0) {
+      const { notifyWaitlistedCustomers } = require('./notificationController');
+      notifyWaitlistedCustomers(product._id).catch(err => {
+        console.error('Error notifying waitlisted customers in updateStock:', err.message);
+      });
+    }
+
     res.json({ stock: product.stock, message: 'Stock updated successfully' });
   } catch (error) {
     next(error);

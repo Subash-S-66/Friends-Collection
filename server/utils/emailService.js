@@ -442,47 +442,100 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
 };
 
 // 2. Send Back In Stock Subscription Confirmation
-exports.sendBackInStockSubscriptionEmail = async ({ to, name, product, variant }) => {
+exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, variant }) => {
   try {
     const mailClient = await getTransporter();
     const greeting = name ? `Dear ${name},` : 'Hello,';
     const variantDesc = variant && (variant.color || variant.size)
-      ? `(${[variant.color, variant.size].filter(Boolean).join(' • ')})`
+      ? [variant.color, variant.size].filter(Boolean).join(' • ')
       : '';
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
     const productUrl = `${clientUrl}/product/${product.slug || product._id}`;
 
+    let productImageUrl = 'https://friends-collection.vercel.app/fallback-product-1.png';
+    if (product.images && product.images.length > 0) {
+      const raw = product.images[0];
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        productImageUrl = raw;
+      } else {
+        productImageUrl = `${clientUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+      }
+    }
+
+    const priceText = product.salePrice
+      ? `<span style="font-size: 18px; font-weight: 800; color: #5B1130;">₹${product.salePrice}</span>
+         <span style="font-size: 13px; text-decoration: line-through; color: #8C827A; margin-left: 6px;">₹${product.price}</span>`
+      : `<span style="font-size: 18px; font-weight: 800; color: #5B1130;">₹${product.price}</span>`;
+
     const contentHtml = `
-      <h2 class="content-title">You're on the Waitlist! 🔔</h2>
-      <p class="content-text" style="text-align: center;">
+      <div style="text-align: center; margin-bottom: 12px;">
+        <span style="background: linear-gradient(135deg, #FFF3CD 0%, #FFEBAA 100%); color: #856404; padding: 6px 16px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; border: 1px solid #FFE082; display: inline-block;">
+          ✦ WAITLIST REGISTERED ✦
+        </span>
+      </div>
+      <h2 class="content-title" style="font-family: Georgia, serif; font-size: 22px; color: #3B0A11; text-align: center; margin-bottom: 10px;">
+        You're on the Waitlist! 🔔
+      </h2>
+      <p class="content-text" style="text-align: center; margin-bottom: 20px;">
         ${greeting}<br>
-        Thank you for your interest! We have registered your request for this exclusive design. As soon as our master weavers and artisans restock it, you will be the first to know!
+        Thank you for your interest! We have registered your restock alert for this exclusive design. As soon as our master weavers and boutique restock it, you will receive an instant email notification!
       </p>
 
-      <div class="product-box">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+      <!-- Product Preview Card -->
+      <div style="background: #FAF7F2; border: 1px solid #EEDCD0; border-radius: 20px; padding: 20px; margin: 20px 0; box-shadow: 0 4px 16px rgba(74, 14, 23, 0.05); text-align: center;">
+        <a href="${productUrl}" target="_blank" style="display: block; text-decoration: none;">
+          <img
+            src="${productImageUrl}"
+            alt="${product.title}"
+            style="width: 200px; max-width: 100%; height: 250px; object-fit: cover; object-position: top; border-radius: 14px; border: 2px solid #D4AF37; box-shadow: 0 6px 18px rgba(74, 14, 23, 0.15); margin: 0 auto 14px; display: block;"
+          />
+        </a>
+
+        <h3 style="margin: 0 0 6px; font-family: Georgia, serif; font-size: 18px; color: #3B0A11; font-weight: 700;">
+          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${product.title}</a>
+        </h3>
+
+        ${variantDesc ? `
+          <div style="margin: 0 0 8px;">
+            <span style="background: #FFF3CD; color: #856404; padding: 3px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #FFE082;">
+              Combination: ${variantDesc}
+            </span>
+          </div>
+        ` : ''}
+
+        <div style="margin: 8px 0 16px;">
+          ${priceText}
+        </div>
+
+        <div>
+          <a href="${productUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #5B1130 0%, #762243 100%); color: #FFFFFF !important; font-family: -apple-system, sans-serif; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 13px 32px; border-radius: 9999px; text-decoration: none; border: 1px solid #D4AF37; box-shadow: 0 6px 18px rgba(91, 17, 48, 0.3);">
+            View Product in Boutique →
+          </a>
+        </div>
+      </div>
+
+      <!-- Boutique Contact & Phone Details -->
+      <div style="background: #FFFFFF; border: 1px solid #EEDCD0; border-radius: 16px; padding: 16px; margin: 20px 0 10px;">
+        <h4 style="margin: 0 0 6px; font-family: Georgia, serif; font-size: 13px; color: #4A0E17; font-weight: 700;">
+          Have questions or want early booking? Contact our boutique:
+        </h4>
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #4A4543; line-height: 1.6;">
           <tr>
-            <td style="vertical-align: middle;">
-              <h3 style="margin: 0 0 4px; font-family: Georgia, serif; font-size: 16px; color: #3B0A11;">
-                ${product.title}
-              </h3>
-              ${variantDesc ? `<p style="margin: 0 0 6px; font-size: 12px; color: #8C5338; font-weight: 600;">Selected: ${variantDesc}</p>` : ''}
-              <p style="margin: 0; font-size: 14px; font-weight: 700; color: #4A0E17;">
-                Price: ₹${product.salePrice || product.price}
-              </p>
-            </td>
+            <td style="padding: 3px 0;">📞 <strong>Store Phone:</strong> <a href="tel:+919500757024" style="color: #5B1130; font-weight: bold; text-decoration: none;">+91 95007 57024</a></td>
           </tr>
+          <tr>
+            <td style="padding: 3px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20have%20waitlisted%20for%20${encodeURIComponent(product.title)}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 0;">📍 <strong>Showroom:</strong> 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012</td>
+          </tr>
+          ${phone ? `
+          <tr>
+            <td style="padding: 3px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${phone}</td>
+          </tr>
+          ` : ''}
         </table>
       </div>
-
-      <div style="text-align: center; margin: 24px 0 10px;">
-        <a href="${productUrl}" class="cta-btn" target="_blank">View Product in Boutique</a>
-      </div>
-
-      <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 20px;">
-        Have a question or custom tailoring requirement? Chat directly with our Jamalia boutique team on WhatsApp at 
-        <a href="https://wa.me/919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a>.
-      </p>
     `;
 
     const html = wrapInFriendsTheme({
@@ -502,56 +555,114 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, product, variant }
     return { success: true, messageId: info?.messageId };
   } catch (error) {
     console.error('❌ [Email Error] sendBackInStockSubscriptionEmail:', error);
-    // Non-critical, do not crash subscription endpoint
     return { success: false, error: error.message };
   }
 };
 
 // 3. Send Back In Stock Alert When Product Restocked
-exports.sendBackInStockAlertEmail = async ({ to, name, product, variant }) => {
+exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }) => {
   try {
     const mailClient = await getTransporter();
     const greeting = name ? `Dear ${name},` : 'Hello,';
     const variantDesc = variant && (variant.color || variant.size)
-      ? `(${[variant.color, variant.size].filter(Boolean).join(' • ')})`
+      ? [variant.color, variant.size].filter(Boolean).join(' • ')
       : '';
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
     const productUrl = `${clientUrl}/product/${product.slug || product._id}`;
 
+    let productImageUrl = 'https://friends-collection.vercel.app/fallback-product-1.png';
+    if (product.images && product.images.length > 0) {
+      const raw = product.images[0];
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        productImageUrl = raw;
+      } else {
+        productImageUrl = `${clientUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+      }
+    }
+
+    const priceText = product.salePrice
+      ? `<span style="font-size: 20px; font-weight: 800; color: #5B1130;">₹${product.salePrice}</span>
+         <span style="font-size: 14px; text-decoration: line-through; color: #8C827A; margin-left: 8px;">₹${product.price}</span>`
+      : `<span style="font-size: 20px; font-weight: 800; color: #5B1130;">₹${product.price}</span>`;
+
     const contentHtml = `
       <div style="text-align: center; margin-bottom: 12px;">
-        <span style="background: #E8F5E9; color: #1B5E20; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;">
-          ✦ BACK IN STOCK ✦
+        <span style="background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); color: #1B5E20; padding: 6px 18px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; border: 1px solid #A5D6A7; display: inline-block;">
+          ✦ BACK IN STOCK AT OUR BOUTIQUE ✦
         </span>
       </div>
-      <h2 class="content-title">Great News! Your Favorite Item is Back! ✨</h2>
-      <p class="content-text" style="text-align: center;">
+      <h2 class="content-title" style="font-family: Georgia, serif; font-size: 22px; color: #3B0A11; text-align: center; margin-bottom: 10px;">
+        Great News! Your Favorite Garment is Back! ✨
+      </h2>
+      <p class="content-text" style="text-align: center; margin-bottom: 22px;">
         ${greeting}<br>
-        The wait is over! <strong>"${product.title}"</strong> ${variantDesc} has been freshly restocked at our Chennai boutique and is now ready for order.
+        The wait is finally over! <strong>"${product.title}"</strong> ${variantDesc ? `(${variantDesc})` : ''} has just arrived and been freshly restocked at our Chennai boutique.
       </p>
 
-      <div class="product-box">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+      <!-- Product Showcase Card (Clickable to Product Page) -->
+      <div style="background: #FAF7F2; border: 1px solid #EEDCD0; border-radius: 20px; padding: 22px; margin: 20px 0; box-shadow: 0 4px 16px rgba(74, 14, 23, 0.05); text-align: center;">
+        <a href="${productUrl}" target="_blank" style="display: block; text-decoration: none;">
+          <img
+            src="${productImageUrl}"
+            alt="${product.title}"
+            style="width: 220px; max-width: 100%; height: 280px; object-fit: cover; object-position: top; border-radius: 16px; border: 2px solid #D4AF37; box-shadow: 0 8px 24px rgba(74, 14, 23, 0.16); margin: 0 auto 16px; display: block;"
+          />
+        </a>
+
+        <h3 style="margin: 0 0 6px; font-family: Georgia, serif; font-size: 19px; color: #3B0A11; font-weight: 700;">
+          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${product.title}</a>
+        </h3>
+
+        ${variantDesc ? `
+          <div style="margin: 0 0 10px;">
+            <span style="background: #FFF3CD; color: #856404; padding: 3px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #FFE082;">
+              Combination: ${variantDesc}
+            </span>
+          </div>
+        ` : ''}
+
+        <div style="margin: 10px 0 14px;">
+          ${priceText}
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; background: #E8F5E9; color: #2E7D32; font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 8px;">
+            🟢 In Stock Now (Strictly Limited Handcrafted Batches)
+          </span>
+        </div>
+
+        <div>
+          <a href="${productUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #5B1130 0%, #762243 100%); color: #FFFFFF !important; font-family: -apple-system, sans-serif; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 15px 36px; border-radius: 9999px; text-decoration: none; border: 1px solid #D4AF37; box-shadow: 0 8px 22px rgba(91, 17, 48, 0.35);">
+            Shop Now & Claim Yours →
+          </a>
+        </div>
+      </div>
+
+      <!-- Boutique & Contact Assistance Card -->
+      <div style="background: #FFFFFF; border: 1px solid #EEDCD0; border-radius: 16px; padding: 18px; margin: 24px 0 10px;">
+        <h4 style="margin: 0 0 8px; font-family: Georgia, serif; font-size: 14px; color: #4A0E17; font-weight: 700;">
+          Need Assistance Ordering? Contact Our Boutique:
+        </h4>
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #4A4543; line-height: 1.6;">
           <tr>
-            <td style="vertical-align: middle;">
-              <h3 style="margin: 0 0 4px; font-family: Georgia, serif; font-size: 17px; color: #3B0A11;">
-                ${product.title}
-              </h3>
-              ${variantDesc ? `<p style="margin: 0 0 6px; font-size: 12px; color: #8C5338; font-weight: 600;">Combination: ${variantDesc}</p>` : ''}
-              <p style="margin: 0; font-size: 16px; font-weight: 800; color: #4A0E17;">
-                Special Price: ₹${product.salePrice || product.price}
-              </p>
-            </td>
+            <td style="padding: 4px 0;">📞 <strong>Store Phone:</strong> <a href="tel:+919500757024" style="color: #5B1130; font-weight: bold; text-decoration: none;">+91 95007 57024</a></td>
           </tr>
+          <tr>
+            <td style="padding: 4px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20am%20interested%20in%20${encodeURIComponent(product.title)}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0;">📍 <strong>Showroom Hub:</strong> 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012</td>
+          </tr>
+          ${phone ? `
+          <tr>
+            <td style="padding: 4px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${phone}</td>
+          </tr>
+          ` : ''}
         </table>
       </div>
 
-      <div style="text-align: center; margin: 26px 0 10px;">
-        <a href="${productUrl}" class="cta-btn" target="_blank">Order Now Before Stock Runs Out →</a>
-      </div>
-
       <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 18px;">
-        Quantities are strictly limited due to handwoven craftsmanship. We encourage you to place your order promptly to avoid missing out!
+        Tap the button or product photo above to open this garment directly on Friends Collections and complete your order.
       </p>
     `;
 
