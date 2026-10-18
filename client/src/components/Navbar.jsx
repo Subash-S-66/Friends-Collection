@@ -295,16 +295,25 @@ const Navbar = () => {
                   <span className="absolute bottom-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('login')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs font-bold text-primary hover:bg-accent-100/70 border border-accent-200/80 hover:border-accent-300 transition-all shadow-2xs"
-                  aria-label="Sign In or Register"
-                  title="Click to sign in or create an account"
-                >
-                  <HiOutlineUser className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-accent-700" />
-                  <span className="hidden sm:inline">Sign In</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/account"
+                    className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-all border border-neutral-200/80"
+                    title="View orders with mobile number"
+                  >
+                    <span>My Orders</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs font-bold text-primary hover:bg-accent-100/70 border border-accent-200/80 hover:border-accent-300 transition-all shadow-2xs cursor-pointer"
+                    aria-label="Sign In or Register"
+                    title="Click to sign in or create an account"
+                  >
+                    <HiOutlineUser className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-accent-700" />
+                    <span className="hidden sm:inline">Sign In</span>
+                  </button>
+                </div>
               )}
 
               {/* Cart Drawer Button */}
@@ -753,16 +762,25 @@ const Navbar = () => {
                     </Link>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      openAuthModal('login');
-                    }}
-                    className="w-full block px-3 py-2.5 rounded-xl text-xs font-bold text-primary bg-accent-100/70 hover:bg-accent-100 text-center shadow-xs"
-                  >
-                    Sign In / Register
-                  </button>
+                  <div className="space-y-2">
+                    <Link
+                      to="/account"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2 rounded-xl text-xs font-bold text-neutral-800 bg-neutral-100/80 hover:bg-accent-100/60 text-center"
+                    >
+                      📦 View Orders (Lookup by Mobile)
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        openAuthModal('login');
+                      }}
+                      className="w-full block px-3 py-2.5 rounded-xl text-xs font-bold text-primary bg-accent-100/70 hover:bg-accent-100 text-center shadow-xs cursor-pointer"
+                    >
+                      Sign In / Register
+                    </button>
+                  </div>
                 )}
 
                 {isAdmin && (
