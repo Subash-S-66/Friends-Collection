@@ -4,9 +4,13 @@ const {
   getCart,
   syncCart,
   updateCart,
-  clearCart
+  clearCart,
+  validateCart
 } = require('../controllers/cartController');
 const { auth } = require('../middleware/auth');
+
+// Public route to validate live database stock for both guests and logged-in users
+router.post('/validate', validateCart);
 
 router.get('/', auth, getCart);
 router.post('/sync', auth, syncCart);

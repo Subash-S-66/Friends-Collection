@@ -112,39 +112,53 @@ export const CartProvider = ({ children }) => {
     }, 350);
   }, [user]);
 
-  // Refresh live stock validation without clobbering uncommitted local items
+  // Refresh live stock validation directly against database stock for all shoppers (guests and logged-in)
   const refreshCartStock = useCallback(async () => {
-    if (user && user._id) {
-      try {
-        const res = await API.get('/cart');
-        if (Array.isArray(res.data?.items)) {
-          const serverItems = res.data.items;
-          const currentLocal = latestItemsRef.current;
+    const currentLocal = latestItemsRef.current;
+    if (!currentLocal || currentLocal.length === 0) return;
 
-          // Merge: update live stock & prices for existing items, but NEVER delete items that exist locally!
-          const merged = currentLocal.map((localItem) => {
-            const serverMatch = serverItems.find((s) => isSameCartItem(s, localItem));
-            if (serverMatch) {
-              return {
-                ...localItem,
-                stock: serverMatch.stock,
-                isOutOfStock: serverMatch.isOutOfStock,
-                price: serverMatch.price,
-                title: serverMatch.title || localItem.title
-              };
-            }
-            return localItem;
-          });
+    try {
+      const res = await API.post('/cart/validate', { items: currentLocal });
+      if (Array.isArray(res.data?.items)) {
+        const serverItems = res.data.items;
 
-          setItems(merged);
-          saveToLocal(merged);
-          latestItemsRef.current = merged;
-        }
-      } catch (e) {
-        console.warn('Error refreshing cloud cart stock:', e);
+        // Merge: update live stock & prices for existing items, but NEVER delete items that exist locally!
+        const merged = currentLocal.map((localItem) => {
+          const serverMatch = serverItems.find((s) => isSameCartItem(s, localItem));
+          if (serverMatch) {
+            return {
+              ...localItem,
+              stock: serverMatch.stock,
+              isOutOfStock: Boolean(serverMatch.isOutOfStock || serverMatch.stock <= 0),
+              price: serverMatch.price,
+              title: serverMatch.title || localItem.title
+            };
+          }
+          return localItem;
+        });
+
+        setItems(merged);
+        saveToLocal(merged);
+        latestItemsRef.current = merged;
       }
+    } catch (e) {
+      console.warn('Error refreshing cart stock:', e);
     }
-  }, [user]);
+  }, []);
+
+  // Automatically refresh stock whenever shopping bag opens
+  useEffect(() => {
+    if (isCartOpen && items.length > 0) {
+      refreshCartStock();
+    }
+  }, [isCartOpen, refreshCartStock]);
+
+  // Initial mount live stock verification
+  useEffect(() => {
+    if (items.length > 0) {
+      refreshCartStock();
+    }
+  }, []);
 
   const addToCart = useCallback((product, quantity = 1, size = '', color = '') => {
     if (!product) return false;

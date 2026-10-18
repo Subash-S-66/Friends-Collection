@@ -256,3 +256,20 @@ exports.clearCart = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Validate live database stock for cart items (public for guests and users)
+// @route   POST /api/cart/validate
+exports.validateCart = async (req, res, next) => {
+  try {
+    const { items = [] } = req.body;
+    const enriched = await enrichItemsWithLiveStock(items);
+
+    res.json({
+      items: enriched,
+      availableItems: enriched.filter((i) => !i.isOutOfStock),
+      outOfStockCount: enriched.filter((i) => i.isOutOfStock).length
+    });
+  } catch (error) {
+    next(error);
+  }
+};

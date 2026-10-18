@@ -20,8 +20,8 @@ function getCourierTrackingUrl(courier, trackingNumber) {
   return '';
 }
 
-// Helper to get effective available stock excluding the requesting session's own reservation
-async function getEffectiveAvailableStock(productId, size = '', color = '', excludeSessionId = null) {
+// Helper to get live database available stock for product or variant
+async function getEffectiveAvailableStock(productId, size = '', color = '') {
   const product = await Product.findById(productId);
   if (!product) return 0;
 
@@ -38,114 +38,30 @@ async function getEffectiveAvailableStock(productId, size = '', color = '', excl
     if (v) baseStock = Number(v.stock) || 0;
   }
 
-  // Active holds: active and expiresAt > now, excluding excludeSessionId
-  const now = new Date();
-  const filter = {
-    status: 'active',
-    expiresAt: { $gt: now },
-    'items.product': productId
-  };
-  if (excludeSessionId) {
-    filter.sessionId = { $ne: excludeSessionId };
-  }
-
-  const activeReservations = await StockReservation.find(filter);
-  let heldQty = 0;
-  for (const res of activeReservations) {
-    for (const it of res.items) {
-      if (it.product.toString() === productId.toString()) {
-        if ((!size || it.size === size) && (!color || it.color === color)) {
-          heldQty += Number(it.quantity) || 1;
-        }
-      }
-    }
-  }
-
-  return Math.max(0, baseStock - heldQty);
+  return Math.max(0, baseStock);
 }
 
-// @desc    Reserve stock for 10 minutes when proceeding to checkout
+// @desc    Reserve stock endpoint (graceful no-op to prevent locking other shoppers)
 // @route   POST /api/orders/reserve
 exports.reserveCheckoutStock = async (req, res, next) => {
   try {
-    const { sessionId, items } = req.body;
-    if (!sessionId) {
-      return res.status(400).json({ message: 'Session ID is required for checkout reservation' });
-    }
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'No items provided for reservation' });
-    }
-
-    // Verify stock availability for all items
-    for (const item of items) {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        return res.status(404).json({ message: `Product not found: ${item.title || item.product}` });
-      }
-
-      const available = await getEffectiveAvailableStock(item.product, item.size, item.color, sessionId);
-      if (available < item.quantity) {
-        return res.status(409).json({
-          message: `Cannot reserve "${product.title}" (${item.size || 'Standard'}). Another customer is currently holding this item in checkout. If they do not purchase within 10 minutes, it will be released!`,
-          item: item.title,
-          available
-        });
-      }
-    }
-
-    // 10 minutes reservation window
-    const TEN_MINUTES_MS = 10 * 60 * 1000;
-    const expiresAt = new Date(Date.now() + TEN_MINUTES_MS);
-
-    // Update existing active reservation for this session, or create new one
-    let reservation = await StockReservation.findOne({ sessionId, status: 'active' });
-    if (reservation) {
-      reservation.items = items.map((it) => ({
-        product: it.product,
-        size: it.size || '',
-        color: it.color || '',
-        quantity: Number(it.quantity) || 1
-      }));
-      reservation.expiresAt = expiresAt;
-      reservation.user = req.user ? req.user._id : null;
-      await reservation.save();
-    } else {
-      reservation = await StockReservation.create({
-        sessionId,
-        user: req.user ? req.user._id : null,
-        items: items.map((it) => ({
-          product: it.product,
-          size: it.size || '',
-          color: it.color || '',
-          quantity: Number(it.quantity) || 1
-        })),
-        status: 'active',
-        expiresAt
-      });
-    }
-
     res.json({
       success: true,
-      reservationId: reservation._id,
-      expiresAt: reservation.expiresAt,
       holdMinutes: 10,
-      remainingSeconds: Math.round((reservation.expiresAt - Date.now()) / 1000)
+      remainingSeconds: 600
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Release stock hold when user abandons or leaves checkout
+// @desc    Release stock hold
 // @route   POST /api/orders/release-hold
 exports.releaseCheckoutStock = async (req, res, next) => {
   try {
     const { sessionId } = req.body;
     if (sessionId) {
-      await StockReservation.updateMany(
-        { sessionId, status: 'active' },
-        { status: 'released' }
-      );
+      await StockReservation.deleteMany({ sessionId }).catch(() => {});
     }
     res.json({ success: true, message: 'Stock hold released' });
   } catch (error) {
@@ -153,27 +69,13 @@ exports.releaseCheckoutStock = async (req, res, next) => {
   }
 };
 
-// @desc    Check reservation status and remaining seconds
+// @desc    Check reservation status
 // @route   GET /api/orders/reservation/:sessionId
 exports.getReservationStatus = async (req, res, next) => {
   try {
-    const { sessionId } = req.params;
-    const reservation = await StockReservation.findOne({ sessionId, status: 'active' });
-    if (!reservation) {
-      return res.json({ active: false, remainingSeconds: 0 });
-    }
-
-    const remainingSeconds = Math.max(0, Math.round((reservation.expiresAt - Date.now()) / 1000));
-    if (remainingSeconds <= 0) {
-      reservation.status = 'expired';
-      await reservation.save();
-      return res.json({ active: false, remainingSeconds: 0 });
-    }
-
     res.json({
       active: true,
-      expiresAt: reservation.expiresAt,
-      remainingSeconds
+      remainingSeconds: 600
     });
   } catch (error) {
     next(error);
@@ -235,11 +137,13 @@ exports.placeOrder = async (req, res, next) => {
         return res.status(400).json({ message: `Product not found: ${item.title || item.product}` });
       }
 
-      // Check effective available stock excluding this session's hold
-      const available = await getEffectiveAvailableStock(item.product, item.size, item.color, sessionId);
+      // Check live database stock
+      const available = await getEffectiveAvailableStock(item.product, item.size, item.color);
       if (available < item.quantity) {
         return res.status(400).json({
-          message: `Insufficient stock for ${product.title}. Available: ${available}. Another shopper may have recently purchased or reserved this item.`
+          message: `"${product.title}" ${item.size ? `(${item.size})` : ''} is out of stock. Please check your shopping bag.`,
+          isOutOfStock: true,
+          available
         });
       }
 
