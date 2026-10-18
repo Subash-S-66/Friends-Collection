@@ -106,6 +106,25 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('fc_user', JSON.stringify(updatedUser));
   };
 
+  // Global Auth Modal Controls (Popup for Login & Register)
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register' | 'forgot'
+  const [authModalRedirect, setAuthModalRedirect] = useState('');
+
+  const openAuthModal = (mode = 'login', redirectTo = '') => {
+    setAuthModalMode(mode);
+    setAuthModalRedirect(redirectTo);
+    setAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setAuthModalOpen(false);
+  };
+
+  const switchAuthMode = (mode) => {
+    setAuthModalMode(mode);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -121,7 +140,13 @@ export const AuthProvider = ({ children }) => {
       resendVerification,
       logout,
       updateUser,
-      isAdmin: user?.role === 'admin'
+      isAdmin: user?.role === 'admin',
+      authModalOpen,
+      authModalMode,
+      authModalRedirect,
+      openAuthModal,
+      closeAuthModal,
+      switchAuthMode
     }}>
       {children}
     </AuthContext.Provider>

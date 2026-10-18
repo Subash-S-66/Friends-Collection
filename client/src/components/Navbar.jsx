@@ -33,7 +33,7 @@ const Navbar = () => {
   const [mobileExpandedCat, setMobileExpandedCat] = useState(null);
 
   const { totalItems, setIsCartOpen } = useCart();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, openAuthModal } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -270,18 +270,29 @@ const Navbar = () => {
                 <HiOutlineSearch className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
-              {/* User Account */}
-              <Link
-                to={user ? (isAdmin ? '/admin' : '/account') : '/login'}
-                className="p-2 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative"
-                aria-label="User Account"
-                title={user ? `Logged in as ${user.name}` : 'Login'}
-              >
-                <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6" />
-                {user && (
+              {/* User Account / Sign In Popup */}
+              {user ? (
+                <Link
+                  to={isAdmin ? '/admin' : '/account'}
+                  className="p-2 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative"
+                  aria-label="User Account"
+                  title={`Logged in as ${user.name}`}
+                >
+                  <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6" />
                   <span className="absolute bottom-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
-                )}
-              </Link>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs font-bold text-primary hover:bg-accent-100/70 border border-accent-200/80 hover:border-accent-300 transition-all shadow-2xs"
+                  aria-label="Sign In or Register"
+                  title="Click to sign in or create an account"
+                >
+                  <HiOutlineUser className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-accent-700" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </button>
+              )}
 
               {/* Cart Drawer Button */}
               <button
@@ -653,13 +664,16 @@ const Navbar = () => {
                     </Link>
                   </>
                 ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="block px-3 py-2.5 rounded-xl text-xs font-bold text-primary bg-accent-100/70 hover:bg-accent-100 text-center shadow-xs"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      openAuthModal('login');
+                    }}
+                    className="w-full block px-3 py-2.5 rounded-xl text-xs font-bold text-primary bg-accent-100/70 hover:bg-accent-100 text-center shadow-xs"
                   >
-                    Login / Sign Up
-                  </Link>
+                    Sign In / Register
+                  </button>
                 )}
 
                 {isAdmin && (

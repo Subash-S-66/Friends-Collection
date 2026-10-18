@@ -65,20 +65,23 @@ const VerifyEmail = () => {
     }
   };
 
-  // 3, 2, 1 Countdown Animation before navigating into the boutique
+  // 3, 2, 1 Countdown Animation before navigating into the requested page
   const startCountdown = (user) => {
     setCountdown(3);
     let count = 3;
+    const redirectUrl =
+      searchParams.get('redirect') ||
+      searchParams.get('redirectTo') ||
+      sessionStorage.getItem('post_auth_redirect') ||
+      (user?.role === 'admin' ? '/admin' : '/');
+
     const timer = setInterval(() => {
       count -= 1;
       setCountdown(count);
       if (count <= 0) {
         clearInterval(timer);
-        if (user?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/');
-        }
+        sessionStorage.removeItem('post_auth_redirect');
+        navigate(redirectUrl);
       }
     }, 1000);
   };
@@ -386,15 +389,16 @@ const VerifyEmail = () => {
                   </div>
                 </div>
 
-                {/* Direct Bypass Button if they don't want to wait 3 seconds */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (verifiedUser?.role === 'admin') {
-                      navigate('/admin');
-                    } else {
-                      navigate('/');
-                    }
+                    const destination =
+                      searchParams.get('redirect') ||
+                      searchParams.get('redirectTo') ||
+                      sessionStorage.getItem('post_auth_redirect') ||
+                      (verifiedUser?.role === 'admin' ? '/admin' : '/');
+                    sessionStorage.removeItem('post_auth_redirect');
+                    navigate(destination);
                   }}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary-light transition-colors"
                 >

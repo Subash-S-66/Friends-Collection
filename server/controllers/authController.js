@@ -67,7 +67,8 @@ exports.register = async (req, res, next) => {
     });
 
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
-    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+    const redirectParam = req.body.redirect ? `&redirect=${encodeURIComponent(req.body.redirect)}` : '';
+    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}${redirectParam}`;
 
     await sendAccountVerificationEmail({
       to: cleanEmail,
@@ -438,7 +439,8 @@ exports.resendVerification = async (req, res, next) => {
     });
 
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
-    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+    const redirectParam = req.body.redirect ? `&redirect=${encodeURIComponent(req.body.redirect)}` : '';
+    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}${redirectParam}`;
 
     await sendAccountVerificationEmail({
       to: cleanEmail,

@@ -10,6 +10,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
+import AuthModal from './components/AuthModal';
 import ScrollToTop from './components/ScrollToTop';
 
 // Storefront Pages
@@ -46,6 +47,7 @@ const AppLayout = () => {
     <div className="flex flex-col min-h-screen">
       {!isAdminRoute && <Navbar />}
       <CartDrawer />
+      <AuthModal />
 
       <div className="flex-1">
         <Routes>

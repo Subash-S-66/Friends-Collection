@@ -56,10 +56,12 @@ const Register = () => {
 
       if (res?.requireVerification) {
         toast.success(res.message || 'Verification token dispatched to your email!', { icon: '📬' });
-        navigate(`/verify-email?email=${encodeURIComponent(formData.email.trim())}`);
+        const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`);
       } else {
         toast.success('🎉 Account registered successfully!');
-        navigate('/');
+        const redirectParam = new URLSearchParams(window.location.search).get('redirect') || '/';
+        navigate(redirectParam);
       }
     } catch (err) {
       console.error('Registration error:', err);
