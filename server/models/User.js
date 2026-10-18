@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, trim: true, sparse: true },
   secondaryPhone: { type: String, trim: true, default: '' },
-  password: { type: String, minlength: 6 },
+  password: { type: String, minlength: 6, select: false },
   googleId: { type: String, sparse: true },
   authProvider: { type: String, enum: ['local', 'google', 'token'], default: 'local' },
   avatar: { type: String },
@@ -40,13 +40,35 @@ const userSchema = new mongoose.Schema({
   cart: [cartItemSchema]
 }, { timestamps: true });
 
-userSchema.pre('save', async function(next) {
-  if (!this.password || !this.isModified('password')) return next();
+// Pre-save hook for password hashing (Bcrypt cost factor 12)
+userSchema.pre('save', async function() {
+  if (!this.password || !this.isModified('password')) return;
+  // Ensure we never double-hash if password is already a valid bcrypt hash
+  if (this.password.startsWith('$2a$') || this.password.startsWith('$2b$')) {
+    return;
+  }
   this.password = await bcrypt.hash(this.password, 12);
-  next();
+});
+
+// Pre-update hooks for query updates (findOneAndUpdate, updateOne)
+userSchema.pre(['findOneAndUpdate', 'updateOne'], async function() {
+  const update = this.getUpdate();
+  if (!update) return;
+
+  if (typeof update.password === 'string' && update.password) {
+    if (!update.password.startsWith('$2a$') && !update.password.startsWith('$2b$')) {
+      update.password = await bcrypt.hash(update.password, 12);
+    }
+  }
+  if (update.$set && typeof update.$set.password === 'string' && update.$set.password) {
+    if (!update.$set.password.startsWith('$2a$') && !update.$set.password.startsWith('$2b$')) {
+      update.$set.password = await bcrypt.hash(update.$set.password, 12);
+    }
+  }
 });
 
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password || !candidatePassword) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

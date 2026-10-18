@@ -78,16 +78,34 @@ const orderSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-orderSchema.pre('save', async function(next) {
+const crypto = require('crypto');
+
+/**
+ * Generate a realistic, cryptographically random order ID (e.g. FC-8492-7163-9582)
+ * Partitioned into clean 4-digit groups matching enterprise e-commerce standards.
+ */
+function generateSecureOrderId() {
+  const p1 = crypto.randomInt(1000, 9999);
+  const p2 = crypto.randomInt(1000, 9999);
+  const p3 = crypto.randomInt(1000, 9999);
+  return `FC-${p1}-${p2}-${p3}`;
+}
+
+orderSchema.pre('save', async function() {
   if (!this.orderId) {
-    const date = new Date();
-    const dateStr = date.getFullYear().toString() +
-      (date.getMonth() + 1).toString().padStart(2, '0') +
-      date.getDate().toString().padStart(2, '0');
-    const count = await mongoose.model('Order').countDocuments();
-    this.orderId = `FC-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+    let isUnique = false;
+    let candidate = '';
+    let attempts = 0;
+    while (!isUnique && attempts < 10) {
+      attempts++;
+      candidate = generateSecureOrderId();
+      const exists = await mongoose.model('Order').exists({ orderId: candidate });
+      if (!exists) {
+        isUnique = true;
+      }
+    }
+    this.orderId = candidate || `FC-${Date.now().toString().slice(-8)}-${crypto.randomInt(1000, 9999)}`;
   }
-  next();
 });
 
 orderSchema.index({ user: 1, createdAt: -1 });

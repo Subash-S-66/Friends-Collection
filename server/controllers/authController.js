@@ -127,9 +127,9 @@ exports.login = async (req, res, next) => {
           ...(adminEmail ? [{ email: adminEmail }] : []),
           { role: 'admin' }
         ]
-      });
+      }).select('+password');
     } else {
-      user = await User.findOne({ email: loginIdentifier });
+      user = await User.findOne({ email: loginIdentifier }).select('+password');
     }
 
     if (!user || !(await user.comparePassword(password))) {
