@@ -155,6 +155,176 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Quick Operations Hub - Clean Modular Navigation */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-serif text-lg font-bold text-neutral-900">Store Management Console</h2>
+            <p className="text-xs text-neutral-500">Separated individual control hubs for easy and rapid access</p>
+          </div>
+          <span className="text-xs font-bold text-accent bg-accent-50 px-3 py-1 rounded-full border border-accent-200">
+            6 Core Hubs
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Hub 1: Categories */}
+          <Link
+            to="/admin/categories"
+            className="group bg-white p-5 rounded-3xl border border-neutral-200 shadow-xs hover:border-primary hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                🏷️
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900 group-hover:text-primary transition-colors">
+                  Categories & Hierarchy
+                </h3>
+                <span className="text-[11px] text-neutral-400">Women, Men & Kids departments</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Organize categories, toggle storefront visibility, and view nested dress items inside each category.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
+              <span>Browse Categories & Items</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Hub 2: Items & Products */}
+          <Link
+            to="/admin/products"
+            className="group bg-white p-5 rounded-3xl border border-neutral-200 shadow-xs hover:border-primary hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-primary-50 text-primary flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                👗
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900 group-hover:text-primary transition-colors">
+                  Dress Items & Catalog
+                </h3>
+                <span className="text-[11px] text-neutral-400">{stats?.totalProducts || 'All'} items in stock</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Explore inventory sorted by category, manage color & size variants, photo slots, and restock alerts.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
+              <span>Manage Dress Catalog</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Hub 3: Festival Campaigns */}
+          <Link
+            to="/admin/campaigns"
+            className="group bg-white p-5 rounded-3xl border border-accent-200 shadow-xs hover:border-accent-400 hover:shadow-md transition-all flex flex-col justify-between space-y-3 bg-gradient-to-br from-accent-50/20 to-white"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                🪔
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-sm text-neutral-900 group-hover:text-accent-800 transition-colors">
+                    Festival Campaigns
+                  </h3>
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-accent text-white uppercase">
+                    Offers
+                  </span>
+                </div>
+                <span className="text-[11px] text-neutral-400">Diwali, Pongal & Flash Sales</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Send mass email promotional blasts with pre-made festival templates, custom fonts, banners & highlight styling.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-accent-100 text-xs font-bold text-accent-800">
+              <span>Launch Festival Campaign</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Hub 4: Orders */}
+          <Link
+            to="/admin/orders"
+            className="group bg-white p-5 rounded-3xl border border-neutral-200 shadow-xs hover:border-primary hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                📦
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900 group-hover:text-primary transition-colors">
+                  Customer Orders
+                </h3>
+                <span className="text-[11px] text-emerald-700 font-semibold">{stats?.pendingOrders || 0} awaiting dispatch</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Track customer orders, verify delivery addresses across Chennai, update fulfillment status & view invoices.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
+              <span>View Order Fulfillment</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Hub 5: Hero Slideshow */}
+          <Link
+            to="/admin/banners"
+            className="group bg-white p-5 rounded-3xl border border-neutral-200 shadow-xs hover:border-primary hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                🖼️
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900 group-hover:text-primary transition-colors">
+                  Homepage Slideshow
+                </h3>
+                <span className="text-[11px] text-neutral-400">Hero banners & headlines</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Upload storefront promotional slides, customize headlines, promo descriptions, and configure CTA buttons.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
+              <span>Manage Hero Banners</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Hub 6: Store Settings */}
+          <Link
+            to="/admin/settings"
+            className="group bg-white p-5 rounded-3xl border border-neutral-200 shadow-xs hover:border-primary hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-neutral-100 text-neutral-700 flex items-center justify-center text-lg shadow-2xs group-hover:scale-110 transition-transform">
+                🎨
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-neutral-900 group-hover:text-primary transition-colors">
+                  Theme & Store Settings
+                </h3>
+                <span className="text-[11px] text-neutral-400">Dynamic theming & shipping</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-600 font-light leading-relaxed">
+              Change luxury theme colors dynamically, update free shipping rules, announcement notices, and store copy.
+            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
+              <span>Configure Store Settings</span>
+              <HiOutlineArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+        </div>
+      </div>
+
       {/* Recent Orders Section */}
       <div className="bg-white rounded-3xl border border-neutral-200/80 shadow-xs overflow-hidden space-y-4">
         <div className="p-6 border-b border-neutral-100 flex items-center justify-between">

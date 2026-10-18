@@ -37,15 +37,42 @@ const AdminLayout = () => {
 
   if (!isAdmin) return null;
 
-  const navItems = [
-    { name: 'Dashboard', path: '/admin', icon: HiOutlineHome, exact: true },
-    { name: 'Orders', path: '/admin/orders', icon: HiOutlineClipboardList },
-    { name: 'Products', path: '/admin/products', icon: HiOutlineShoppingBag },
-    { name: 'Categories', path: '/admin/categories', icon: HiOutlineTag },
-    { name: 'Festival Campaigns', path: '/admin/campaigns', icon: HiOutlineMail },
-    { name: 'Hero Banners', path: '/admin/banners', icon: HiOutlinePhotograph },
-    { name: 'Store Settings', path: '/admin/settings', icon: HiOutlineCog },
+  const navSections = [
+    {
+      title: 'OVERVIEW',
+      items: [
+        { name: 'Dashboard', path: '/admin', icon: HiOutlineHome, exact: true },
+      ],
+    },
+    {
+      title: 'CATALOG & INVENTORY',
+      items: [
+        { name: 'Categories & Hierarchy', path: '/admin/categories', icon: HiOutlineTag, desc: 'Women, Men, Kids departments' },
+        { name: 'Items & Products', path: '/admin/products', icon: HiOutlineShoppingBag, desc: 'All dresses organized by category' },
+      ],
+    },
+    {
+      title: 'ORDERS & CUSTOMERS',
+      items: [
+        { name: 'Customer Orders', path: '/admin/orders', icon: HiOutlineClipboardList, desc: 'Fulfillment & deliveries' },
+      ],
+    },
+    {
+      title: 'MARKETING & PROMOTIONS',
+      items: [
+        { name: 'Festival Campaigns', path: '/admin/campaigns', icon: HiOutlineMail, badge: 'Festive', desc: 'Email blasts & festive offers' },
+        { name: 'Hero Slideshow', path: '/admin/banners', icon: HiOutlinePhotograph, desc: 'Homepage banners & headlines' },
+      ],
+    },
+    {
+      title: 'STORE CONFIGURATION',
+      items: [
+        { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, shipping & copy' },
+      ],
+    },
   ];
+
+  const allNavItems = navSections.flatMap((s) => s.items);
 
   return (
     <div className="min-h-screen bg-neutral-50 flex">
@@ -59,52 +86,68 @@ const AdminLayout = () => {
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-primary-950 text-neutral-300 flex flex-col transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="p-6 border-b border-primary-900 flex items-center justify-between">
+        <div className="p-5 border-b border-primary-900 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="FC" className="w-9 h-9 rounded-full bg-cream p-0.5 object-cover" />
+            <img src="/logo.png" alt="FC" className="w-10 h-10 rounded-full bg-cream p-0.5 object-cover shadow-sm" />
             <div>
-              <span className="font-serif text-base font-bold text-white block">Friends Collections</span>
+              <span className="font-serif text-sm font-bold text-white block">Friends Collections</span>
               <span className="text-[10px] uppercase tracking-widest text-accent-400 font-semibold block">
-                Admin Panel
+                Management Console
               </span>
             </div>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-neutral-400 hover:text-white"
+            className="lg:hidden p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-primary-900"
           >
-            <HiOutlineX className="w-6 h-6" />
+            <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = item.exact
-              ? location.pathname === item.path
-              : location.pathname.startsWith(item.path);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-accent-500 text-white shadow-md'
-                    : 'text-neutral-300 hover:bg-primary-900 hover:text-white'
-                }`}
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+        {/* Sectioned Navigation Links */}
+        <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+          {navSections.map((section) => (
+            <div key={section.title} className="space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 block">
+                {section.title}
+              </span>
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = item.exact
+                    ? location.pathname === item.path
+                    : location.pathname.startsWith(item.path);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                        isActive
+                          ? 'bg-accent-500 text-white shadow-md'
+                          : 'text-neutral-300 hover:bg-primary-900/80 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Icon className={`w-4 h-4 shrink-0 transition-transform ${isActive ? 'text-white' : 'text-accent-300 group-hover:scale-110'}`} />
+                        <span className="truncate">{item.name}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-400/20 text-accent-200 border border-accent-300/30">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Storefront Link & Logout */}
@@ -142,7 +185,7 @@ const AdminLayout = () => {
               <HiOutlineMenu className="w-6 h-6" />
             </button>
             <span className="font-serif text-lg font-bold text-neutral-900">
-              {navItems.find((n) =>
+              {allNavItems.find((n) =>
                 n.exact ? location.pathname === n.path : location.pathname.startsWith(n.path)
               )?.name || 'Control Panel'}
             </span>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   HiOutlinePlus,
   HiOutlinePencil,
@@ -12,17 +13,23 @@ import {
   HiOutlineCheck,
   HiOutlineEye,
   HiOutlineEyeOff,
-  HiOutlinePhotograph
+  HiOutlinePhotograph,
+  HiOutlineShoppingBag,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
+  HiOutlineArrowRight
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { getImageUrl, handleImageError } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const CategoryManager = () => {
   const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [expandedItemsCatId, setExpandedItemsCatId] = useState(null);
 
   // View mode: 'table' (default) or 'cards'
   const [viewMode, setViewMode] = useState('table');
@@ -48,10 +55,17 @@ const CategoryManager = () => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/categories/admin/all');
-      setCategories(Array.isArray(res.data) ? res.data : []);
+      const [catRes, prodRes] = await Promise.all([
+        API.get('/categories/admin/all'),
+        API.get('/products/admin/all?limit=300').catch(() => ({ data: [] }))
+      ]);
+      setCategories(Array.isArray(catRes.data) ? catRes.data : []);
+      const prods = Array.isArray(prodRes.data?.products)
+        ? prodRes.data.products
+        : (Array.isArray(prodRes.data) ? prodRes.data : []);
+      setProducts(prods);
     } catch (err) {
-      console.error('Error fetching categories:', err);
+      console.error('Error fetching categories & products:', err);
       toast.error('Failed to load categories');
     } finally {
       setLoading(false);
@@ -61,6 +75,12 @@ const CategoryManager = () => {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Get products inside a category
+  const getCategoryProducts = (catId) =>
+    products.filter(
+      (p) => (p.category?._id || p.category) === catId || (p.subcategory?._id || p.subcategory) === catId
+    );
 
   // Separate parent categories from subcategories
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -450,6 +470,7 @@ const CategoryManager = () => {
                   <th className="py-3.5 px-4">Category Name & Slug</th>
                   <th className="py-3.5 px-4">Department</th>
                   <th className="py-3.5 px-4">Hierarchy Type</th>
+                  <th className="py-3.5 px-4 text-center">Items Inside</th>
                   <th className="py-3.5 px-4 text-center">Priority</th>
                   <th className="py-3.5 px-4 text-center">Visibility (Toggle)</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
@@ -460,14 +481,16 @@ const CategoryManager = () => {
                   const isParent = !cat.parent;
                   const isVisible = cat.isActive !== false;
                   const isToggling = togglingId === cat._id;
+                  const catItems = getCategoryProducts(cat._id);
+                  const isExpanded = expandedItemsCatId === cat._id;
 
                   return (
-                    <tr
-                      key={cat._id}
-                      className={`hover:bg-cream/20 transition-colors ${
-                        !isVisible ? 'opacity-60 bg-neutral-50/50' : ''
-                      }`}
-                    >
+                    <React.Fragment key={cat._id}>
+                      <tr
+                        className={`hover:bg-cream/20 transition-colors ${
+                          !isVisible ? 'opacity-60 bg-neutral-50/50' : ''
+                        }`}
+                      >
                       {/* Image Thumbnail */}
                       <td className="py-3 px-4">
                         <div className="w-11 h-11 rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden shrink-0 flex items-center justify-center">
@@ -543,71 +566,200 @@ const CategoryManager = () => {
                         )}
                       </td>
 
-                      {/* Priority */}
-                      <td className="py-3 px-4 text-center font-mono font-bold text-neutral-600">
-                        {cat.priority || 0}
-                      </td>
-
-                      {/* Interactive Visibility Toggle */}
-                      <td className="py-3 px-4 text-center">
-                        <div className="inline-flex items-center gap-2">
+                        {/* Items Inside Cell with Expand Toggle */}
+                        <td className="py-3 px-4 text-center">
                           <button
                             type="button"
-                            onClick={() => handleToggleStatus(cat)}
-                            disabled={isToggling}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
-                              isVisible ? 'bg-emerald-500' : 'bg-neutral-300'
-                            } ${isToggling ? 'opacity-50' : ''}`}
-                            aria-label={`Toggle visibility for ${cat.name}`}
-                            title={isVisible ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                isVisible ? 'translate-x-5' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                          <span
-                            className={`text-[11px] font-bold ${
-                              isVisible ? 'text-emerald-700' : 'text-neutral-400'
+                            onClick={() => setExpandedItemsCatId(isExpanded ? null : cat._id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                              catItems.length > 0
+                                ? 'bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 shadow-2xs'
+                                : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200'
                             }`}
+                            title="Click to view/hide dress items inside this category"
                           >
-                            {isVisible ? 'Visible' : 'Hidden'}
-                          </span>
-                        </div>
-                      </td>
+                            <HiOutlineShoppingBag className="w-3.5 h-3.5 text-accent-600" />
+                            <span>{catItems.length} items</span>
+                            {catItems.length > 0 && (
+                              isExpanded ? (
+                                <HiOutlineChevronUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <HiOutlineChevronDown className="w-3.5 h-3.5" />
+                              )
+                            )}
+                          </button>
+                        </td>
 
-                      {/* Action Buttons (Add sub, Edit, Delete) */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5">
-                          {isParent && (
+                        {/* Priority */}
+                        <td className="py-3 px-4 text-center font-mono font-bold text-neutral-600">
+                          {cat.priority || 0}
+                        </td>
+
+                        {/* Interactive Visibility Toggle */}
+                        <td className="py-3 px-4 text-center">
+                          <div className="inline-flex items-center gap-2">
                             <button
-                              onClick={() => openAddModal(cat._id, cat.gender)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent-100 text-accent-800 hover:bg-accent-200 text-xs font-bold transition-colors"
-                              title="Add a subcategory directly under this parent"
+                              type="button"
+                              onClick={() => handleToggleStatus(cat)}
+                              disabled={isToggling}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                isVisible ? 'bg-emerald-500' : 'bg-neutral-300'
+                              } ${isToggling ? 'opacity-50' : ''}`}
+                              aria-label={`Toggle visibility for ${cat.name}`}
+                              title={isVisible ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                  isVisible ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                            <span
+                              className={`text-[11px] font-bold ${
+                                isVisible ? 'text-emerald-700' : 'text-neutral-400'
+                              }`}
+                            >
+                              {isVisible ? 'Visible' : 'Hidden'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Action Buttons (Add Item, Add Sub, Edit, Delete) */}
+                        <td className="py-3 px-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <Link
+                              to={`/admin/products?new=true&category=${cat._id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-colors"
+                              title={`Add new dress item directly to "${cat.name}"`}
                             >
                               <HiOutlinePlus className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Add Sub</span>
+                              <span className="hidden sm:inline">Add Item</span>
+                            </Link>
+                            <Link
+                              to={`/admin/products?category=${cat._id}`}
+                              className="p-1.5 text-neutral-500 hover:text-primary hover:bg-neutral-100 rounded-lg transition-colors"
+                              title={`Manage all ${catItems.length} items in Catalog`}
+                            >
+                              <HiOutlineShoppingBag className="w-4 h-4" />
+                            </Link>
+                            {isParent && (
+                              <button
+                                onClick={() => openAddModal(cat._id, cat.gender)}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-accent-100 text-accent-800 hover:bg-accent-200 text-xs font-bold transition-colors"
+                                title="Add a subcategory directly under this parent"
+                              >
+                                <HiOutlinePlus className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Add Sub</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openEditModal(cat)}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold transition-colors"
+                              title="Edit Category Details"
+                            >
+                              <HiOutlinePencil className="w-3.5 h-3.5 text-primary" />
+                              <span>Edit</span>
                             </button>
-                          )}
-                          <button
-                            onClick={() => openEditModal(cat)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold transition-colors"
-                            title="Edit Category Details"
-                          >
-                            <HiOutlinePencil className="w-3.5 h-3.5 text-primary" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(cat, isParent)}
-                            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Category"
-                          >
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            <button
+                              onClick={() => handleDelete(cat, isParent)}
+                              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Category"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Nested Items Drawer inside Table */}
+                      {isExpanded && (
+                        <tr className="bg-gradient-to-b from-cream/40 to-neutral-50 border-b border-accent-200">
+                          <td colSpan={8} className="p-4 sm:p-6 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center text-xs">
+                                  👗
+                                </div>
+                                <div>
+                                  <h4 className="font-serif text-sm font-bold text-neutral-900">
+                                    Dress Items inside &ldquo;{cat.name}&rdquo; ({catItems.length} Designs)
+                                  </h4>
+                                  <p className="text-[11px] text-neutral-500">
+                                    Browse dresses and garments categorized in this department
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  to={`/admin/products?new=true&category=${cat._id}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-all"
+                                >
+                                  <HiOutlinePlus className="w-3.5 h-3.5" />
+                                  <span>+ Add Item to {cat.name}</span>
+                                </Link>
+                                <Link
+                                  to={`/admin/products?category=${cat._id}`}
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:text-primary transition-colors px-2.5 py-1.5"
+                                >
+                                  <span>Open in Items Manager</span>
+                                  <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            </div>
+
+                            {catItems.length === 0 ? (
+                              <div className="py-8 text-center text-xs text-neutral-400 bg-white rounded-2xl border border-neutral-200 shadow-2xs space-y-2">
+                                <p className="font-semibold text-neutral-700">No dresses added under &ldquo;{cat.name}&rdquo; yet.</p>
+                                <p className="text-[11px] text-neutral-400">Click &ldquo;+ Add Item to {cat.name}&rdquo; above to create the first dress item!</p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {catItems.map((prod) => (
+                                  <div
+                                    key={prod._id}
+                                    className="bg-white rounded-2xl p-2.5 border border-neutral-200 shadow-2xs space-y-1.5 flex flex-col justify-between hover:border-accent-300 transition-all"
+                                  >
+                                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-100 relative">
+                                      <img
+                                        src={getImageUrl(prod.images?.[0])}
+                                        alt={prod.title}
+                                        onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      {prod.stock <= 0 && (
+                                        <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold uppercase shadow-xs">
+                                          Out of Stock
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <h5 className="font-bold text-neutral-900 text-xs truncate" title={prod.title}>
+                                        {prod.title}
+                                      </h5>
+                                      <div className="flex items-center justify-between text-[11px] mt-0.5">
+                                        <span className="font-bold text-primary">
+                                          {formatPrice(prod.salePrice || prod.price)}
+                                        </span>
+                                        <span className="text-[10px] text-neutral-500 font-mono">
+                                          {prod.stock || 0} in stock
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Link
+                                      to={`/admin/products?category=${cat._id}`}
+                                      className="text-[10px] text-center font-bold text-primary hover:text-accent-700 bg-neutral-50 hover:bg-neutral-100 py-1.5 rounded-lg block border border-neutral-200 transition-colors"
+                                    >
+                                      Edit / Manage Variants
+                                    </Link>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -786,6 +938,79 @@ const CategoryManager = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Category Items Shelf - Directly preview items inside this category */}
+                  {(() => {
+                    const parentProducts = getCategoryProducts(parent._id);
+                    return (
+                      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-3 border-t border-neutral-100 bg-neutral-50/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <HiOutlineShoppingBag className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+                              Dresses & Items in {parent.name} ({parentProducts.length})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              to={`/admin/products?new=true&category=${parent._id}`}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-colors"
+                            >
+                              <HiOutlinePlus className="w-3.5 h-3.5" />
+                              <span>+ Add Item to {parent.name}</span>
+                            </Link>
+                            <Link
+                              to={`/admin/products?category=${parent._id}`}
+                              className="text-xs font-bold text-accent hover:text-primary transition-colors flex items-center gap-1"
+                            >
+                              <span>Manage all {parentProducts.length} items</span>
+                              <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          </div>
+                        </div>
+
+                        {parentProducts.length === 0 ? (
+                          <div className="py-4 text-center text-xs text-neutral-400 bg-white rounded-2xl border border-neutral-200">
+                            No items added in {parent.name} yet. Click &ldquo;+ Add Item to {parent.name}&rdquo; above to create one!
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {parentProducts.slice(0, 6).map((prod) => (
+                              <div
+                                key={prod._id}
+                                className="bg-white rounded-2xl p-2 border border-neutral-200 shadow-2xs space-y-1 hover:border-accent-300 transition-all"
+                              >
+                                <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-100 relative">
+                                  <img
+                                    src={getImageUrl(prod.images?.[0])}
+                                    alt={prod.title}
+                                    onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {prod.stock <= 0 && (
+                                    <span className="absolute top-1 right-1 px-1 py-0.5 rounded bg-red-600 text-white text-[8px] font-bold uppercase">
+                                      Out of Stock
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-bold text-neutral-800 block truncate" title={prod.title}>
+                                  {prod.title}
+                                </span>
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="font-bold text-primary">
+                                    {formatPrice(prod.salePrice || prod.price)}
+                                  </span>
+                                  <span className="text-neutral-400 font-mono">
+                                    {prod.stock || 0} in stock
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

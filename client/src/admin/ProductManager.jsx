@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   HiOutlinePlus,
   HiOutlinePencil,
@@ -14,13 +15,16 @@ import {
   HiOutlineArrowLeft,
   HiOutlineArrowRight,
   HiOutlineStar,
-  HiOutlineSparkles
+  HiOutlineSparkles,
+  HiOutlineTag,
+  HiOutlineFilter
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const ProductManager = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +82,21 @@ const ProductManager = () => {
     fetchData();
   }, []);
 
+  // Sync category, gender, and new modal from URL query params
+  useEffect(() => {
+    const catQuery = searchParams.get('category');
+    if (catQuery) {
+      setSelectedCat(catQuery);
+    }
+    const genderQuery = searchParams.get('gender');
+    if (genderQuery) {
+      setSelectedGenderFilter(genderQuery);
+    }
+    if (searchParams.get('new') === 'true') {
+      openAddModal(catQuery || '');
+    }
+  }, [searchParams]);
+
   // Filter parent categories vs subcategories
   const safeCategories = Array.isArray(categories) ? categories : [];
   const parentCategories = safeCategories.filter((c) => c && !c.parent);
@@ -85,12 +104,14 @@ const ProductManager = () => {
     (c) => c && c.parent && ((c.parent._id || c.parent) === category)
   );
 
-  const openAddModal = () => {
+  const openAddModal = (preselectedCatId = '') => {
     setEditingProduct(null);
     setTitle('');
     setDescription('');
-    setGender('women');
-    setCategory(parentCategories[0]?._id || '');
+    const catToUse = preselectedCatId || selectedCat || parentCategories[0]?._id || '';
+    const matchedCat = safeCategories.find((c) => c._id === catToUse);
+    setGender(matchedCat?.gender || 'women');
+    setCategory(catToUse);
     setSubcategory('');
     setPrice('');
     setSalePrice('');
@@ -408,6 +429,100 @@ const ProductManager = () => {
           <HiOutlinePlus className="w-4 h-4" />
           <span>Add New Dress with Variants</span>
         </button>
+      </div>
+
+      {/* Category Explorer Shelf - Browse Items By Category */}
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-neutral-200 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HiOutlineTag className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+              Browse Items By Category
+            </span>
+          </div>
+          <Link
+            to="/admin/categories"
+            className="text-[11px] font-bold text-accent hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <span>Manage All Categories</span>
+            <HiOutlineArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {/* Horizontal Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          <button
+            type="button"
+            onClick={() => setSelectedCat('')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+              !selectedCat
+                ? 'bg-primary text-white shadow-sm'
+                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+            }`}
+          >
+            <span>All Items</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${!selectedCat ? 'bg-white/20 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
+              {products.length}
+            </span>
+          </button>
+
+          {parentCategories.map((pCat) => {
+            const isSelected = selectedCat === pCat._id;
+            const catItemsCount = products.filter(
+              (p) => (p.category?._id || p.category) === pCat._id || (p.subcategory?._id || p.subcategory) === pCat._id
+            ).length;
+            const emoji = pCat.gender === 'men' ? '👔' : pCat.gender === 'kids' ? '🧒' : '🌸';
+
+            return (
+              <button
+                key={pCat._id}
+                type="button"
+                onClick={() => setSelectedCat(isSelected ? '' : pCat._id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+                  isSelected
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                }`}
+              >
+                <span>{emoji} {pCat.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
+                  {catItemsCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Category Context Banner */}
+        {selectedCat && (
+          <div className="pt-2 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Filtered Category:</span>
+              <span className="font-bold text-neutral-900 bg-neutral-100 px-2.5 py-1 rounded-lg">
+                {safeCategories.find((c) => c._id === selectedCat)?.name || 'Selected Category'}
+              </span>
+              <span className="text-neutral-400">({filteredProducts.length} items found)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openAddModal(selectedCat)}
+                className="px-3 py-1 rounded-lg bg-accent text-white font-bold text-[11px] hover:bg-accent-dark shadow-xs transition-colors flex items-center gap-1"
+              >
+                <HiOutlinePlus className="w-3.5 h-3.5" />
+                <span>Add Item to this Category</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCat('')}
+                className="text-neutral-400 hover:text-neutral-700 text-xs font-medium px-2 py-1"
+              >
+                Clear Filter (Show All)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
