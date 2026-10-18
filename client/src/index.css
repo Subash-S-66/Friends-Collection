@@ -23,14 +23,14 @@
   height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #F5EFEB;
+  background: var(--color-cream-dark, #F5EFEB);
 }
 ::-webkit-scrollbar-thumb {
-  background: #C88A65;
+  background: var(--color-accent, #C88A65);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #54142D;
+  background: var(--color-primary, #54142D);
 }
 
 /* Utility to completely hide scrollbars on horizontal tabs & shelves */

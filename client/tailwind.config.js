@@ -1,4 +1,12 @@
-/** @type {import('tailwindcss').Config} */
+const withOpacity = (varName, fallbackRgb) => {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `rgba(var(${varName}, ${fallbackRgb}), ${opacityValue})`;
+    }
+    return `rgb(var(${varName}, ${fallbackRgb}))`;
+  };
+};
+
 export default {
   content: [
     "./index.html",
@@ -8,38 +16,38 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: 'var(--color-primary, #54142D)',
-          light: 'var(--color-primary-light, #762243)',
-          dark: 'var(--color-primary-dark, #380B1C)',
-          50: 'color-mix(in srgb, var(--color-primary, #54142D) 8%, white)',
-          100: 'color-mix(in srgb, var(--color-primary, #54142D) 15%, white)',
-          200: 'color-mix(in srgb, var(--color-primary, #54142D) 25%, white)',
-          300: 'color-mix(in srgb, var(--color-primary, #54142D) 40%, white)',
-          400: 'color-mix(in srgb, var(--color-primary, #54142D) 60%, white)',
-          500: 'var(--color-primary, #54142D)',
-          600: 'var(--color-primary, #54142D)',
-          700: 'var(--color-primary, #54142D)',
-          800: 'var(--color-primary-dark, #380B1C)',
-          900: 'var(--color-primary-dark, #380B1C)',
-          950: '#1A040D',
+          DEFAULT: withOpacity('--color-primary-rgb', '84, 20, 45'),
+          light: withOpacity('--color-primary-light-rgb', '118, 34, 67'),
+          dark: withOpacity('--color-primary-dark-rgb', '56, 11, 28'),
+          50: withOpacity('--color-primary-50-rgb', '248, 238, 241'),
+          100: withOpacity('--color-primary-100-rgb', '232, 200, 211'),
+          200: withOpacity('--color-primary-200-rgb', '201, 137, 159'),
+          300: withOpacity('--color-primary-300-rgb', '160, 68, 100'),
+          400: withOpacity('--color-primary-400-rgb', '118, 34, 67'),
+          500: withOpacity('--color-primary-500-rgb', '84, 20, 45'),
+          600: withOpacity('--color-primary-600-rgb', '75, 18, 40'),
+          700: withOpacity('--color-primary-700-rgb', '67, 16, 36'),
+          800: withOpacity('--color-primary-800-rgb', '56, 11, 28'),
+          900: withOpacity('--color-primary-900-rgb', '43, 6, 22'),
+          950: withOpacity('--color-primary-950-rgb', '26, 4, 13'),
         },
         accent: {
-          DEFAULT: 'var(--color-accent, #C88A65)',
-          light: 'var(--color-accent-light, #DFAB8B)',
-          dark: 'var(--color-accent-dark, #A46743)',
-          50: 'color-mix(in srgb, var(--color-accent, #C88A65) 8%, white)',
-          100: 'color-mix(in srgb, var(--color-accent, #C88A65) 15%, white)',
-          200: 'color-mix(in srgb, var(--color-accent, #C88A65) 30%, white)',
-          300: 'color-mix(in srgb, var(--color-accent, #C88A65) 50%, white)',
-          400: 'var(--color-accent-light, #DFAB8B)',
-          500: 'var(--color-accent, #C88A65)',
-          600: 'var(--color-accent-dark, #A46743)',
-          700: 'var(--color-accent-dark, #A46743)',
+          DEFAULT: withOpacity('--color-accent-rgb', '200, 138, 101'),
+          light: withOpacity('--color-accent-light-rgb', '226, 184, 157'),
+          dark: withOpacity('--color-accent-dark-rgb', '156, 98, 62'),
+          50: withOpacity('--color-accent-50-rgb', '252, 247, 243'),
+          100: withOpacity('--color-accent-100-rgb', '247, 233, 224'),
+          200: withOpacity('--color-accent-200-rgb', '238, 208, 189'),
+          300: withOpacity('--color-accent-300-rgb', '226, 184, 157'),
+          400: withOpacity('--color-accent-400-rgb', '215, 160, 128'),
+          500: withOpacity('--color-accent-500-rgb', '200, 138, 101'),
+          600: withOpacity('--color-accent-600-rgb', '170, 110, 75'),
+          700: withOpacity('--color-accent-700-rgb', '140, 85, 50'),
         },
         cream: {
-          DEFAULT: 'var(--color-cream, #FAF7F2)',
+          DEFAULT: withOpacity('--color-cream-rgb', '250, 247, 242'),
           light: '#FFFFFF',
-          dark: '#F0EAE1',
+          dark: withOpacity('--color-cream-dark-rgb', '240, 234, 225'),
         },
       },
       fontFamily: {

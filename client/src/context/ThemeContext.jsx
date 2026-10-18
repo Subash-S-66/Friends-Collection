@@ -64,22 +64,139 @@ export const THEME_PRESETS = {
   }
 };
 
+// Helper: Convert hex color to { r, g, b, rgbStr }
+export function hexToRgb(hex) {
+  if (!hex || typeof hex !== 'string') return null;
+  let clean = hex.replace('#', '').trim();
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  const num = parseInt(clean, 16);
+  if (isNaN(num)) return null;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return { r, g, b, rgbStr: `${r}, ${g}, ${b}` };
+}
+
+// Helper: Adjust brightness (factor > 0 lightens toward white, factor < 0 darkens toward black)
+export function adjustColor(hex, factor) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const target = factor > 0 ? 255 : 0;
+  const p = Math.min(Math.abs(factor), 1);
+  const r = Math.round(rgb.r + (target - rgb.r) * p);
+  const g = Math.round(rgb.g + (target - rgb.g) * p);
+  const b = Math.round(rgb.b + (target - rgb.b) * p);
+  const toHex = (n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Derive full 50-950 color scale and variables for any preset or custom brand theme
+export function deriveThemePalette(themeData) {
+  if (!themeData) return null;
+  const primary = themeData.primary || '#54142D';
+  const primaryDark = themeData.primaryDark && themeData.primaryDark !== primary
+    ? themeData.primaryDark
+    : adjustColor(primary, -0.4);
+  const primaryLight = themeData.primaryLight && themeData.primaryLight !== primary
+    ? themeData.primaryLight
+    : adjustColor(primary, 0.25);
+
+  const accent = themeData.accent || '#C88A65';
+  const accentDark = themeData.accentDark && themeData.accentDark !== accent
+    ? themeData.accentDark
+    : adjustColor(accent, -0.25);
+  const accentLight = themeData.accentLight && themeData.accentLight !== accent
+    ? themeData.accentLight
+    : adjustColor(accent, 0.25);
+
+  const bgTint = themeData.bgTint || '#FAF7F2';
+
+  // Deep midnight stops for hero banners & dark showcase sections
+  const primary950 = adjustColor(primaryDark, -0.65);
+  const primary900 = primaryDark;
+  const primary800 = adjustColor(primaryDark, 0.2);
+  const primary700 = adjustColor(primary, -0.15);
+  const primary600 = adjustColor(primary, -0.06);
+  const primary500 = primary;
+  const primary400 = primaryLight;
+  const primary300 = adjustColor(primary, 0.4);
+  const primary200 = adjustColor(primary, 0.6);
+  const primary100 = adjustColor(primary, 0.8);
+  const primary50 = adjustColor(primary, 0.92);
+
+  // Accent scale
+  const accent700 = accentDark;
+  const accent600 = adjustColor(accent, -0.12);
+  const accent500 = accent;
+  const accent400 = accentLight;
+  const accent300 = adjustColor(accent, 0.35);
+  const accent200 = adjustColor(accent, 0.55);
+  const accent100 = adjustColor(accent, 0.75);
+  const accent50 = adjustColor(accent, 0.92);
+
+  // Background cream scale
+  const cream = bgTint;
+  const creamDark = adjustColor(bgTint, -0.06);
+
+  return {
+    'primary': primary,
+    'primary-light': primaryLight,
+    'primary-dark': primaryDark,
+    'primary-950': primary950,
+    'primary-900': primary900,
+    'primary-800': primary800,
+    'primary-700': primary700,
+    'primary-600': primary600,
+    'primary-500': primary500,
+    'primary-400': primary400,
+    'primary-300': primary300,
+    'primary-200': primary200,
+    'primary-100': primary100,
+    'primary-50': primary50,
+    'accent': accent,
+    'accent-light': accentLight,
+    'accent-dark': accentDark,
+    'accent-700': accent700,
+    'accent-600': accent600,
+    'accent-500': accent500,
+    'accent-400': accent400,
+    'accent-300': accent300,
+    'accent-200': accent200,
+    'accent-100': accent100,
+    'accent-50': accent50,
+    'cream': cream,
+    'cream-dark': creamDark,
+  };
+}
+
+// Apply theme colors directly to document root CSS variables
+export const applyThemeToDOM = (themeData) => {
+  if (!themeData) return;
+  const root = document.documentElement;
+  const palette = deriveThemePalette(themeData);
+  if (!palette) return;
+
+  // Set every HEX and RGB channel variable for Tailwind and native CSS
+  Object.entries(palette).forEach(([varKey, hexVal]) => {
+    root.style.setProperty(`--color-${varKey}`, hexVal);
+    const rgb = hexToRgb(hexVal);
+    if (rgb) {
+      root.style.setProperty(`--color-${varKey}-rgb`, rgb.rgbStr);
+    }
+  });
+
+  // Base alias properties for convenience & scrollbar styling
+  root.style.setProperty('--color-primary', palette['primary']);
+  root.style.setProperty('--color-accent', palette['accent']);
+  root.style.setProperty('--color-cream', palette['cream']);
+  root.style.setProperty('--color-cream-dark', palette['cream-dark']);
+};
+
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(THEME_PRESETS.wine);
   const [loading, setLoading] = useState(true);
-
-  // Apply theme colors directly to document root CSS variables
-  const applyThemeToDOM = (themeData) => {
-    if (!themeData) return;
-    const root = document.documentElement;
-    root.style.setProperty('--color-primary', themeData.primary);
-    root.style.setProperty('--color-primary-light', themeData.primaryLight || themeData.primary);
-    root.style.setProperty('--color-primary-dark', themeData.primaryDark || themeData.primary);
-    root.style.setProperty('--color-accent', themeData.accent);
-    root.style.setProperty('--color-accent-light', themeData.accentLight || themeData.accent);
-    root.style.setProperty('--color-accent-dark', themeData.accentDark || themeData.accent);
-    root.style.setProperty('--color-cream', themeData.bgTint || '#FAF7F2');
-  };
 
   useEffect(() => {
     // Initial fetch from backend settings

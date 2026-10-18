@@ -12,7 +12,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
+import { useTheme, THEME_PRESETS, adjustColor } from '../context/ThemeContext';
 
 const SettingsManager = () => {
   const { theme, changeTheme, applyPreset, presets } = useTheme();
@@ -103,11 +103,11 @@ const SettingsManager = () => {
         id: 'custom',
         name: 'Custom Brand Theme',
         primary: customPrimary,
-        primaryLight: customPrimary,
-        primaryDark: customPrimary,
+        primaryLight: adjustColor(customPrimary, 0.25),
+        primaryDark: adjustColor(customPrimary, -0.35),
         accent: customAccent,
-        accentLight: customAccent,
-        accentDark: customAccent,
+        accentLight: adjustColor(customAccent, 0.25),
+        accentDark: adjustColor(customAccent, -0.25),
         bgTint: customBg,
       };
       await changeTheme(customConfig);
@@ -431,7 +431,7 @@ const SettingsManager = () => {
         </div>
 
         {/* Live Hero Simulation Box */}
-        <div className="rounded-2xl bg-gradient-to-r from-[#380B1C] to-[#54142D] p-5 sm:p-6 text-white space-y-3 border border-accent-300/20 shadow-inner">
+        <div className="rounded-2xl bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 p-5 sm:p-6 text-white space-y-3 border border-accent-300/20 shadow-inner">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase font-bold tracking-widest text-accent-300">
               Live Storefront Preview

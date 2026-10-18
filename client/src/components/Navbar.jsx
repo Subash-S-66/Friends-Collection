@@ -24,6 +24,11 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTree, setCategoryTree] = useState([]);
   
+  const [announcement, setAnnouncement] = useState({
+    text: '🎉 Free Shipping on Orders Above ₹999!',
+    isActive: true,
+  });
+
   // Flipkart Mega Menu state: 'women' | 'men' | 'kids' | null
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const leaveTimeoutRef = useRef(null);
@@ -49,8 +54,16 @@ const Navbar = () => {
     setActiveMegaMenu(null);
   }, [location]);
 
-  // Fetch category tree dynamically from database
+  // Fetch settings & category tree dynamically from database
   useEffect(() => {
+    API.get('/settings')
+      .then((res) => {
+        if (res.data?.announcementBar) {
+          setAnnouncement(res.data.announcementBar);
+        }
+      })
+      .catch(() => {});
+
     API.get('/categories/tree')
       .then((res) => {
         if (Array.isArray(res.data)) {
@@ -99,11 +112,21 @@ const Navbar = () => {
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 border-b ${
           scrolled || activeMegaMenu
-            ? 'bg-white shadow-md py-2.5 border-accent-200'
-            : 'bg-cream shadow-xs py-3.5 border-accent-100'
+            ? 'bg-white shadow-md border-accent-200'
+            : 'bg-cream shadow-xs border-accent-100'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Dynamic Top Announcement Strip from DB Settings */}
+        {announcement?.isActive && Boolean(announcement?.text) && (
+          <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 text-white text-[11px] sm:text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 border-b border-accent-400/20 shadow-xs">
+            <HiOutlineSparkles className="w-3.5 h-3.5 text-accent-300 shrink-0 animate-pulse" />
+            <span className="truncate">{announcement.text}</span>
+          </div>
+        )}
+
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-300 ${
+          scrolled || activeMegaMenu ? 'py-2 sm:py-2.5' : 'py-3 sm:py-3.5'
+        }`}>
           <div className="flex items-center justify-between gap-4">
             {/* Mobile Menu Button */}
             <button
@@ -804,7 +827,7 @@ const Navbar = () => {
     </AnimatePresence>
 
       {/* Header spacer to prevent content overlap */}
-      <div className="h-16 sm:h-20" />
+      <div className={announcement?.isActive && Boolean(announcement?.text) ? 'h-24 sm:h-28' : 'h-16 sm:h-20'} />
     </>
   );
 };

@@ -277,7 +277,10 @@ const Home = () => {
       {/* Dynamic DB Hero Banner Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[440px] sm:min-h-[500px] flex items-center">
         {/* Subtle royal pattern/accents overlay */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#C88A65_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+        <div
+          className="absolute inset-0 opacity-10 [background-size:24px_24px] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(var(--color-accent, #C88A65) 1px, transparent 1px)' }}
+        />
 
         {/* Ambient Royal Showroom Background */}
         <div className="absolute inset-0 z-0">
