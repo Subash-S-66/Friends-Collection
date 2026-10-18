@@ -11,7 +11,8 @@ import {
   HiMinus,
   HiCheck,
   HiOutlineShare,
-  HiOutlineBell
+  HiOutlineBell,
+  HiOutlineX
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
@@ -148,6 +149,17 @@ const ProductDetail = () => {
 
   const discount = getDiscount(product.price, product.salePrice);
 
+  // Clean and prepare product images
+  const rawImages = (product.images || []).filter(
+    (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
+  );
+  const displayImages =
+    rawImages.length > 0
+      ? rawImages
+      : ['/fallback-product-1.png', '/fallback-product-2.png'];
+
+  const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
+
   // Variant matching
   const hasVariants = product.variants && product.variants.length > 0;
   const currentVariant = hasVariants
@@ -229,56 +241,46 @@ const ProductDetail = () => {
         </nav>
 
         {/* Product Main Showcase Card */}
-        {(() => {
-          const rawImages = (product.images || []).filter(
-            (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
-          );
-          const displayImages =
-            rawImages.length > 0
-              ? rawImages
-              : ['/fallback-product-1.png', '/fallback-product-2.png'];
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 bg-white rounded-3xl p-6 sm:p-10 border border-accent-100 shadow-sm">
+          {/* Gallery Column */}
+          <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
+            {/* Thumbnails */}
+            {displayImages.length > 1 && (
+              <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto sm:w-20 shrink-0 scrollbar-none">
+                {displayImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`aspect-[3/4] w-16 sm:w-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                      activeImageIndex === idx
+                        ? 'border-primary ring-2 ring-primary/20 shadow-md scale-102'
+                        : 'border-neutral-200 hover:border-neutral-400 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={getImageUrl(img, getFallbackForIndex(idx))}
+                      alt={`View ${idx + 1}`}
+                      onError={(e) => handleImageError(e, getFallbackForIndex(idx))}
+                      className="w-full h-full object-cover object-top"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
 
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 bg-white rounded-3xl p-6 sm:p-10 border border-accent-100 shadow-sm">
-              {/* Gallery Column */}
-              <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
-                {/* Thumbnails */}
-                {displayImages.length > 1 && (
-                  <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto sm:w-20 shrink-0 scrollbar-none">
-                    {displayImages.map((img, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveImageIndex(idx)}
-                        className={`aspect-[3/4] w-16 sm:w-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                          activeImageIndex === idx
-                            ? 'border-primary ring-2 ring-primary/20 shadow-md scale-102'
-                            : 'border-neutral-200 hover:border-neutral-400 opacity-70 hover:opacity-100'
-                        }`}
-                      >
-                        <img
-                          src={getImageUrl(img, `/fallback-product-${idx === 0 ? '1' : '2'}.png`)}
-                          alt={`View ${idx + 1}`}
-                          onError={(e) => handleImageError(e, `/fallback-product-${idx === 0 ? '1' : '2'}.png`)}
-                          className="w-full h-full object-cover object-top"
-                          loading="lazy"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Main Featured Image with 3:4 Aspect Ratio Guard */}
-                <div
-                  onClick={() => setLightboxOpen(true)}
-                  className="relative aspect-[3/4] flex-1 rounded-2xl overflow-hidden bg-cream-dark border border-accent-100 shadow-xs group cursor-zoom-in"
-                  title="Click to view full screen high-resolution detail"
-                >
-                  <AnimatePresence mode="wait">
-                    <motion.img
-                      key={activeImageIndex}
-                      src={getImageUrl(displayImages[activeImageIndex] || displayImages[0], '/fallback-product-1.png')}
-                      alt={product.title}
-                      onError={(e) => handleImageError(e, '/fallback-product-1.png')}
+            {/* Main Featured Image with 3:4 Aspect Ratio Guard */}
+            <div
+              onClick={() => setLightboxOpen(true)}
+              className="relative aspect-[3/4] flex-1 rounded-2xl overflow-hidden bg-cream-dark border border-accent-100 shadow-xs group cursor-zoom-in"
+              title="Click to view full screen high-resolution detail"
+            >
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={activeImageIndex}
+                  src={getImageUrl(displayImages[activeImageIndex] || displayImages[0], getFallbackForIndex(activeImageIndex))}
+                  alt={product.title}
+                  onError={(e) => handleImageError(e, getFallbackForIndex(activeImageIndex))}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -606,10 +608,8 @@ const ProductDetail = () => {
                 <span>Hassle-free 3-day Exchange Support</span>
               </div>
             </div>
-            </div>
           </div>
-        );
-      })()}
+        </div>
 
         {/* Product Description */}
         <div className="mt-12 bg-white rounded-3xl p-6 sm:p-10 border border-accent-100 shadow-sm space-y-4">
@@ -670,16 +670,16 @@ const ProductDetail = () => {
 
           <div className="max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center relative">
             <img
-              src={getImageUrl(product.images?.[activeImageIndex] || product.images?.[0], '/fallback-product-1.png')}
+              src={getImageUrl(displayImages[activeImageIndex] || displayImages[0], getFallbackForIndex(activeImageIndex))}
               alt={product.title}
-              onError={(e) => handleImageError(e, '/fallback-product-1.png')}
+              onError={(e) => handleImageError(e, getFallbackForIndex(activeImageIndex))}
               className="max-h-[82vh] max-w-full object-contain rounded-2xl shadow-2xl"
             />
             
             {/* Lightbox thumbnail row */}
-            {product.images && product.images.length > 1 && (
+            {displayImages.length > 1 && (
               <div className="flex items-center gap-2.5 mt-4 overflow-x-auto p-2">
-                {product.images.map((img, i) => (
+                {displayImages.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImageIndex(i)}
@@ -688,9 +688,9 @@ const ProductDetail = () => {
                     }`}
                   >
                     <img
-                      src={getImageUrl(img, `/fallback-product-${i === 0 ? '1' : '2'}.png`)}
+                      src={getImageUrl(img, getFallbackForIndex(i))}
                       alt=""
-                      onError={(e) => handleImageError(e, `/fallback-product-${i === 0 ? '1' : '2'}.png`)}
+                      onError={(e) => handleImageError(e, getFallbackForIndex(i))}
                       className="w-full h-full object-cover"
                     />
                   </button>
