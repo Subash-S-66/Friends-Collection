@@ -1,11 +1,167 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const StockReservation = require('../models/StockReservation');
+
+// Helper to get effective available stock excluding the requesting session's own reservation
+async function getEffectiveAvailableStock(productId, size = '', color = '', excludeSessionId = null) {
+  const product = await Product.findById(productId);
+  if (!product) return 0;
+
+  let baseStock = Number(product.stock) || 0;
+  if (product.variants && product.variants.length > 0) {
+    const v = product.variants.find(
+      (v) => (!size || v.size === size) && (!color || v.color === color)
+    );
+    if (v) baseStock = Number(v.stock) || 0;
+  }
+
+  // Active holds: active and expiresAt > now, excluding excludeSessionId
+  const now = new Date();
+  const filter = {
+    status: 'active',
+    expiresAt: { $gt: now },
+    'items.product': productId
+  };
+  if (excludeSessionId) {
+    filter.sessionId = { $ne: excludeSessionId };
+  }
+
+  const activeReservations = await StockReservation.find(filter);
+  let heldQty = 0;
+  for (const res of activeReservations) {
+    for (const it of res.items) {
+      if (it.product.toString() === productId.toString()) {
+        if ((!size || it.size === size) && (!color || it.color === color)) {
+          heldQty += Number(it.quantity) || 1;
+        }
+      }
+    }
+  }
+
+  return Math.max(0, baseStock - heldQty);
+}
+
+// @desc    Reserve stock for 10 minutes when proceeding to checkout
+// @route   POST /api/orders/reserve
+exports.reserveCheckoutStock = async (req, res, next) => {
+  try {
+    const { sessionId, items } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ message: 'Session ID is required for checkout reservation' });
+    }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'No items provided for reservation' });
+    }
+
+    // Verify stock availability for all items
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${item.title || item.product}` });
+      }
+
+      const available = await getEffectiveAvailableStock(item.product, item.size, item.color, sessionId);
+      if (available < item.quantity) {
+        return res.status(409).json({
+          message: `Cannot reserve "${product.title}" (${item.size || 'Standard'}). Another customer is currently holding this item in checkout. If they do not purchase within 10 minutes, it will be released!`,
+          item: item.title,
+          available
+        });
+      }
+    }
+
+    // 10 minutes reservation window
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + TEN_MINUTES_MS);
+
+    // Update existing active reservation for this session, or create new one
+    let reservation = await StockReservation.findOne({ sessionId, status: 'active' });
+    if (reservation) {
+      reservation.items = items.map((it) => ({
+        product: it.product,
+        size: it.size || '',
+        color: it.color || '',
+        quantity: Number(it.quantity) || 1
+      }));
+      reservation.expiresAt = expiresAt;
+      reservation.user = req.user ? req.user._id : null;
+      await reservation.save();
+    } else {
+      reservation = await StockReservation.create({
+        sessionId,
+        user: req.user ? req.user._id : null,
+        items: items.map((it) => ({
+          product: it.product,
+          size: it.size || '',
+          color: it.color || '',
+          quantity: Number(it.quantity) || 1
+        })),
+        status: 'active',
+        expiresAt
+      });
+    }
+
+    res.json({
+      success: true,
+      reservationId: reservation._id,
+      expiresAt: reservation.expiresAt,
+      holdMinutes: 10,
+      remainingSeconds: Math.round((reservation.expiresAt - Date.now()) / 1000)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Release stock hold when user abandons or leaves checkout
+// @route   POST /api/orders/release-hold
+exports.releaseCheckoutStock = async (req, res, next) => {
+  try {
+    const { sessionId } = req.body;
+    if (sessionId) {
+      await StockReservation.updateMany(
+        { sessionId, status: 'active' },
+        { status: 'released' }
+      );
+    }
+    res.json({ success: true, message: 'Stock hold released' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Check reservation status and remaining seconds
+// @route   GET /api/orders/reservation/:sessionId
+exports.getReservationStatus = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const reservation = await StockReservation.findOne({ sessionId, status: 'active' });
+    if (!reservation) {
+      return res.json({ active: false, remainingSeconds: 0 });
+    }
+
+    const remainingSeconds = Math.max(0, Math.round((reservation.expiresAt - Date.now()) / 1000));
+    if (remainingSeconds <= 0) {
+      reservation.status = 'expired';
+      await reservation.save();
+      return res.json({ active: false, remainingSeconds: 0 });
+    }
+
+    res.json({
+      active: true,
+      expiresAt: reservation.expiresAt,
+      remainingSeconds
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // @desc    Place order (guest or logged-in)
 // @route   POST /api/orders
 exports.placeOrder = async (req, res, next) => {
   try {
-    const { items, customer, shippingCharge = 0 } = req.body;
+    const { items, customer, shippingCharge = 0, sessionId } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
@@ -32,19 +188,13 @@ exports.placeOrder = async (req, res, next) => {
       if (!product) {
         return res.status(400).json({ message: `Product not found: ${item.title || item.product}` });
       }
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${product.title}. Available: ${product.stock}` });
-      }
 
-      if (product.variants && product.variants.length > 0) {
-        const vIndex = product.variants.findIndex(
-          (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
-        );
-        if (vIndex >= 0 && product.variants[vIndex].stock < item.quantity) {
-          return res.status(400).json({
-            message: `Insufficient stock for ${product.title} (${item.color ? item.color + ' ' : ''}${item.size}). Available: ${product.variants[vIndex].stock}`
-          });
-        }
+      // Check effective available stock excluding this session's hold
+      const available = await getEffectiveAvailableStock(item.product, item.size, item.color, sessionId);
+      if (available < item.quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.title}. Available: ${available}. Another shopper may have recently purchased or reserved this item.`
+        });
       }
 
       const price = product.salePrice || product.price;
@@ -60,7 +210,7 @@ exports.placeOrder = async (req, res, next) => {
         image: product.images[0] || ''
       });
 
-      // Decrease stock
+      // Decrease stock by item.quantity (e.g. -1 for 1 item, -2 for 2 items)
       product.stock = Math.max(0, product.stock - item.quantity);
       if (product.variants && product.variants.length > 0) {
         const vIndex = product.variants.findIndex(
@@ -80,6 +230,14 @@ exports.placeOrder = async (req, res, next) => {
       totalAmount,
       shippingCharge: Number(shippingCharge)
     });
+
+    // Mark any active reservation for this session as completed (hold is cleared)
+    if (sessionId) {
+      await StockReservation.updateMany(
+        { sessionId, status: 'active' },
+        { status: 'completed' }
+      );
+    }
 
     res.status(201).json(order);
   } catch (error) {

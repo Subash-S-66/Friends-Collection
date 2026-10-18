@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { HiOutlineShoppingBag, HiOutlineLockClosed, HiOutlineCheckCircle, HiArrowRight, HiOutlineShieldCheck } from 'react-icons/hi';
+import {
+  HiOutlineShoppingBag,
+  HiOutlineLockClosed,
+  HiOutlineCheckCircle,
+  HiArrowRight,
+  HiOutlineShieldCheck,
+  HiOutlineClock,
+  HiOutlineRefresh,
+  HiOutlineExclamationCircle
+} from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useCart } from '../context/CartContext';
@@ -25,6 +34,91 @@ const Checkout = () => {
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const grandTotal = subtotal + shippingCharge;
+
+  // 10-Minute Stock Reservation Session
+  const [sessionId] = useState(() => {
+    let sid = sessionStorage.getItem('fc_checkout_session');
+    if (!sid) {
+      sid = 'chk_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      sessionStorage.setItem('fc_checkout_session', sid);
+    }
+    return sid;
+  });
+
+  const [holdState, setHoldState] = useState({
+    active: false,
+    remainingSeconds: 600,
+    conflict: false,
+    conflictMessage: '',
+    expired: false,
+    loading: true
+  });
+
+  const requestHold = async () => {
+    if (!items || items.length === 0) return;
+    setHoldState((prev) => ({ ...prev, loading: true, conflict: false }));
+    try {
+      const res = await API.post('/orders/reserve', {
+        sessionId,
+        items: items.map((it) => ({
+          product: it.product,
+          quantity: it.quantity,
+          size: it.size || '',
+          color: it.color || '',
+          title: it.title
+        }))
+      });
+      setHoldState({
+        active: true,
+        remainingSeconds: res.data.remainingSeconds || 600,
+        conflict: false,
+        conflictMessage: '',
+        expired: false,
+        loading: false
+      });
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setHoldState({
+          active: false,
+          remainingSeconds: 0,
+          conflict: true,
+          conflictMessage: err.response.data?.message || 'Another customer is holding this item in checkout.',
+          expired: false,
+          loading: false
+        });
+      } else {
+        setHoldState((prev) => ({ ...prev, loading: false }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (items.length > 0) {
+      requestHold();
+    }
+  }, [items.length]);
+
+  // Live countdown timer for 10-minute hold
+  useEffect(() => {
+    if (!holdState.active || holdState.remainingSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setHoldState((prev) => {
+        if (prev.remainingSeconds <= 1) {
+          return { ...prev, remainingSeconds: 0, active: false, expired: true };
+        }
+        return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [holdState.active, holdState.remainingSeconds]);
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -122,6 +216,7 @@ const Checkout = () => {
       }
 
       const orderPayload = {
+        sessionId,
         items: items.map((item) => ({
           product: item.product,
           quantity: item.quantity,
@@ -146,7 +241,8 @@ const Checkout = () => {
       const res = await API.post('/orders', orderPayload);
       const placedOrder = res.data;
 
-      // Clear cart
+      // Clear checkout session & cart
+      sessionStorage.removeItem('fc_checkout_session');
       clearCart();
       toast.success('🎉 Order placed successfully!');
 
@@ -169,7 +265,7 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-cream py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <nav className="text-xs text-neutral-500 mb-2 flex items-center gap-1.5">
             <Link to="/cart" className="hover:text-primary">Shopping Bag</Link>
             <span>/</span>
@@ -180,6 +276,83 @@ const Checkout = () => {
             Complete your order in seconds. No account password required.
           </p>
         </div>
+
+        {/* 10-Minute Stock Reservation Banner */}
+        {holdState.active && (
+          <div className="mb-8 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-amber-500/10 border border-amber-300/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md animate-pulse">
+                <HiOutlineClock className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-serif font-bold text-sm sm:text-base text-neutral-900">
+                    Stock Reserved for You
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                    10-Min Hold Active
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-600 mt-0.5">
+                  We are temporarily holding your {items.length === 1 ? 'item' : 'items'} so no other customer can buy it out from under you while you enter your delivery address.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-2xl border border-amber-200 shadow-xs shrink-0 self-start sm:self-center">
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Hold Expires In:</span>
+              <span className="font-mono text-xl font-black text-primary tracking-wider">
+                {formatTimer(holdState.remainingSeconds)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Conflict / Already Reserved Banner */}
+        {holdState.conflict && (
+          <div className="mb-8 p-4 sm:p-5 rounded-3xl bg-red-50 border border-red-300 shadow-sm flex items-start gap-3.5 text-red-900 animate-fade-in">
+            <HiOutlineExclamationCircle className="w-6 h-6 shrink-0 mt-0.5 text-red-600" />
+            <div className="flex-1 space-y-2">
+              <h4 className="font-bold text-sm">High-Demand Item Notice</h4>
+              <p className="text-xs text-red-700 leading-relaxed">
+                {holdState.conflictMessage || 'Another customer is currently holding this item in their checkout session. If they do not complete the purchase within 10 minutes, the item will be released automatically.'}
+              </p>
+              <button
+                type="button"
+                onClick={requestHold}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-xs"
+              >
+                <HiOutlineRefresh className="w-3.5 h-3.5" />
+                Check Availability Again
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Expired Hold Banner */}
+        {holdState.expired && (
+          <div className="mb-8 p-4 sm:p-5 rounded-3xl bg-amber-50 border border-amber-300 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-900 animate-fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+                <HiOutlineClock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-amber-800">10-Minute Hold Expired</h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Your reservation window has ended. You can still complete your order now if stock is still available, or re-hold your items for another 10 minutes.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={requestHold}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-xs shrink-0"
+            >
+              <HiOutlineRefresh className="w-3.5 h-3.5" />
+              Re-Hold for 10 Minutes
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Delivery & Customer Info */}
