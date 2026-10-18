@@ -124,9 +124,11 @@ const Home = () => {
                 </Link>
                 <Link
                   to="/contact"
-                  className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 text-white font-medium text-sm transition-colors"
+                  title="Visit our physical boutique store in Jamalia, Chennai"
+                  className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5"
                 >
-                  Visit Jamalia Store
+                  <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                  <span>{settings.storeVisitText || 'Visit Store'}</span>
                 </Link>
               </div>
 

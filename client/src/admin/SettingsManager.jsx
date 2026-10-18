@@ -6,7 +6,9 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineCheck,
   HiOutlineRefresh,
-  HiOutlineSparkles
+  HiOutlineSparkles,
+  HiOutlineLocationMarker,
+  HiOutlineArrowRight
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -27,6 +29,7 @@ const SettingsManager = () => {
   const [heroDescription, setHeroDescription] = useState(
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'
   );
+  const [storeVisitText, setStoreVisitText] = useState('Visit Store');
 
   // Announcement Bar state
   const [announcementText, setAnnouncementText] = useState('🎉 Free Shipping on Orders Above ₹999!');
@@ -55,6 +58,7 @@ const SettingsManager = () => {
         if (data.heroBadge) setHeroBadge(data.heroBadge);
         if (data.heroTitle) setHeroTitle(data.heroTitle);
         if (data.heroDescription) setHeroDescription(data.heroDescription);
+        if (data.storeVisitText) setStoreVisitText(data.storeVisitText);
         if (data.announcementBar) {
           setAnnouncementText(data.announcementBar.text || '');
           setAnnouncementActive(Boolean(data.announcementBar.isActive));
@@ -124,6 +128,7 @@ const SettingsManager = () => {
           heroBadge: heroBadge.trim(),
           heroTitle: heroTitle.trim(),
           heroDescription: heroDescription.trim(),
+          storeVisitText: storeVisitText.trim(),
         },
       });
       toast.success('Homepage hero copy updated and saved to database!');
@@ -352,7 +357,7 @@ const SettingsManager = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold text-neutral-700 mb-1">Hero Badge Tag</label>
             <input
@@ -374,6 +379,18 @@ const SettingsManager = () => {
               onChange={(e) => setHeroTitle(e.target.value)}
               placeholder="e.g. Style That Defines You"
               className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-serif font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Store Button Label (📍)</label>
+            <input
+              type="text"
+              required
+              value={storeVisitText}
+              onChange={(e) => setStoreVisitText(e.target.value)}
+              placeholder="e.g. Visit Store"
+              className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -427,6 +444,16 @@ const SettingsManager = () => {
             {heroDescription ||
               'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
           </p>
+          <div className="flex flex-wrap items-center gap-2.5 pt-2">
+            <div className="px-4 py-1.5 rounded-full bg-accent text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm">
+              <span>Explore Collection</span>
+              <HiOutlineArrowRight className="w-3.5 h-3.5" />
+            </div>
+            <div className="px-4 py-1.5 rounded-full border border-accent-300/40 text-white font-medium text-xs flex items-center gap-1.5 bg-white/5">
+              <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-300" />
+              <span>{storeVisitText || 'Visit Store'}</span>
+            </div>
+          </div>
         </div>
 
         <div className="text-right">
