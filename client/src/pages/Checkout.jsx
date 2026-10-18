@@ -8,19 +8,91 @@ import {
   HiOutlineShieldCheck,
   HiOutlineClock,
   HiOutlineRefresh,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlinePencilAlt,
+  HiOutlineTrash,
+  HiOutlinePlus
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import AddressModal from '../components/AddressModal';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, availableItems, outOfStockCount, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
   const { user, updateUser } = useAuth();
+  const { confirm } = useConfirm();
   const isOrderPlacedRef = useRef(false);
+
+  // Address Modal state for Checkout
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [selectedAddressForEdit, setSelectedAddressForEdit] = useState(null);
+
+  const handleOpenAddAddress = () => {
+    setSelectedAddressForEdit(null);
+    setAddressModalOpen(true);
+  };
+
+  const handleOpenEditAddress = (e, addr) => {
+    e.stopPropagation();
+    setSelectedAddressForEdit(addr);
+    setAddressModalOpen(true);
+  };
+
+  const handleDeleteAddress = async (e, addr) => {
+    e.stopPropagation();
+    const ok = await confirm({
+      title: 'Delete Saved Address?',
+      message: `Are you sure you want to delete this saved ${addr.label || 'Home'} address?`,
+      type: 'danger',
+      confirmText: 'Yes, Delete Address',
+      cancelText: 'Keep Address',
+      details: `${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}`
+    });
+    if (!ok) return;
+
+    try {
+      const res = await API.delete(`/auth/address/${addr._id}`);
+      if (user) {
+        updateUser({ ...user, savedAddresses: res.data });
+      }
+      toast.success('Address removed from profile', { icon: '🗑️' });
+
+      // If deleted address was currently selected, reset or select new default
+      if (formData.street === addr.street && formData.pincode === addr.pincode) {
+        const remaining = res.data || [];
+        const nextDefault = remaining.find((a) => a.isDefault) || remaining[0];
+        if (nextDefault) {
+          handleSelectSavedAddress(nextDefault);
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            street: '',
+            pincode: ''
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting address at checkout:', err);
+      toast.error(err.response?.data?.message || 'Could not delete address');
+    }
+  };
+
+  const handleAddressSuccess = (updatedAddresses) => {
+    if (user && updatedAddresses) {
+      updateUser({ ...user, savedAddresses: updatedAddresses });
+      const active = selectedAddressForEdit
+        ? updatedAddresses.find((a) => a._id === selectedAddressForEdit._id)
+        : updatedAddresses[updatedAddresses.length - 1];
+      if (active) {
+        handleSelectSavedAddress(active);
+      }
+    }
+  };
 
   const [threshold, setThreshold] = useState(999);
   useEffect(() => {
@@ -809,45 +881,87 @@ const Checkout = () => {
               </div>
 
               {/* Saved Addresses Selector for Logged-in User */}
-              {user && user.savedAddresses?.length > 0 && (
+              {user && (
                 <div className="p-4 rounded-2xl bg-cream-light/80 border border-accent-200/80 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>📍</span> Saved Addresses in Your Profile:
+                      <span>📍</span> Saved Addresses:
                     </span>
-                    <span className="text-[11px] text-neutral-500">Click to auto-fill</span>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddAddress}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary-dark transition-colors cursor-pointer"
+                    >
+                      <HiOutlinePlus className="w-3.5 h-3.5" />
+                      <span>Add New</span>
+                    </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {user.savedAddresses.map((addr, idx) => {
-                      const isSelected =
-                        formData.street === addr.street && formData.pincode === addr.pincode;
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => handleSelectSavedAddress(addr)}
-                          className={`p-3 rounded-xl border text-left transition-all ${
-                            isSelected
-                              ? 'border-primary bg-white shadow-sm ring-2 ring-primary/20'
-                              : 'border-neutral-200 bg-white/70 hover:bg-white hover:border-accent-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-xs font-bold text-neutral-900 mb-1">
-                            <span>{addr.label || `Address #${idx + 1}`}</span>
-                            {addr.isDefault && (
-                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                                Default
+
+                  {user.savedAddresses?.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {user.savedAddresses.map((addr, idx) => {
+                        const isSelected =
+                          formData.street === addr.street && formData.pincode === addr.pincode;
+                        return (
+                          <div
+                            key={addr._id || idx}
+                            onClick={() => handleSelectSavedAddress(addr)}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative group ${
+                              isSelected
+                                ? 'border-primary bg-white shadow-sm ring-2 ring-primary/20'
+                                : 'border-neutral-200 bg-white/70 hover:bg-white hover:border-accent-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs font-bold text-neutral-900 mb-1">
+                              <span className="flex items-center gap-1.5">
+                                <span>{addr.label || `Address #${idx + 1}`}</span>
+                                {addr.isDefault && (
+                                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                    Default
+                                  </span>
+                                )}
                               </span>
-                            )}
+
+                              {/* Edit & Delete Actions */}
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenEditAddress(e, addr)}
+                                  className="p-1 rounded-md text-neutral-400 hover:text-primary hover:bg-neutral-100 transition-colors"
+                                  title="Edit Address"
+                                >
+                                  <HiOutlinePencilAlt className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteAddress(e, addr)}
+                                  className="p-1 rounded-md text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  title="Delete Address"
+                                >
+                                  <HiOutlineTrash className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-neutral-700 line-clamp-1">{addr.street}</p>
+                            <p className="text-[11px] text-neutral-500">
+                              {addr.city}, {addr.state} - {addr.pincode}
+                            </p>
                           </div>
-                          <p className="text-xs text-neutral-700 line-clamp-1">{addr.street}</p>
-                          <p className="text-[11px] text-neutral-500">
-                            {addr.city}, {addr.state} - {addr.pincode}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-xs text-neutral-500 py-1">
+                      <span>No saved addresses yet. Enter your address below or add one now.</span>
+                      <button
+                        type="button"
+                        onClick={handleOpenAddAddress}
+                        className="text-primary font-bold hover:underline"
+                      >
+                        + Add Address
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1135,6 +1249,16 @@ const Checkout = () => {
             </div>
           </div>
         </form>
+
+        {/* Address Modal (Add / Edit) at Checkout */}
+        <AddressModal
+          isOpen={addressModalOpen}
+          onClose={() => setAddressModalOpen(false)}
+          address={selectedAddressForEdit}
+          onSuccess={handleAddressSuccess}
+          defaultPhone={formData.phone || user?.phone || ''}
+          defaultSecondaryPhone={formData.secondaryPhone || user?.secondaryPhone || ''}
+        />
       </div>
     </div>
   );

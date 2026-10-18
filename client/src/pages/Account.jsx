@@ -16,7 +16,12 @@ import {
   HiOutlineEye,
   HiOutlineX,
   HiOutlinePrinter,
-  HiOutlineShieldCheck
+  HiOutlineShieldCheck,
+  HiOutlinePencilAlt,
+  HiOutlineTrash,
+  HiOutlinePlus,
+  HiOutlineHome,
+  HiOutlineOfficeBuilding
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -25,6 +30,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
+import AddressModal from '../components/AddressModal';
 
 const TRACKING_STEPS = [
   { step: 1, title: 'Order Placed', desc: 'Received at Jamalia boutique' },
@@ -51,7 +57,7 @@ const getStepProgress = (status) => {
 };
 
 const Account = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { confirm } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,6 +65,62 @@ const Account = () => {
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'phone_lookup' | 'track' | 'address'
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Address Modal States
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [selectedAddressForEdit, setSelectedAddressForEdit] = useState(null);
+
+  const handleOpenAddAddress = () => {
+    setSelectedAddressForEdit(null);
+    setAddressModalOpen(true);
+  };
+
+  const handleOpenEditAddress = (addr) => {
+    setSelectedAddressForEdit(addr);
+    setAddressModalOpen(true);
+  };
+
+  const handleAddressSuccess = (updatedAddresses) => {
+    if (user && updatedAddresses) {
+      updateUser({ ...user, savedAddresses: updatedAddresses });
+    }
+  };
+
+  const handleSetDefaultAddress = async (addr) => {
+    try {
+      const res = await API.put(`/auth/address/${addr._id}`, { isDefault: true });
+      if (user) {
+        updateUser({ ...user, savedAddresses: res.data });
+      }
+      toast.success(`"${addr.label || 'Home'}" set as default delivery address!`, { icon: '⭐' });
+    } catch (err) {
+      console.error('Error setting default address:', err);
+      toast.error(err.response?.data?.message || 'Could not set default address');
+    }
+  };
+
+  const handleDeleteAddress = async (addr) => {
+    const ok = await confirm({
+      title: 'Delete Saved Address?',
+      message: `Are you sure you want to remove this ${addr.label || 'Home'} address from your profile? This action cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Yes, Delete Address',
+      cancelText: 'Keep Address',
+      details: `${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}`
+    });
+    if (!ok) return;
+
+    try {
+      const res = await API.delete(`/auth/address/${addr._id}`);
+      if (user) {
+        updateUser({ ...user, savedAddresses: res.data });
+      }
+      toast.success('Address removed from profile', { icon: '🗑️' });
+    } catch (err) {
+      console.error('Error deleting address:', err);
+      toast.error(err.response?.data?.message || 'Could not delete address');
+    }
+  };
 
   // Search & Live Tracking state
   const [lookupOrderId, setLookupOrderId] = useState('');
@@ -776,7 +838,7 @@ const Account = () => {
                   activeTab === 'address' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
                 }`}
               >
-                Saved Address
+                Saved Addresses {user.savedAddresses?.length > 0 ? `(${user.savedAddresses.length})` : ''}
                 {activeTab === 'address' && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
                 )}
@@ -1019,25 +1081,148 @@ const Account = () => {
           </div>
         )}
 
-        {/* Tab 3: Saved Address */}
+        {/* Tab 3: Saved Addresses Management */}
         {activeTab === 'address' && user && (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm max-w-2xl space-y-4">
-            <h3 className="font-serif text-lg font-bold text-neutral-900">Your Default Address</h3>
-            {user?.savedAddresses && user.savedAddresses.length > 0 ? (
-              <div className="p-4 rounded-2xl bg-cream-light border border-accent-100 space-y-1 text-sm text-neutral-800">
-                <p className="font-bold">{user.name}</p>
-                <p>{user.savedAddresses[0].street}</p>
-                <p>
-                  {user.savedAddresses[0].city}, {user.savedAddresses[0].state} - {user.savedAddresses[0].pincode}
-                </p>
-                <p className="text-xs text-neutral-500 pt-2 flex items-center gap-1.5">
-                  <HiOutlinePhone className="w-4 h-4 text-accent-700" /> +91 {user.phone}
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-accent-700 block">
+                  Delivery Preferences
+                </span>
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900 mt-1">
+                  Saved Delivery Addresses
+                </h3>
+                <p className="text-xs text-neutral-500 mt-1 max-w-xl">
+                  Manage your home, office, and alternate boutique delivery locations. You can edit, set as default, or delete any saved address below.
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={handleOpenAddAddress}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <HiOutlinePlus className="w-4 h-4" />
+                <span>Add New Address</span>
+              </button>
+            </div>
+
+            {user?.savedAddresses && user.savedAddresses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {user.savedAddresses.map((addr, idx) => (
+                  <div
+                    key={addr._id || idx}
+                    className={`bg-white rounded-3xl p-6 border transition-all relative flex flex-col justify-between ${
+                      addr.isDefault
+                        ? 'border-primary ring-2 ring-primary/10 shadow-md'
+                        : 'border-accent-100 hover:border-accent-300 shadow-sm'
+                    }`}
+                  >
+                    <div>
+                      {/* Top Bar: Label & Badges & Action Buttons */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-800 border border-neutral-200">
+                            {addr.label === 'Work' ? (
+                              <HiOutlineOfficeBuilding className="w-3.5 h-3.5 text-accent-700" />
+                            ) : addr.label === 'Home' ? (
+                              <HiOutlineHome className="w-3.5 h-3.5 text-accent-700" />
+                            ) : (
+                              <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-700" />
+                            )}
+                            <span>{addr.label || 'Home'}</span>
+                          </span>
+
+                          {addr.isDefault && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                              <HiCheckCircle className="w-3.5 h-3.5 text-primary" />
+                              <span>Default Address</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action Buttons: Edit & Delete */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditAddress(addr)}
+                            className="p-2 rounded-xl text-neutral-600 hover:text-primary hover:bg-neutral-100 transition-colors cursor-pointer border border-neutral-200/60"
+                            title="Edit Address"
+                          >
+                            <HiOutlinePencilAlt className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(addr)}
+                            className="p-2 rounded-xl text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer border border-neutral-200/60"
+                            title="Delete Address"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Recipient & Street */}
+                      <div className="space-y-1.5 text-sm text-neutral-800">
+                        <p className="font-bold text-neutral-900 text-base">{user.name}</p>
+                        <p className="text-neutral-700 leading-relaxed">{addr.street}</p>
+                        <p className="font-medium text-neutral-600">
+                          {addr.city}, {addr.state} - <strong className="font-mono text-neutral-900">{addr.pincode}</strong>
+                        </p>
+                      </div>
+
+                      {/* Contact Phone Details */}
+                      <div className="mt-4 pt-3 border-t border-neutral-100 text-xs text-neutral-500 space-y-1">
+                        <p className="flex items-center gap-2">
+                          <HiOutlinePhone className="w-3.5 h-3.5 text-accent-700 shrink-0" />
+                          <span>Phone: <strong className="text-neutral-800">+91 {addr.phone || user.phone}</strong></span>
+                        </p>
+                        {addr.secondaryPhone && (
+                          <p className="flex items-center gap-2 text-neutral-500 pl-5.5">
+                            <span>Alternate: <strong className="text-neutral-700">+91 {addr.secondaryPhone}</strong></span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Action: Set as Default */}
+                    {!addr.isDefault && (
+                      <div className="mt-5 pt-3 border-t border-neutral-100 flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultAddress(addr)}
+                          className="text-xs font-bold text-primary hover:text-primary-dark hover:underline transition-colors cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <span>Set as Default Delivery Address</span>
+                          <span>→</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-neutral-500">
-                No saved address yet. Your address will be saved automatically when you place your first order.
-              </p>
+              <div className="bg-white rounded-3xl p-10 border border-accent-100 text-center space-y-4 shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-cream-light border border-accent-200 mx-auto flex items-center justify-center text-accent-700">
+                  <HiOutlineLocationMarker className="w-8 h-8" />
+                </div>
+                <div className="space-y-1 max-w-md mx-auto">
+                  <h4 className="font-serif text-lg font-bold text-neutral-900">
+                    No Saved Addresses Yet
+                  </h4>
+                  <p className="text-xs text-neutral-500">
+                    You haven't saved any delivery locations yet. Add an address now for quick, 1-click checkout!
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddAddress}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer"
+                >
+                  <HiOutlinePlus className="w-4 h-4" />
+                  <span>Add Delivery Address</span>
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1270,6 +1455,16 @@ const Account = () => {
             onClose={() => setInvoiceOrder(null)}
           />
         )}
+
+        {/* Address Modal (Add / Edit) */}
+        <AddressModal
+          isOpen={addressModalOpen}
+          onClose={() => setAddressModalOpen(false)}
+          address={selectedAddressForEdit}
+          onSuccess={handleAddressSuccess}
+          defaultPhone={user?.phone || ''}
+          defaultSecondaryPhone={user?.secondaryPhone || ''}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ const {
   getMe,
   updateProfile,
   addAddress,
+  updateAddress,
   deleteAddress,
   googleAuth,
   requestVerificationToken,
@@ -49,6 +50,7 @@ router.post('/forgot-password-verify', authLimiter, forgotPasswordVerify);
 router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfile);
 router.post('/address', auth, addAddress);
+router.put('/address/:id', auth, updateAddress);
 router.delete('/address/:id', auth, deleteAddress);
 
 module.exports = router;

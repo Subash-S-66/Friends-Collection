@@ -247,14 +247,65 @@ exports.addAddress = async (req, res, next) => {
   }
 };
 
+// @desc    Update / edit saved address
+// @route   PUT /api/auth/address/:id
+exports.updateAddress = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const addr = user.savedAddresses.id(req.params.id);
+    if (!addr) {
+      return res.status(404).json({ message: 'Saved address not found' });
+    }
+
+    const { label, street, city, state, pincode, phone, secondaryPhone, isDefault } = req.body;
+
+    if (label !== undefined) addr.label = label.trim() || 'Home';
+    if (street !== undefined) addr.street = street.trim();
+    if (city !== undefined) addr.city = city.trim();
+    if (state !== undefined) addr.state = state.trim();
+    if (pincode !== undefined) addr.pincode = pincode.trim();
+    if (phone !== undefined) addr.phone = phone.trim();
+    if (secondaryPhone !== undefined) addr.secondaryPhone = secondaryPhone.trim();
+
+    if (isDefault) {
+      user.savedAddresses.forEach((a) => {
+        a.isDefault = a._id.toString() === req.params.id;
+      });
+    }
+
+    await user.save();
+    res.json(user.savedAddresses);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Delete saved address
 // @route   DELETE /api/auth/address/:id
 exports.deleteAddress = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-    user.savedAddresses = user.savedAddresses.filter(
-      addr => addr._id.toString() !== req.params.id
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const wasDefault = user.savedAddresses.some(
+      (addr) => addr._id.toString() === req.params.id && addr.isDefault
     );
+
+    user.savedAddresses = user.savedAddresses.filter(
+      (addr) => addr._id.toString() !== req.params.id
+    );
+
+    // If the deleted address was the default and addresses still remain, make the first one default
+    if (wasDefault && user.savedAddresses.length > 0) {
+      user.savedAddresses[0].isDefault = true;
+    }
+
     await user.save();
     res.json(user.savedAddresses);
   } catch (error) {
