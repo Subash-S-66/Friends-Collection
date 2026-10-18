@@ -117,18 +117,18 @@ const AdminLayout = () => {
   const allNavItems = navSections.flatMap((s) => s.items);
 
   return (
-    <div className="h-screen w-full bg-neutral-50 flex overflow-hidden">
+    <div className="fixed inset-0 z-0 bg-neutral-50 flex overflow-hidden w-screen h-screen">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar Navigation - Collapsible pinned column on desktop, sliding drawer on mobile */}
+      {/* Sidebar Navigation - Fixed full-height column pinned to left edge */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-primary-950 text-neutral-300 flex flex-col transition-all duration-300 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 h-full ${
+        className={`fixed inset-y-0 left-0 z-40 lg:static lg:z-auto h-full shrink-0 bg-primary-950 text-neutral-300 flex flex-col transition-all duration-300 ease-in-out select-none ${
           sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-20' : 'lg:w-72'}`}
       >
