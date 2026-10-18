@@ -4,6 +4,9 @@ const Product = require('../models/Product');
 const StockReservation = require('../models/StockReservation');
 const User = require('../models/User');
 
+// Helper to normalize strings for robust variant size/color matching
+const norm = (s) => (s || '').toString().trim().toLowerCase();
+
 function getCourierTrackingUrl(courier, trackingNumber) {
   if (!trackingNumber) return '';
   const num = encodeURIComponent(trackingNumber.trim());
@@ -22,7 +25,6 @@ async function getEffectiveAvailableStock(productId, size = '', color = '', excl
   const product = await Product.findById(productId);
   if (!product) return 0;
 
-  const norm = (s) => (s || '').toString().trim().toLowerCase();
   const targetSize = norm(size);
   const targetColor = norm(color);
 
@@ -251,7 +253,7 @@ exports.placeOrder = async (req, res, next) => {
         size: item.size || '',
         color: item.color || '',
         quantity: item.quantity,
-        image: product.images[0] || ''
+        image: (product.images && product.images[0]) || ''
       });
 
       // Decrease stock by item.quantity (e.g. -1 for 1 item, -2 for 2 items)
@@ -325,6 +327,7 @@ exports.placeOrder = async (req, res, next) => {
           const cleanCity = customer.address.city.trim();
           const cleanState = customer.address.state.trim();
 
+          if (!Array.isArray(user.savedAddresses)) user.savedAddresses = [];
           const existingIdx = user.savedAddresses.findIndex(
             (a) => a.street?.toLowerCase() === cleanStreet.toLowerCase() && a.pincode === cleanPincode
           );
