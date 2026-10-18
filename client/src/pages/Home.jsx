@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   HiOutlineArrowRight,
@@ -17,47 +17,130 @@ import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl, handleImageError } from '../utils/formatters';
 
+// In-memory module cache for instant SWR (Stale-While-Revalidate)
+let homeMemoryCache = null;
+const CACHE_KEY = 'fc_homepage_bundle_v1';
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes client cache
+
+const getInitialHomeCache = () => {
+  if (homeMemoryCache) return homeMemoryCache;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Date.now() - (parsed.timestamp || 0) < CACHE_TTL_MS && parsed.data) {
+        homeMemoryCache = parsed.data;
+        return parsed.data;
+      }
+    }
+  } catch {
+    // sessionStorage unavailable or restricted
+  }
+  return null;
+};
+
+const saveHomeCache = (data) => {
+  homeMemoryCache = data;
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      data
+    }));
+  } catch {
+    // quota exceeded or disabled
+  }
+};
+
 const Home = () => {
-  const [categories, setCategories] = useState([]);
-  const [featured, setFeatured] = useState([]);
-  const [newArrivals, setNewArrivals] = useState([]);
-  const [banners, setBanners] = useState([]);
-  const [settings, setSettings] = useState({});
+  const initialCache = getInitialHomeCache();
+  const [categories, setCategories] = useState(() => initialCache?.categories || []);
+  const [featured, setFeatured] = useState(() => initialCache?.featured || []);
+  const [newArrivals, setNewArrivals] = useState(() => initialCache?.newArrivals || []);
+  const [banners, setBanners] = useState(() => initialCache?.banners || []);
+  const [settings, setSettings] = useState(() => initialCache?.settings || {});
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCache);
   const [selectedGender, setSelectedGender] = useState('all');
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
-        const [catsRes, featuredRes, newRes, settingsRes, bannersRes] = await Promise.all([
-          API.get('/categories').catch(() => ({ data: [] })),
-          API.get('/products/featured/list').catch(() => ({ data: [] })),
-          API.get('/products?sort=newest&limit=24').catch(() => ({ data: { products: [] } })),
-          API.get('/settings').catch(() => ({ data: {} })),
-          API.get('/banners').catch(() => ({ data: [] }))
-        ]);
+        // Fast aggregated endpoint (server cache HIT ~7ms)
+        let bundleData = null;
+        try {
+          const res = await API.get('/products/homepage-bundle');
+          if (res?.data && typeof res.data === 'object') {
+            bundleData = res.data;
+          }
+        } catch (bundleErr) {
+          console.warn('Aggregated bundle fetch failed, falling back:', bundleErr);
+        }
 
-        const safeCats = Array.isArray(catsRes?.data) ? catsRes.data : [];
-        const safeFeatured = Array.isArray(featuredRes?.data) ? featuredRes.data : [];
-        const safeNew = Array.isArray(newRes?.data?.products)
-          ? newRes.data.products
-          : (Array.isArray(newRes?.data) ? newRes.data : []);
-        const safeSettings = settingsRes?.data && typeof settingsRes.data === 'object' ? settingsRes.data : {};
-        const safeBanners = Array.isArray(bannersRes?.data) ? bannersRes.data.filter(b => b.isActive !== false) : [];
+        let safeCats = [];
+        let safeFeatured = [];
+        let safeNew = [];
+        let safeSettings = {};
+        let safeBanners = [];
 
-        setCategories(safeCats);
-        setFeatured(safeFeatured);
-        setNewArrivals(safeNew);
-        setSettings(safeSettings);
-        setBanners(safeBanners);
+        if (bundleData) {
+          safeCats = Array.isArray(bundleData.categories) ? bundleData.categories : [];
+          safeFeatured = Array.isArray(bundleData.featured) ? bundleData.featured : [];
+          safeNew = Array.isArray(bundleData.newArrivals) ? bundleData.newArrivals : [];
+          safeSettings = bundleData.settings && typeof bundleData.settings === 'object' ? bundleData.settings : {};
+          safeBanners = Array.isArray(bundleData.banners) ? bundleData.banners.filter((b) => b.isActive !== false) : [];
+        } else {
+          // Graceful fallback to separate REST queries
+          const [catsRes, featuredRes, newRes, settingsRes, bannersRes] = await Promise.all([
+            API.get('/categories').catch(() => ({ data: [] })),
+            API.get('/products/featured/list').catch(() => ({ data: [] })),
+            API.get('/products?sort=newest&limit=24').catch(() => ({ data: { products: [] } })),
+            API.get('/settings').catch(() => ({ data: {} })),
+            API.get('/banners').catch(() => ({ data: [] }))
+          ]);
+
+          safeCats = Array.isArray(catsRes?.data) ? catsRes.data : [];
+          safeFeatured = Array.isArray(featuredRes?.data) ? featuredRes.data : [];
+          safeNew = Array.isArray(newRes?.data?.products)
+            ? newRes.data.products
+            : Array.isArray(newRes?.data)
+            ? newRes.data
+            : [];
+          safeSettings = settingsRes?.data && typeof settingsRes.data === 'object' ? settingsRes.data : {};
+          safeBanners = Array.isArray(bannersRes?.data) ? bannersRes.data.filter((b) => b.isActive !== false) : [];
+        }
+
+        if (isMounted) {
+          setCategories(safeCats);
+          setFeatured(safeFeatured);
+          setNewArrivals(safeNew);
+          setSettings(safeSettings);
+          setBanners(safeBanners);
+
+          // Save to instant SWR cache
+          saveHomeCache({
+            categories: safeCats,
+            featured: safeFeatured,
+            newArrivals: safeNew,
+            settings: safeSettings,
+            banners: safeBanners
+          });
+        }
       } catch (error) {
         console.error('Error fetching dynamic home data:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Interleave items fairly across departments (women, men, kids, unisex)
@@ -104,22 +187,30 @@ const Home = () => {
   };
 
   // Filter and interleave categories: strictly max 2 rows on desktop (10 items on 5-col grid)
-  const rootCategories = (Array.isArray(categories) ? categories : []).filter(
-    (c) => c && !c.parent && c.isActive !== false
+  const rootCategories = useMemo(
+    () => (Array.isArray(categories) ? categories : []).filter((c) => c && !c.parent && c.isActive !== false),
+    [categories]
   );
 
-  const displayedCategories =
-    selectedGender === 'all'
+  const displayedCategories = useMemo(() => {
+    return selectedGender === 'all'
       ? interleaveByDepartment(rootCategories, 10)
       : rootCategories
           .filter((c) => c.gender === selectedGender || c.gender === 'all' || !c.gender)
           .slice(0, 10);
+  }, [rootCategories, selectedGender]);
 
   // Interleave featured/trending products: strictly max 2 rows on desktop (8 items on 4-col grid)
-  const displayedFeatured = interleaveByDepartment(featured, 8);
+  const displayedFeatured = useMemo(
+    () => interleaveByDepartment(featured, 8),
+    [featured]
+  );
 
   // Interleave new arrivals products: strictly max 2 rows on desktop (8 items on 4-col grid)
-  const displayedNewArrivals = interleaveByDepartment(newArrivals, 8);
+  const displayedNewArrivals = useMemo(
+    () => interleaveByDepartment(newArrivals, 8),
+    [newArrivals]
+  );
 
   // Auto-rotate hero banners if multiple exist in DB
   useEffect(() => {
@@ -150,6 +241,9 @@ const Home = () => {
               src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
               alt={currentBanner.title || 'Friends Collections'}
               onError={(e) => handleImageError(e, '/fallback-banner.png')}
+              fetchPriority="high"
+              loading="eager"
+              decoding="async"
               className="w-full h-full object-cover opacity-25 filter blur-xs"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
@@ -218,12 +312,18 @@ const Home = () => {
                     src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
                     alt={currentBanner.title || 'Friends Collections'}
                     onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                    fetchPriority="high"
+                    loading="eager"
+                    decoding="async"
                     className="w-full h-full object-cover rounded-2xl shadow-inner group-hover:scale-102 transition-transform duration-700 ease-out"
                   />
                 ) : (
                   <img
                     src="/logo.png"
                     alt="Friends Collections"
+                    fetchPriority="high"
+                    loading="eager"
+                    decoding="async"
                     className="w-full h-full object-contain bg-white rounded-2xl p-6 shadow-inner"
                   />
                 )}

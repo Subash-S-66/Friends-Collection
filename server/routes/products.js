@@ -4,6 +4,7 @@ const {
   getProducts,
   getProduct,
   getFeatured,
+  getHomepageBundle,
   getRelated,
   adminGetProducts,
   createProduct,
@@ -29,6 +30,7 @@ const flushProductCache = (req, res, next) => {
 // Public routes with fast in-memory caching (<1ms response times)
 router.get('/', cacheMiddleware(60), getProducts);
 router.get('/featured/list', cacheMiddleware(180), getFeatured);
+router.get('/homepage-bundle', cacheMiddleware(180), getHomepageBundle);
 router.get('/:slug', cacheMiddleware(60), getProduct);
 router.get('/:slug/related', cacheMiddleware(180), getRelated);
 

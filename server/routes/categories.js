@@ -19,6 +19,7 @@ const flushCategoryCache = (req, res, next) => {
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       invalidateCache('/api/categories');
+      invalidateCache('/api/products/homepage-bundle');
     }
   });
   next();

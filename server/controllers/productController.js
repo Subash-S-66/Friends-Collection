@@ -68,14 +68,16 @@ exports.getProducts = async (req, res, next) => {
     else if (sort === 'newest') sortOption = { createdAt: -1 };
 
     const skip = (Number(page) - 1) * Number(limit);
-    const total = await Product.countDocuments(query);
-    const products = await Product.find(query)
-      .populate('category', 'name slug gender')
-      .populate('subcategory', 'name slug')
-      .sort(sortOption)
-      .skip(skip)
-      .limit(Number(limit))
-      .lean();
+    const [total, products] = await Promise.all([
+      Product.countDocuments(query),
+      Product.find(query)
+        .populate('category', 'name slug gender')
+        .populate('subcategory', 'name slug')
+        .sort(sortOption)
+        .skip(skip)
+        .limit(Number(limit))
+        .lean()
+    ]);
 
     res.json({
       products,
@@ -104,6 +106,64 @@ exports.getProduct = async (req, res, next) => {
     Product.updateOne({ _id: product._id }, { $inc: { views: 1 } }).catch(() => {});
 
     res.json(product);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get aggregated homepage bundle in a single high-speed database call
+// @route   GET /api/products/homepage-bundle
+exports.getHomepageBundle = async (req, res, next) => {
+  try {
+    const Settings = require('../models/Settings');
+    const Banner = require('../models/Banner');
+
+    const [categories, featured, newArrivals, settingsRaw, banners] = await Promise.all([
+      // 1. Categories
+      Category.find({ isActive: true })
+        .populate('parent', 'name slug gender')
+        .sort({ priority: 1, createdAt: -1 })
+        .lean(),
+
+      // 2. Featured / Trending Products
+      Product.find({ isActive: true, isFeatured: true })
+        .populate('category', 'name slug gender')
+        .populate('subcategory', 'name slug')
+        .sort({ createdAt: -1 })
+        .limit(16)
+        .lean(),
+
+      // 3. New Arrivals Products
+      Product.find({ isActive: true })
+        .populate('category', 'name slug gender')
+        .populate('subcategory', 'name slug')
+        .sort({ createdAt: -1 })
+        .limit(16)
+        .lean(),
+
+      // 4. Settings
+      Settings.find().lean(),
+
+      // 5. Active Banners
+      Banner.find({ isActive: true })
+        .sort({ priority: 1 })
+        .lean()
+    ]);
+
+    const settings = {};
+    if (Array.isArray(settingsRaw)) {
+      settingsRaw.forEach((s) => {
+        if (s && s.key) settings[s.key] = s.value;
+      });
+    }
+
+    res.json({
+      categories: categories || [],
+      featured: featured || [],
+      newArrivals: newArrivals || [],
+      settings: settings || {},
+      banners: banners || []
+    });
   } catch (error) {
     next(error);
   }
