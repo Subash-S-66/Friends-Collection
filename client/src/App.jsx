@@ -29,6 +29,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import Account from './pages/Account';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import OrderTracking from './pages/OrderTracking';
 
 // Admin Dashboard Components
 import AdminLayout from './admin/AdminLayout';
@@ -67,6 +68,9 @@ const AppLayout = () => {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/account/orders" element={<Account />} />
+          <Route path="/track" element={<OrderTracking />} />
+          <Route path="/track-order" element={<OrderTracking />} />
+          <Route path="/track/:orderId" element={<OrderTracking />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
 

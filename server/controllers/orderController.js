@@ -1,6 +1,21 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const StockReservation = require('../models/StockReservation');
+const User = require('../models/User');
+
+function getCourierTrackingUrl(courier, trackingNumber) {
+  if (!trackingNumber) return '';
+  const num = encodeURIComponent(trackingNumber.trim());
+  const c = (courier || '').toLowerCase();
+  if (c.includes('delhivery')) return `https://www.delhivery.com/track/package/${num}`;
+  if (c.includes('dtdc')) return `https://www.dtdc.in/tracking/shipment-tracking.asp?trCode=${num}`;
+  if (c.includes('blue dart') || c.includes('bluedart')) return `https://www.bluedart.com/tracking?trackFor=0&trackNo=${num}`;
+  if (c.includes('speed post') || c.includes('india post')) return `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx`;
+  if (c.includes('professional')) return `https://www.tpcindia.com/track.aspx`;
+  if (c.includes('st courier')) return `https://stcourier.com/track/shipment/${num}`;
+  return '';
+}
 
 // Helper to get effective available stock excluding the requesting session's own reservation
 async function getEffectiveAvailableStock(productId, size = '', color = '', excludeSessionId = null) {
@@ -233,13 +248,41 @@ exports.placeOrder = async (req, res, next) => {
       await product.save();
     }
 
-    const order = await Order.create({
-      items: orderItems,
-      customer,
-      user: req.user ? req.user._id : null,
-      totalAmount,
-      shippingCharge: Number(shippingCharge)
-    });
+      // Attempt to link to user account if logged in or by matching phone/email
+      let orderUserId = req.user ? req.user._id : null;
+      if (!orderUserId) {
+        try {
+          const cleanPhone = customer.phone ? customer.phone.replace(/\s/g, '').replace(/^\+91/, '') : '';
+          const cleanEmail = customer.email ? customer.email.toLowerCase().trim() : '';
+          if (cleanPhone || cleanEmail) {
+            const matchUser = await User.findOne({
+              $or: [
+                ...(cleanPhone ? [{ phone: cleanPhone }, { phone: `+91${cleanPhone}` }] : []),
+                ...(cleanEmail ? [{ email: cleanEmail }] : [])
+              ]
+            });
+            if (matchUser) orderUserId = matchUser._id;
+          }
+        } catch (linkErr) {
+          console.error('Error linking user on order create:', linkErr);
+        }
+      }
+
+      const order = await Order.create({
+        items: orderItems,
+        customer,
+        user: orderUserId,
+        totalAmount,
+        shippingCharge: Number(shippingCharge),
+        tracking: {
+          statusHistory: [{
+            status: 'pending',
+            message: 'Order placed & awaiting dispatch confirmation from Jamalia store',
+            location: 'Jamalia Boutique, Chennai',
+            timestamp: new Date()
+          }]
+        }
+      });
 
     // Auto-save address to user profile if user is logged in and opted to save
     if (req.user && req.body.saveAddress) {
@@ -304,30 +347,72 @@ exports.placeOrder = async (req, res, next) => {
   }
 };
 
-// @desc    Get user orders
+// @desc    Get user orders (by user ID, phone, or email)
 // @route   GET /api/orders/my
 exports.getMyOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+    const userPhone = req.user.phone ? req.user.phone.replace(/\s/g, '').replace(/^\+91/, '') : '';
+    const userEmail = req.user.email ? req.user.email.toLowerCase().trim() : '';
+
+    const query = {
+      $or: [{ user: req.user._id }]
+    };
+
+    if (userPhone) {
+      query.$or.push({ 'customer.phone': userPhone });
+      query.$or.push({ 'customer.phone': `+91${userPhone}` });
+      query.$or.push({ 'customer.phone': `+91 ${userPhone}` });
+    }
+    if (userEmail) {
+      query.$or.push({ 'customer.email': userEmail });
+    }
+
+    const orders = await Order.find(query).sort({ createdAt: -1 });
+
+    // Auto-link any matching orders that were unlinked
+    for (const o of orders) {
+      if (!o.user) {
+        o.user = req.user._id;
+        await o.save().catch(() => {});
+      }
+    }
+
     res.json(orders);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Track order by orderId and phone
+// @desc    Track order by orderId and optional phone
 // @route   GET /api/orders/track/:orderId
 exports.trackOrder = async (req, res, next) => {
   try {
     const { phone } = req.query;
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const cleanOrderId = (req.params.orderId || '').trim();
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+    const lookupQuery = {
+      $or: [
+        { orderId: { $regex: new RegExp(`^${cleanOrderId}$`, 'i') } }
+      ]
+    };
+
+    if (mongoose.isValidObjectId(cleanOrderId)) {
+      lookupQuery.$or.push({ _id: cleanOrderId });
     }
 
-    if (phone && order.customer.phone !== phone.replace(/\s/g, '')) {
-      return res.status(403).json({ message: 'Phone number does not match the order' });
+    const order = await Order.findOne(lookupQuery);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found. Please verify your Order ID.' });
+    }
+
+    if (phone) {
+      const cleanInputPhone = phone.replace(/\s/g, '').replace(/^\+91/, '');
+      const orderPhone = (order.customer?.phone || '').replace(/\s/g, '').replace(/^\+91/, '');
+      const orderSecPhone = (order.customer?.secondaryPhone || '').replace(/\s/g, '').replace(/^\+91/, '');
+      if (cleanInputPhone !== orderPhone && cleanInputPhone !== orderSecPhone) {
+        return res.status(403).json({ message: 'Phone number does not match this order.' });
+      }
     }
 
     res.json(order);
@@ -386,11 +471,11 @@ exports.adminGetOrder = async (req, res, next) => {
   }
 };
 
-// @desc    Update order status (admin)
+// @desc    Update order status & shipping tracking (admin)
 // @route   PUT /api/orders/admin/:id/status
 exports.updateOrderStatus = async (req, res, next) => {
   try {
-    const { status, notes } = req.body;
+    const { status, notes, tracking } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -398,6 +483,38 @@ exports.updateOrderStatus = async (req, res, next) => {
     const prevStatus = order.status;
     if (status) order.status = status;
     if (notes !== undefined) order.notes = notes;
+
+    // Handle tracking info
+    if (tracking) {
+      if (!order.tracking) {
+        order.tracking = { statusHistory: [] };
+      }
+
+      if (tracking.courier !== undefined) order.tracking.courier = tracking.courier.trim();
+      if (tracking.trackingNumber !== undefined) order.tracking.trackingNumber = tracking.trackingNumber.trim();
+      if (tracking.estimatedDelivery !== undefined) order.tracking.estimatedDelivery = tracking.estimatedDelivery.trim();
+      if (tracking.notes !== undefined) order.tracking.notes = tracking.notes.trim();
+
+      // Resolve tracking URL
+      if (tracking.trackingUrl && tracking.trackingUrl.trim()) {
+        order.tracking.trackingUrl = tracking.trackingUrl.trim();
+      } else if (order.tracking.courier && order.tracking.trackingNumber) {
+        const autoUrl = getCourierTrackingUrl(order.tracking.courier, order.tracking.trackingNumber);
+        if (autoUrl) order.tracking.trackingUrl = autoUrl;
+      }
+
+      // Add to status history
+      const historyMsg = tracking.message || (status !== prevStatus ? `Status updated to ${status}` : 'Tracking updated');
+      if (!Array.isArray(order.tracking.statusHistory)) {
+        order.tracking.statusHistory = [];
+      }
+      order.tracking.statusHistory.push({
+        status: status || order.status,
+        message: historyMsg,
+        location: tracking.location || 'Jamalia Hub, Chennai',
+        timestamp: new Date()
+      });
+    }
 
     // If cancelled, restore stock for base product and variants
     if (status === 'cancelled' && prevStatus !== 'cancelled') {

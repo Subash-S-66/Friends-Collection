@@ -247,6 +247,19 @@ const Navbar = () => {
                 About
               </Link>
 
+              {/* Track Order */}
+              <Link
+                to="/track"
+                className={`text-sm font-medium transition-all relative py-2 ${
+                  location.pathname === '/track' ? 'text-primary font-bold' : 'text-neutral-700 hover:text-primary'
+                }`}
+              >
+                Track Order
+                {location.pathname === '/track' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
+                )}
+              </Link>
+
               {/* Contact */}
               <Link
                 to="/contact"
@@ -634,6 +647,16 @@ const Navbar = () => {
                   className="block px-3 py-2 rounded-lg text-xs font-semibold text-neutral-700 hover:bg-accent-100/60"
                 >
                   About Us
+                </Link>
+                <Link
+                  to="/track"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2.5 rounded-xl text-xs font-bold text-accent-800 bg-accent-100/70 hover:bg-accent-100 flex items-center justify-between shadow-2xs"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>📦 Track Your Order</span>
+                  </span>
+                  <HiOutlineChevronRight className="w-4 h-4 text-accent-700" />
                 </Link>
                 <Link
                   to="/contact"

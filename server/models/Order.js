@@ -34,7 +34,20 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   notes: { type: String, default: '' },
-  paymentMethod: { type: String, default: 'cod' }
+  paymentMethod: { type: String, default: 'cod' },
+  tracking: {
+    courier: { type: String, default: '' },
+    trackingNumber: { type: String, default: '' },
+    trackingUrl: { type: String, default: '' },
+    estimatedDelivery: { type: String, default: '' },
+    notes: { type: String, default: '' },
+    statusHistory: [{
+      status: { type: String },
+      message: { type: String, default: '' },
+      location: { type: String, default: '' },
+      timestamp: { type: Date, default: Date.now }
+    }]
+  }
 }, { timestamps: true });
 
 orderSchema.pre('save', async function(next) {
@@ -49,7 +62,9 @@ orderSchema.pre('save', async function(next) {
   next();
 });
 
+orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ 'customer.phone': 1 });
+orderSchema.index({ 'customer.email': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);
