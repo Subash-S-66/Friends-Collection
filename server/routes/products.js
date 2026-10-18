@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getProducts, getProduct, getFeatured, getRelated, adminGetProducts, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
+const { getProducts, getProduct, getFeatured, getRelated, adminGetProducts, createProduct, updateProduct, deleteProduct, updateStock } = require('../controllers/productController');
 const { auth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const upload = require('../middleware/upload');
@@ -15,6 +15,7 @@ router.get('/:slug/related', getRelated);
 router.get('/admin/all', auth, admin, adminGetProducts);
 router.post('/admin', auth, admin, upload.array('images', 10), createProduct);
 router.put('/admin/:id', auth, admin, upload.array('images', 10), updateProduct);
+router.patch('/admin/:id/stock', auth, admin, updateStock);
 router.delete('/admin/:id', auth, admin, deleteProduct);
 
 module.exports = router;

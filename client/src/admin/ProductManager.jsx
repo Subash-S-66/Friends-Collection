@@ -10,7 +10,11 @@ import {
   HiOutlineChevronUp,
   HiOutlineExclamationCircle,
   HiOutlineCheckCircle,
-  HiOutlineBell
+  HiOutlineBell,
+  HiOutlineArrowLeft,
+  HiOutlineArrowRight,
+  HiOutlineStar,
+  HiOutlineSparkles
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -163,31 +167,136 @@ const ProductManager = () => {
     toast.success(`Generated ${matrix.length} variants!`);
   };
 
-  // Multi-image selection with preview & 3:4 aspect ratio warning / guard
+  // Multi-image selection with preview & 3:4 aspect ratio normalization
   const handleFileChange = (e) => {
-    if (e.target.files) {
+    if (e.target.files && e.target.files.length > 0) {
       const filesArr = Array.from(e.target.files);
-      setImages(filesArr);
+      setImages((prev) => [...prev, ...filesArr]);
 
       // Create object URLs for instant previews
       const previews = filesArr.map((f) => URL.createObjectURL(f));
-      setImagePreviews(previews);
+      setImagePreviews((prev) => [...prev, ...previews]);
     }
+    e.target.value = '';
+  };
+
+  // Reorder existing images (Slot 1 is Cover, Slot 2 is Hover)
+  const handleMoveExistingImage = (idx, direction) => {
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= existingImages.length) return;
+    setExistingImages((prev) => {
+      const copy = [...prev];
+      const temp = copy[idx];
+      copy[idx] = copy[targetIdx];
+      copy[targetIdx] = temp;
+      return copy;
+    });
+  };
+
+  const handleMakeCoverExisting = (idx) => {
+    if (idx === 0) return;
+    setExistingImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      copy.unshift(item);
+      return copy;
+    });
+    toast.success('Promoted to Photo #1 (Cover Image)');
+  };
+
+  const handleMakeHoverExisting = (idx) => {
+    if (idx === 1 || existingImages.length < 2) return;
+    setExistingImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      copy.splice(1, 0, item);
+      return copy;
+    });
+    toast.success('Assigned to Photo #2 (Hover Preview)');
+  };
+
+  const handleRemoveExistingImage = (idx) => {
+    const totalRemaining = (existingImages.length - 1) + images.length;
+    if (totalRemaining < 1) {
+      toast.error('A product must have at least 1 image. Please keep or upload a photo.');
+      return;
+    }
+    setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+    toast.success('Photo removed');
+  };
+
+  // Reorder newly selected images
+  const handleMoveNewImage = (idx, direction) => {
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= images.length) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const temp = copy[idx];
+      copy[idx] = copy[targetIdx];
+      copy[targetIdx] = temp;
+      return copy;
+    });
+    setImagePreviews((prev) => {
+      const copy = [...prev];
+      const temp = copy[idx];
+      copy[idx] = copy[targetIdx];
+      copy[targetIdx] = temp;
+      return copy;
+    });
+  };
+
+  const handleMakeCoverNew = (idx) => {
+    if (idx === 0 && existingImages.length === 0) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      copy.unshift(item);
+      return copy;
+    });
+    setImagePreviews((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      copy.unshift(item);
+      return copy;
+    });
+    toast.success('Moved to top of new photos');
   };
 
   const handleRemoveNewImage = (idx) => {
+    const totalRemaining = existingImages.length + (images.length - 1);
+    if (totalRemaining < 1 && editingProduct) {
+      toast.error('A product must have at least 1 image.');
+      return;
+    }
     setImages((prev) => prev.filter((_, i) => i !== idx));
     setImagePreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleRemoveExistingImage = (idx) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+  // Quick adjust stock from product list table
+  const handleQuickStockAdjust = async (productId, delta) => {
+    try {
+      const res = await API.patch(`/products/admin/${productId}/stock`, { delta });
+      toast.success(`Stock updated to ${res.data.stock} units!`, { icon: '📦' });
+      setProducts((prev) =>
+        prev.map((p) => (p._id === productId ? { ...p, stock: res.data.stock } : p))
+      );
+    } catch (err) {
+      console.error('Quick stock error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update stock');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !price || !category) {
       toast.error('Please enter Title, Price, and Category');
+      return;
+    }
+
+    // Enforce that a product cannot be added without an image
+    const totalPhotos = (editingProduct ? existingImages.length : 0) + images.length;
+    if (totalPhotos === 0) {
+      toast.error('Image is required! Please add at least 1 photo (#1 Cover Image) before saving.');
       return;
     }
 
@@ -206,6 +315,9 @@ const ProductManager = () => {
       formData.append('variants', JSON.stringify(variants));
       formData.append('tags', JSON.stringify(tags));
 
+      const calculatedTotalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+      formData.append('stock', calculatedTotalStock);
+
       if (editingProduct) {
         formData.append('existingImages', JSON.stringify(existingImages));
       }
@@ -223,7 +335,7 @@ const ProductManager = () => {
         await API.post('/products/admin', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        toast.success('Dress published successfully with Cloudinary 3:4 normalization!');
+        toast.success('Dress published successfully with 3:4 portrait normalization!');
       }
 
       setModalOpen(false);
@@ -428,29 +540,61 @@ const ProductManager = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold ${
-                            prod.stock <= 0
-                              ? 'bg-neutral-900 text-white'
-                              : prod.stock <= 3
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}
-                        >
-                          {prod.stock <= 0 ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                              OUT OF STOCK
-                            </>
-                          ) : prod.stock <= 3 ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                              Only {prod.stock} Left!
-                            </>
-                          ) : (
-                            `${prod.stock} Units`
-                          )}
-                        </span>
+                        <div className="flex flex-col gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold w-fit ${
+                              prod.stock <= 0
+                                ? 'bg-neutral-900 text-white'
+                                : prod.stock <= 3
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {prod.stock <= 0 ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                OUT OF STOCK
+                              </>
+                            ) : prod.stock <= 3 ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                                Only {prod.stock} Left!
+                              </>
+                            ) : (
+                              `${prod.stock} Units`
+                            )}
+                          </span>
+
+                          {/* Quick one-click stock controls */}
+                          <div className="flex items-center gap-1 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => handleQuickStockAdjust(prod._id, 5)}
+                              className="px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-200 transition-colors"
+                              title="Add +5 units to stock"
+                            >
+                              +5
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickStockAdjust(prod._id, 1)}
+                              className="px-1.5 py-0.5 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold border border-neutral-200 transition-colors"
+                              title="Add +1 unit to stock"
+                            >
+                              +1
+                            </button>
+                            {prod.stock > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStockAdjust(prod._id, -1)}
+                                className="px-1.5 py-0.5 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-bold border border-neutral-200 transition-colors"
+                                title="Decrease -1 unit from stock"
+                              >
+                                -1
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="py-4 px-6">
                         {hasVariants ? (
@@ -646,74 +790,274 @@ const ProductManager = () => {
                 </div>
               </div>
 
-              {/* Multi-Image Upload & Preview (Fixed 3:4 aspect ratio normalization) */}
-              <div className="p-4 rounded-2xl bg-cream-light border border-accent-100 space-y-3">
-                <div className="flex items-center justify-between">
+              {/* Multi-Image Upload & Order Manager (Slot #1 is Cover, Slot #2 is Hover Preview) */}
+              <div className="p-5 rounded-2xl bg-cream-light border border-accent-200/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <label className="block text-xs font-bold text-neutral-900">
-                      Product Photos (Supports PNG, JPG, WEBP, AVIF, HEIC)
+                    <label className="block text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                      Product Photos & Display Sequence <span className="text-red-500">*</span>
                     </label>
                     <p className="text-[11px] text-neutral-500">
-                      Photos are automatically normalized to fixed <strong>3:4 Portrait Ratio (900x1200)</strong> via Cloudinary/Sharp so they will never misalign the storefront layout!
+                      Arrange photo order below. Slot 1 is the <strong>Primary Cover</strong>, Slot 2 is the <strong>Hover Animation Preview</strong>.
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
-                    Exact 3:4 Guard Active
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary w-fit border border-primary/20">
+                    3:4 Portrait Guard Active
                   </span>
                 </div>
 
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-light cursor-pointer"
-                />
+                {/* Explanatory slot guide pill */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-white/80 border border-accent-200 text-[11px]">
+                  <div className="flex items-center gap-1.5 font-semibold text-amber-800">
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10px] font-bold">#1 Cover</span>
+                    <span>Shows first in catalog</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold text-indigo-800">
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 border border-indigo-300 text-[10px] font-bold">#2 Hover</span>
+                    <span>Reveals on hover</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold text-neutral-600">
+                    <span className="px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-300 text-[10px] font-bold">#3+ Gallery</span>
+                    <span>Detail page gallery</span>
+                  </div>
+                </div>
 
-                {/* Previews of newly selected images */}
-                {imagePreviews.length > 0 && (
-                  <div>
-                    <span className="text-[11px] font-bold text-neutral-700 block mb-1.5">New Image Previews:</span>
-                    <div className="flex flex-wrap gap-3">
-                      {imagePreviews.map((src, i) => (
-                        <div key={i} className="relative aspect-[3/4] w-20 rounded-xl overflow-hidden border border-accent-200 group">
-                          <img src={src} alt="New upload" className="w-full h-full object-cover object-top" />
+                {/* File picker */}
+                <div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-light cursor-pointer"
+                  />
+                  <p className="text-[10px] text-neutral-400 mt-1">
+                    Tip: You can select multiple files at once. You can freely re-order or remove photos using the buttons on each card.
+                  </p>
+                </div>
+
+                {/* Existing uploaded images in edit mode */}
+                {editingProduct && existingImages.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-accent-200/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
+                        Current Product Photos ({existingImages.length}):
+                      </span>
+                      <span className="text-[10px] text-neutral-500">
+                        Use ← / → buttons to adjust display order
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {existingImages.map((img, i) => (
+                        <div
+                          key={i}
+                          className={`relative flex flex-col bg-white rounded-xl overflow-hidden border shadow-xs transition-all ${
+                            i === 0
+                              ? 'border-amber-400 ring-2 ring-amber-300/50'
+                              : i === 1
+                              ? 'border-indigo-400 ring-2 ring-indigo-300/50'
+                              : 'border-neutral-200'
+                          }`}
+                        >
+                          {/* Slot Badge */}
+                          <div className="absolute top-1.5 left-1.5 z-10">
+                            {i === 0 ? (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
+                                <HiOutlineStar className="w-3 h-3" /> #1 Cover
+                              </span>
+                            ) : i === 1 ? (
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
+                                <HiOutlineSparkles className="w-3 h-3" /> #2 Hover
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs">
+                                #{i + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Delete button */}
                           <button
                             type="button"
-                            onClick={() => handleRemoveNewImage(i)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-red-600 text-white text-xs opacity-90 hover:opacity-100"
+                            onClick={() => handleRemoveExistingImage(i)}
+                            className="absolute top-1.5 right-1.5 z-10 p-1 rounded-full bg-red-600/90 hover:bg-red-600 text-white text-xs shadow-xs transition-transform hover:scale-110"
+                            title="Delete photo (does not change order of others)"
                           >
                             <HiOutlineX className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Image preview */}
+                          <div className="aspect-[3/4] w-full overflow-hidden bg-neutral-100">
+                            <img
+                              src={getImageUrl(img)}
+                              alt={`Slot ${i + 1}`}
+                              onError={(e) => handleImageError(e, '/fallback-product.png')}
+                              className="w-full h-full object-cover object-top"
+                            />
+                          </div>
+
+                          {/* Action controls */}
+                          <div className="p-1.5 bg-neutral-50 flex items-center justify-between border-t border-neutral-100 text-[10px]">
+                            <button
+                              type="button"
+                              disabled={i === 0}
+                              onClick={() => handleMoveExistingImage(i, 'left')}
+                              className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
+                              title="Move left (higher priority)"
+                            >
+                              <HiOutlineArrowLeft className="w-3 h-3" />
+                            </button>
+
+                            {i !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMakeCoverExisting(i)}
+                                className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px]"
+                                title="Set as primary cover photo"
+                              >
+                                Set #1
+                              </button>
+                            )}
+                            {i !== 1 && existingImages.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMakeHoverExisting(i)}
+                                className="px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold border border-indigo-200 text-[9px]"
+                                title="Set as hover preview photo"
+                              >
+                                Set #2
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={i === existingImages.length - 1}
+                              onClick={() => handleMoveExistingImage(i, 'right')}
+                              className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
+                              title="Move right (lower priority)"
+                            >
+                              <HiOutlineArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Existing uploaded images */}
-                {existingImages.length > 0 && (
-                  <div>
-                    <span className="text-[11px] font-bold text-neutral-700 block mb-1.5">Existing Photos:</span>
-                    <div className="flex flex-wrap gap-3">
-                      {existingImages.map((img, i) => (
-                        <div key={i} className="relative aspect-[3/4] w-20 rounded-xl overflow-hidden border border-accent-200 group">
-                          <img
-                            src={getImageUrl(img)}
-                            alt="Existing"
-                            onError={(e) => handleImageError(e, '/fallback-product.png')}
-                            className="w-full h-full object-cover object-top"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveExistingImage(i)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-red-600 text-white text-xs opacity-90 hover:opacity-100"
-                          >
-                            <HiOutlineX className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                {/* Previews of newly selected images */}
+                {imagePreviews.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-accent-200/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
+                        Newly Added Photos ({imagePreviews.length}):
+                      </span>
+                      <span className="text-[10px] text-neutral-500">
+                        Will be uploaded and appended in this exact sequence
+                      </span>
                     </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {imagePreviews.map((src, i) => {
+                        const effectiveSlot = (editingProduct ? existingImages.length : 0) + i + 1;
+                        const isCover = effectiveSlot === 1;
+                        const isHover = effectiveSlot === 2;
+
+                        return (
+                          <div
+                            key={i}
+                            className={`relative flex flex-col bg-white rounded-xl overflow-hidden border shadow-xs transition-all ${
+                              isCover
+                                ? 'border-amber-400 ring-2 ring-amber-300/50'
+                                : isHover
+                                ? 'border-indigo-400 ring-2 ring-indigo-300/50'
+                                : 'border-neutral-200'
+                            }`}
+                          >
+                            {/* Slot Badge */}
+                            <div className="absolute top-1.5 left-1.5 z-10">
+                              {isCover ? (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
+                                  <HiOutlineStar className="w-3 h-3" /> #1 Cover
+                                </span>
+                              ) : isHover ? (
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
+                                  <HiOutlineSparkles className="w-3 h-3" /> #2 Hover
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs">
+                                  #{effectiveSlot}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Remove button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveNewImage(i)}
+                              className="absolute top-1.5 right-1.5 z-10 p-1 rounded-full bg-red-600/90 hover:bg-red-600 text-white text-xs shadow-xs transition-transform hover:scale-110"
+                              title="Remove photo"
+                            >
+                              <HiOutlineX className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Image preview */}
+                            <div className="aspect-[3/4] w-full overflow-hidden bg-neutral-100">
+                              <img
+                                src={src}
+                                alt={`New upload ${i + 1}`}
+                                className="w-full h-full object-cover object-top"
+                              />
+                            </div>
+
+                            {/* Action controls */}
+                            <div className="p-1.5 bg-neutral-50 flex items-center justify-between border-t border-neutral-100 text-[10px]">
+                              <button
+                                type="button"
+                                disabled={i === 0}
+                                onClick={() => handleMoveNewImage(i, 'left')}
+                                className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
+                                title="Move left"
+                              >
+                                <HiOutlineArrowLeft className="w-3 h-3" />
+                              </button>
+
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMakeCoverNew(i)}
+                                  className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px]"
+                                  title="Promote to top"
+                                >
+                                  Make #1
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                disabled={i === imagePreviews.length - 1}
+                                onClick={() => handleMoveNewImage(i, 'right')}
+                                className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
+                                title="Move right"
+                              >
+                                <HiOutlineArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State Warning */}
+                {!editingProduct && imagePreviews.length === 0 && (
+                  <div className="p-4 rounded-xl border-2 border-dashed border-accent-300 bg-white/60 text-center space-y-1">
+                    <p className="text-xs font-bold text-neutral-700">No photos selected yet</p>
+                    <p className="text-[11px] text-neutral-500">
+                      Please click <strong>"Choose Files"</strong> above to select at least 1 photo for this dress. The first photo will automatically become the #1 Cover Photo.
+                    </p>
                   </div>
                 )}
               </div>

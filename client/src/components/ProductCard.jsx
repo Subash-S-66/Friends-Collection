@@ -36,6 +36,16 @@ const ProductCard = ({ product }) => {
     }
   };
 
+  const primaryImage = product.images?.[0];
+  const secondaryImage =
+    product.images &&
+    product.images.length > 1 &&
+    product.images[1] &&
+    product.images[1] !== primaryImage
+      ? product.images[1]
+      : null;
+  const hasSecondImage = Boolean(secondaryImage);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -53,18 +63,18 @@ const ProductCard = ({ product }) => {
         {/* Image Container with 3:4 Aspect Ratio Guard */}
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-cream-dark">
           <img
-            src={getImageUrl(product.images?.[0])}
+            src={getImageUrl(primaryImage)}
             alt={product.title}
             onError={(e) => handleImageError(e, '/fallback-product.png')}
-            className={`w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105 ${
-              isOutOfStock ? 'grayscale-[35%] opacity-85' : ''
-            }`}
+            className={`w-full h-full object-cover object-top ${
+              hasSecondImage ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
+            } ${isOutOfStock ? 'grayscale-[35%] opacity-85' : ''}`}
             loading="lazy"
           />
-          {product.images?.[1] && (
+          {hasSecondImage && (
             <img
-              src={getImageUrl(product.images[1])}
-              alt={product.title}
+              src={getImageUrl(secondaryImage)}
+              alt={`${product.title} hover view`}
               onError={(e) => handleImageError(e, '/fallback-product.png')}
               className={`absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 ${
                 isOutOfStock ? 'grayscale-[35%] opacity-85' : ''

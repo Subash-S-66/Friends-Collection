@@ -36,6 +36,17 @@ exports.placeOrder = async (req, res, next) => {
         return res.status(400).json({ message: `Insufficient stock for ${product.title}. Available: ${product.stock}` });
       }
 
+      if (product.variants && product.variants.length > 0) {
+        const vIndex = product.variants.findIndex(
+          (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
+        );
+        if (vIndex >= 0 && product.variants[vIndex].stock < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient stock for ${product.title} (${item.color ? item.color + ' ' : ''}${item.size}). Available: ${product.variants[vIndex].stock}`
+          });
+        }
+      }
+
       const price = product.salePrice || product.price;
       totalAmount += price * item.quantity;
 
@@ -167,13 +178,26 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
+    const prevStatus = order.status;
     if (status) order.status = status;
     if (notes !== undefined) order.notes = notes;
 
-    // If cancelled, restore stock
-    if (status === 'cancelled' && order.status !== 'cancelled') {
+    // If cancelled, restore stock for base product and variants
+    if (status === 'cancelled' && prevStatus !== 'cancelled') {
       for (const item of order.items) {
-        await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
+        const prod = await Product.findById(item.product);
+        if (prod) {
+          prod.stock = (prod.stock || 0) + item.quantity;
+          if (prod.variants && prod.variants.length > 0) {
+            const vIndex = prod.variants.findIndex(
+              (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
+            );
+            if (vIndex >= 0) {
+              prod.variants[vIndex].stock = (prod.variants[vIndex].stock || 0) + item.quantity;
+            }
+          }
+          await prod.save();
+        }
       }
     }
 

@@ -28,7 +28,8 @@ export const CartProvider = ({ children }) => {
 
       if (existingIndex >= 0) {
         const updated = [...prev];
-        updated[existingIndex].quantity += quantity;
+        const maxStock = product.stock !== undefined && product.stock !== null ? product.stock : 99;
+        updated[existingIndex].quantity = Math.min(maxStock, updated[existingIndex].quantity + quantity);
         return updated;
       }
 
@@ -52,7 +53,9 @@ export const CartProvider = ({ children }) => {
     if (quantity < 1) return;
     setItems(prev => {
       const updated = [...prev];
-      updated[index].quantity = quantity;
+      if (!updated[index]) return prev;
+      const maxStock = updated[index].stock !== undefined && updated[index].stock !== null ? updated[index].stock : 99;
+      updated[index].quantity = Math.min(maxStock, quantity);
       return updated;
     });
   }, []);

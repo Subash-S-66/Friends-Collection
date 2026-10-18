@@ -195,6 +195,10 @@ exports.createProduct = async (req, res, next) => {
       }
     }
 
+    if (uploadedImages.length === 0) {
+      return res.status(400).json({ message: 'Please upload at least one product photo (Cover Photo #1)' });
+    }
+
     // Parse variants if provided
     let parsedVariants = [];
     if (variants) {
@@ -263,6 +267,8 @@ exports.updateProduct = async (req, res, next) => {
       product.variants = parsedVariants;
       if (parsedVariants.length > 0) {
         product.stock = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+      } else if (stock !== undefined) {
+        product.stock = Number(stock);
       }
     } else if (stock !== undefined) {
       product.stock = Number(stock);
@@ -274,6 +280,8 @@ exports.updateProduct = async (req, res, next) => {
 
     // Process new images through Cloudinary / Sharp 3:4
     let keepImages = existingImages ? (typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages) : product.images;
+    if (!Array.isArray(keepImages)) keepImages = [];
+
     const newImageUrls = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
@@ -281,13 +289,51 @@ exports.updateProduct = async (req, res, next) => {
         newImageUrls.push(imageUrl);
       }
     }
-    product.images = [...keepImages, ...newImageUrls];
+    const finalImages = [...keepImages, ...newImageUrls];
+    if (finalImages.length === 0) {
+      return res.status(400).json({ message: 'A product must have at least one photo remaining' });
+    }
+    product.images = finalImages;
 
     await product.save();
     const populated = await Product.findById(product._id)
       .populate('category', 'name slug')
       .populate('subcategory', 'name slug');
     res.json(populated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Quick adjust stock (admin)
+// @route   PATCH /api/products/admin/:id/stock
+exports.updateStock = async (req, res, next) => {
+  try {
+    const { stock, delta } = req.body;
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    if (delta !== undefined) {
+      product.stock = Math.max(0, (product.stock || 0) + Number(delta));
+    } else if (stock !== undefined) {
+      product.stock = Math.max(0, Number(stock));
+    }
+
+    // Sync variant stock if variants exist
+    if (product.variants && product.variants.length > 0) {
+      if (product.stock === 0) {
+        product.variants.forEach((v) => { v.stock = 0; });
+      } else if (delta !== undefined && delta > 0) {
+        const addPerVariant = Math.floor(delta / product.variants.length);
+        const remainder = delta % product.variants.length;
+        product.variants.forEach((v, idx) => {
+          v.stock = (v.stock || 0) + addPerVariant + (idx < remainder ? 1 : 0);
+        });
+      }
+    }
+
+    await product.save();
+    res.json({ stock: product.stock, message: 'Stock updated successfully' });
   } catch (error) {
     next(error);
   }
