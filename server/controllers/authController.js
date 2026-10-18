@@ -266,38 +266,61 @@ exports.deleteAddress = async (req, res, next) => {
 // @route   POST /api/auth/google
 exports.googleAuth = async (req, res, next) => {
   try {
-    const { credential } = req.body;
-    if (!credential) {
-      return res.status(400).json({ message: 'Google credential token is required' });
+    const { credential, accessToken, userInfo } = req.body;
+    if (!credential && !accessToken && !userInfo) {
+      return res.status(400).json({ message: 'Google credential token or user profile is required' });
     }
 
     let payload = null;
-    // Attempt verification via Google tokeninfo
-    try {
-      const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
-      if (response.ok) {
-        payload = await response.json();
+
+    if (credential) {
+      // Attempt verification via Google tokeninfo
+      try {
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        if (response.ok) {
+          payload = await response.json();
+        }
+      } catch (err) {
+        console.warn('Google tokeninfo fetch failed, fallback to payload decode:', err.message);
       }
-    } catch (err) {
-      console.warn('Google tokeninfo fetch failed, fallback to payload decode:', err.message);
+
+      // Fallback decoding if tokeninfo had network issues
+      if (!payload || !payload.email) {
+        try {
+          const base64Url = credential.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            Buffer.from(base64, 'base64')
+              .toString('utf-8')
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          payload = JSON.parse(jsonPayload);
+        } catch (decodeErr) {
+          return res.status(400).json({ message: 'Invalid Google credential token' });
+        }
+      }
+    } else if (accessToken) {
+      // Attempt verification via Google OAuth2 userinfo
+      try {
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (response.ok) {
+          payload = await response.json();
+        }
+      } catch (err) {
+        console.warn('Google userinfo fetch failed:', err.message);
+      }
     }
 
-    // Fallback decoding if tokeninfo had network issues
+    if (!payload && userInfo && userInfo.email) {
+      payload = userInfo;
+    }
+
     if (!payload || !payload.email) {
-      try {
-        const base64Url = credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          Buffer.from(base64, 'base64')
-            .toString('utf-8')
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
-        payload = JSON.parse(jsonPayload);
-      } catch (decodeErr) {
-        return res.status(400).json({ message: 'Invalid Google credential token' });
-      }
+      return res.status(400).json({ message: 'Google authentication failed or missing verified email' });
     }
 
     const { email, name, picture, sub: googleId } = payload;

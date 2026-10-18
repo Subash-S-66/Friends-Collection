@@ -44,8 +44,12 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const loginWithGoogle = async (credential) => {
-    const res = await API.post('/auth/google', { credential });
+  const loginWithGoogle = async (credentialOrPayload) => {
+    const payload =
+      typeof credentialOrPayload === 'string'
+        ? { credential: credentialOrPayload }
+        : credentialOrPayload;
+    const res = await API.post('/auth/google', payload);
     localStorage.setItem('fc_token', res.data.token);
     localStorage.setItem('fc_user', JSON.stringify(res.data.user));
     setUser(res.data.user);
