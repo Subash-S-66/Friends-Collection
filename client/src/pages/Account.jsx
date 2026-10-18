@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   HiOutlineShoppingBag,
   HiOutlineLocationMarker,
@@ -25,17 +25,43 @@ import { useAuth } from '../context/AuthContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
 
+const TRACKING_STEPS = [
+  { step: 1, title: 'Order Placed', desc: 'Received at Jamalia boutique' },
+  { step: 2, title: 'Confirmed & Packaged', desc: 'Quality checked & packed' },
+  { step: 3, title: 'Shipped / Dispatched', desc: 'In transit with courier' },
+  { step: 4, title: 'Delivered', desc: 'Delivered to your doorstep' },
+];
+
+const getStepProgress = (status) => {
+  switch (status) {
+    case 'confirmed':
+      return 2;
+    case 'shipped':
+      return 3;
+    case 'delivered':
+      return 4;
+    case 'cancelled':
+      return -1;
+    case 'yet_to_move':
+    case 'pending':
+    default:
+      return 1;
+  }
+};
+
 const Account = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'phone_lookup' | 'address'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'phone_lookup' | 'track' | 'address'
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  // Search by order ID
+  // Search & Live Tracking state
   const [lookupOrderId, setLookupOrderId] = useState('');
   const [lookingUp, setLookingUp] = useState(false);
+  const [trackedOrderResult, setTrackedOrderResult] = useState(null);
 
   // Phone lookup states (available for guest and logged-in users)
   const [lookupPhone, setLookupPhone] = useState('');
@@ -46,6 +72,7 @@ const Account = () => {
   // Modal states
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
+  const [trackingOrder, setTrackingOrder] = useState(null);
 
   const fetchOrders = () => {
     if (!user) return;
@@ -65,6 +92,17 @@ const Account = () => {
     }
   }, [user]);
 
+  // Handle URL query parameters (?orderId=... or ?tab=track)
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    const tabParam = searchParams.get('tab');
+    if (orderIdParam) {
+      handleLookupOrder(null, orderIdParam);
+    } else if (tabParam === 'track') {
+      setActiveTab('track');
+    }
+  }, [searchParams]);
+
   const handleLogout = () => {
     logout();
     toast.success('Signed out successfully.');
@@ -72,12 +110,13 @@ const Account = () => {
   };
 
   // Lookup order by Order ID
-  const handleLookupOrder = async (e) => {
-    e.preventDefault();
-    if (!lookupOrderId.trim()) return;
+  const handleLookupOrder = async (e, directId) => {
+    if (e) e.preventDefault();
+    const idToSearch = directId || lookupOrderId;
+    if (!idToSearch || !idToSearch.trim()) return;
     setLookingUp(true);
     try {
-      const res = await API.get(`/orders/track/${encodeURIComponent(lookupOrderId.trim())}`);
+      const res = await API.get(`/orders/track/${encodeURIComponent(idToSearch.trim())}`);
       const foundOrder = res.data;
       if (foundOrder) {
         if (user) {
@@ -85,13 +124,9 @@ const Account = () => {
             const exists = prev.some((o) => o.orderId === foundOrder.orderId);
             return exists ? prev : [foundOrder, ...prev];
           });
-        } else {
-          setPhoneOrders((prev) => {
-            const exists = prev.some((o) => o.orderId === foundOrder.orderId);
-            return exists ? prev : [foundOrder, ...prev];
-          });
         }
-        setDetailOrder(foundOrder);
+        setTrackedOrderResult(foundOrder);
+        setTrackingOrder(foundOrder);
         toast.success(`Found order #${foundOrder.orderId}!`, { icon: '📦' });
         setLookupOrderId('');
       }
@@ -211,6 +246,201 @@ const Account = () => {
     );
   };
 
+  // Render the visual tracking timeline and logistics card
+  const renderTrackingTimeline = (order) => {
+    if (!order) return null;
+    const currentStep = getStepProgress(order.status);
+    const totalWithShipping = (order.totalAmount || 0) + (order.shippingCharge || 0);
+
+    return (
+      <div className="space-y-6">
+        {/* Visual Stepper */}
+        {order.status !== 'cancelled' ? (
+          <div className="p-5 sm:p-6 rounded-3xl bg-cream border border-accent-200/80 space-y-5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Live Dispatch & Delivery Timeline
+              </h4>
+              <span className="text-xs font-semibold text-primary">
+                Order #{order.orderId}
+              </span>
+            </div>
+
+            <div className="relative pt-2">
+              {/* Progress line */}
+              <div className="hidden sm:block absolute top-7 left-10 right-10 h-1 bg-neutral-200 z-0">
+                <div
+                  className="h-full bg-primary transition-all duration-700 rounded-full"
+                  style={{ width: `${Math.max(0, ((currentStep - 1) / 3) * 100)}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative z-10">
+                {TRACKING_STEPS.map((st) => {
+                  const isComplete = currentStep >= st.step;
+                  const isCurrent = currentStep === st.step;
+
+                  return (
+                    <div
+                      key={st.step}
+                      className={`flex sm:flex-col items-center sm:text-center gap-3.5 p-3 rounded-2xl transition-all ${
+                        isCurrent
+                          ? 'bg-white border-2 border-primary shadow-sm'
+                          : isComplete
+                          ? 'bg-white/80 border border-emerald-200'
+                          : 'bg-white/40 border border-neutral-200'
+                      }`}
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-xs transition-all ${
+                          isComplete
+                            ? 'bg-primary text-white shadow-sm ring-4 ring-primary/10'
+                            : 'bg-neutral-100 text-neutral-400 border border-neutral-200'
+                        }`}
+                      >
+                        {isComplete ? <HiCheckCircle className="w-5 h-5 text-white" /> : st.step}
+                      </div>
+                      <div className="text-left sm:text-center">
+                        <span className={`block text-xs font-bold ${
+                          isComplete ? 'text-neutral-900' : 'text-neutral-400'
+                        }`}>
+                          {st.title}
+                        </span>
+                        <span className="block text-[11px] text-neutral-500 mt-0.5 leading-tight">
+                          {st.desc}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0" />
+            <span className="font-bold">This order was cancelled. Restocked back into our collection.</span>
+          </div>
+        )}
+
+        {/* Logistics & Courier Information Card */}
+        <div className="p-5 sm:p-6 rounded-3xl bg-white border border-accent-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center shrink-0 shadow-sm">
+                <HiOutlineTruck className="w-6 h-6" />
+              </div>
+              <div>
+                <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                  Logistics Courier & Dispatch
+                </h5>
+                <p className="text-sm font-bold text-neutral-900">
+                  {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch (Jamalia Boutique)'}
+                </p>
+              </div>
+            </div>
+
+            {order.tracking?.estimatedDelivery && (
+              <div className="sm:text-right bg-primary-50 px-3.5 py-1.5 rounded-xl border border-primary/20">
+                <span className="text-[10px] text-primary font-bold uppercase tracking-wider block">Expected Arrival</span>
+                <span className="text-xs sm:text-sm font-bold text-neutral-900">
+                  {order.tracking.estimatedDelivery}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {order.tracking?.trackingNumber ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-neutral-100">
+              <div className="flex items-center gap-2.5 text-xs">
+                <span className="text-neutral-500 font-medium">Waybill / AWB:</span>
+                <span className="font-mono font-bold text-neutral-900 bg-neutral-50 px-2.5 py-1 rounded-lg border border-neutral-200">
+                  {order.tracking.trackingNumber}
+                </span>
+                <button
+                  onClick={() => handleCopy(order.tracking.trackingNumber)}
+                  className="text-primary hover:text-accent p-1 cursor-pointer"
+                  title="Copy AWB Number"
+                >
+                  <HiOutlineClipboardCopy className="w-4 h-4" />
+                </button>
+              </div>
+
+              {order.tracking?.trackingUrl && (
+                <a
+                  href={order.tracking.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-all"
+                >
+                  <span>Track on Courier Website</span>
+                  <HiOutlineExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          ) : (
+            <div className="text-xs text-neutral-500 pt-2 border-t border-neutral-100">
+              📦 The parcel is currently being inspected and packaged at our Jamalia showroom. Tracking number will update once assigned to the courier.
+            </div>
+          )}
+
+          {/* Milestones History */}
+          {order.tracking?.statusHistory?.length > 0 && (
+            <div className="pt-3 border-t border-neutral-100 space-y-2">
+              <span className="text-xs font-bold uppercase text-neutral-700 tracking-wider block">
+                Recent Milestones & Status Logs
+              </span>
+              <div className="space-y-2">
+                {order.tracking.statusHistory.slice().reverse().map((h, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
+                    <span className="font-medium text-neutral-800">• {h.message}</span>
+                    <span className="text-neutral-400 font-mono text-[11px]">
+                      {new Date(h.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Destination & Summary Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 rounded-2xl bg-white border border-neutral-200 text-xs space-y-1.5">
+            <strong className="block text-neutral-900 font-bold uppercase tracking-wider text-[11px]">
+              Delivery Destination
+            </strong>
+            <p className="font-semibold text-neutral-800">{order.customer?.name}</p>
+            <p className="text-neutral-600">{order.customer?.address?.street}</p>
+            <p className="text-neutral-600">
+              {order.customer?.address?.city}, {order.customer?.address?.state} - <strong className="text-neutral-800">{order.customer?.address?.pincode}</strong>
+            </p>
+            <p className="text-neutral-600 font-mono mt-1">📞 +91 {order.customer?.phone}</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-neutral-200 text-xs space-y-1.5 flex flex-col justify-between">
+            <div>
+              <strong className="block text-neutral-900 font-bold uppercase tracking-wider text-[11px]">
+                Payment & Order Value
+              </strong>
+              <p className="text-neutral-700 font-medium mt-1">
+                Method: <span className="uppercase font-bold text-primary">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD')}</span>
+              </p>
+              <p className="text-neutral-700">
+                Payment Status: <strong className="capitalize">{order.paymentStatus || 'pending'}</strong>
+              </p>
+            </div>
+            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
+              <span className="text-neutral-500 font-bold">Total Bill:</span>
+              <span className="font-serif text-base font-bold text-primary">{formatPrice(totalWithShipping)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render an individual Order Card
   const renderOrderCard = (order) => {
     const totalWithShipping = (order.totalAmount || 0) + (order.shippingCharge || 0);
@@ -308,23 +538,44 @@ const Account = () => {
                     <HiOutlineExternalLink className="w-3 h-3" />
                   </a>
                 )}
-                <Link
-                  to={`/track?orderId=${order.orderId}`}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold"
+                <button
+                  type="button"
+                  onClick={() => setTrackingOrder(order)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer"
                 >
-                  <span>Full Timeline</span>
-                </Link>
+                  <HiOutlineTruck className="w-3.5 h-3.5 text-accent-300" />
+                  <span>Track Status</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailOrder(order)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold cursor-pointer"
+                >
+                  <HiOutlineEye className="w-3 h-3" />
+                  <span>Details</span>
+                </button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between pt-2 border-t border-accent-200/50 text-xs text-neutral-500">
-              <span>Packaging & quality inspection underway at showroom</span>
-              <Link
-                to={`/track?orderId=${order.orderId}`}
-                className="text-primary font-bold hover:underline text-[11px]"
-              >
-                Track Live Progress →
-              </Link>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-accent-200/50 text-xs text-neutral-500">
+              <span>Packaging & quality inspection underway at Jamalia showroom</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTrackingOrder(order)}
+                  className="text-primary font-bold hover:underline text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <HiOutlineTruck className="w-3.5 h-3.5" />
+                  <span>Track Live Progress →</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailOrder(order)}
+                  className="text-neutral-600 hover:text-neutral-900 font-medium text-xs underline cursor-pointer"
+                >
+                  View Details
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -405,13 +656,14 @@ const Account = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Link
-                to="/track"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 text-xs font-semibold hover:bg-accent-100 transition-colors border border-accent-200"
+              <button
+                type="button"
+                onClick={() => setActiveTab('track')}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 text-xs font-semibold hover:bg-accent-100 transition-colors border border-accent-200 cursor-pointer"
               >
-                <HiOutlineTruck className="w-4 h-4" />
+                <HiOutlineTruck className="w-4 h-4 text-primary" />
                 <span>Track Live Order</span>
-              </Link>
+              </button>
               <button
                 onClick={handleLogout}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-red-600 transition-colors cursor-pointer"
@@ -448,7 +700,7 @@ const Account = () => {
 
         {/* Tab Controls & Fast Search Bars */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-accent-200/60 pb-3 mb-8 gap-4">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
             {user && (
               <button
                 onClick={() => setActiveTab('orders')}
@@ -469,8 +721,21 @@ const Account = () => {
                 activeTab === 'phone_lookup' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
               }`}
             >
-              Lookup by Mobile Number {phoneOrders.length > 0 ? `(${phoneOrders.length})` : ''}
+              Lookup by Mobile {phoneOrders.length > 0 ? `(${phoneOrders.length})` : ''}
               {activeTab === 'phone_lookup' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('track')}
+              className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'track' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <HiOutlineTruck className="w-4 h-4" />
+              <span>Track Order by ID</span>
+              {activeTab === 'track' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
               )}
             </button>
@@ -632,6 +897,99 @@ const Account = () => {
           </div>
         )}
 
+        {/* Tab 3: Track Order by ID */}
+        {activeTab === 'track' && (
+          <div className="space-y-8">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm max-w-2xl mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <span className="text-xs uppercase tracking-widest text-accent-700 font-bold">
+                  Live Dispatch & Courier Tracking
+                </span>
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
+                  Track Your Friends Collections Order
+                </h2>
+                <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                  Enter your Order ID (e.g. <span className="font-mono font-bold text-neutral-700">FC-20261018-0003</span>) sent to your mobile or email at checkout.
+                </p>
+              </div>
+
+              <form onSubmit={handleLookupOrder} className="space-y-4 pt-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={lookupOrderId}
+                    onChange={(e) => setLookupOrderId(e.target.value)}
+                    placeholder="Enter Order ID (e.g., FC-20261018-0003)"
+                    className="w-full px-4 py-3 rounded-2xl border border-neutral-300 font-mono text-sm sm:text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50 focus:bg-white uppercase tracking-wider transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={lookingUp || !lookupOrderId.trim()}
+                  className="w-full py-3 bg-primary hover:bg-primary-light text-white text-sm font-bold rounded-2xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {lookingUp ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Tracking Order...</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineTruck className="w-5 h-5" />
+                      <span>Track Order Live</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Tracked Result Display */}
+            {trackedOrderResult && (
+              <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-accent-100 gap-3">
+                  <div>
+                    <span className="text-xs text-neutral-500 block">Live Tracking Result</span>
+                    <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                      <h3 className="font-mono text-xl font-bold text-neutral-900">
+                        #{trackedOrderResult.orderId}
+                      </h3>
+                      {getFulfillmentBadge(trackedOrderResult.status)}
+                      {getPaymentBadge(trackedOrderResult.paymentStatus)}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setInvoiceOrder(trackedOrderResult)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                      <span>Invoice</span>
+                    </button>
+                    <button
+                      onClick={() => setDetailOrder(trackedOrderResult)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                    >
+                      <HiOutlineEye className="w-4 h-4" />
+                      <span>Order Items ({trackedOrderResult.items?.length || 0})</span>
+                    </button>
+                    <button
+                      onClick={() => setTrackedOrderResult(null)}
+                      className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                      title="Clear tracking"
+                    >
+                      <HiOutlineX className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {renderTrackingTimeline(trackedOrderResult)}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tab 3: Saved Address */}
         {activeTab === 'address' && user && (
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm max-w-2xl space-y-4">
@@ -785,16 +1143,87 @@ const Account = () => {
                 </button>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <Link
-                    to={`/track?orderId=${detailOrder.orderId}`}
-                    className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTrackingOrder(detailOrder);
+                      setDetailOrder(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50 cursor-pointer flex items-center gap-1.5"
                   >
-                    Live Tracking Page
-                  </Link>
+                    <HiOutlineTruck className="w-4 h-4 text-primary" />
+                    <span>Live Tracking</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setDetailOrder(null)}
                     className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Live Tracking Modal Overlay */}
+        {trackingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
+            <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto border border-accent-100">
+              <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+                <div>
+                  <span className="text-[11px] uppercase font-bold text-accent-700 tracking-wider flex items-center gap-1.5">
+                    <HiOutlineTruck className="w-4 h-4" />
+                    Live Shipment & Delivery Tracking
+                  </span>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <h3 className="font-serif text-2xl font-bold text-neutral-900">
+                      #{trackingOrder.orderId}
+                    </h3>
+                    {getFulfillmentBadge(trackingOrder.status)}
+                    {getPaymentBadge(trackingOrder.paymentStatus)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTrackingOrder(null)}
+                  className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                >
+                  <HiOutlineX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Visual Timeline and Logistics Info */}
+              {renderTrackingTimeline(trackingOrder)}
+
+              {/* Modal Footer Controls */}
+              <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceOrder(trackingOrder);
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                >
+                  <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                  <span>Download / Print Tax Invoice</span>
+                </button>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailOrder(trackingOrder);
+                      setTrackingOrder(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                  >
+                    View Order Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrackingOrder(null)}
+                    className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold cursor-pointer shadow-xs"
                   >
                     Close
                   </button>

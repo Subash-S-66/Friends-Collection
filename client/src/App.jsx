@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Context Providers
@@ -29,7 +29,6 @@ import VerifyEmail from './pages/VerifyEmail';
 import Account from './pages/Account';
 import About from './pages/About';
 import Contact from './pages/Contact';
-import OrderTracking from './pages/OrderTracking';
 import InvoicePage from './pages/InvoicePage';
 
 // Admin Dashboard Components
@@ -41,6 +40,15 @@ import OrderManager from './admin/OrderManager';
 import BannerManager from './admin/BannerManager';
 import SettingsManager from './admin/SettingsManager';
 import CampaignManager from './admin/CampaignManager';
+
+// Redirect legacy /track links into My Orders portal
+const TrackRedirect = () => {
+  const { orderId } = useParams();
+  if (orderId) {
+    return <Navigate to={`/account?orderId=${encodeURIComponent(orderId)}`} replace />;
+  }
+  return <Navigate to="/account?tab=track" replace />;
+};
 
 // Shell layout that conditionally hides storefront header/footer on admin routes
 const AppLayout = () => {
@@ -69,9 +77,9 @@ const AppLayout = () => {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/account/orders" element={<Account />} />
-          <Route path="/track" element={<OrderTracking />} />
-          <Route path="/track-order" element={<OrderTracking />} />
-          <Route path="/track/:orderId" element={<OrderTracking />} />
+          <Route path="/track" element={<TrackRedirect />} />
+          <Route path="/track-order" element={<TrackRedirect />} />
+          <Route path="/track/:orderId" element={<TrackRedirect />} />
           <Route path="/invoice/:orderId" element={<InvoicePage />} />
           <Route path="/order/invoice/:orderId" element={<InvoicePage />} />
           <Route path="/about" element={<About />} />
