@@ -339,16 +339,6 @@ const AdminLayout = () => {
           </div>
 
           <div className="flex items-center gap-3 text-xs">
-            {/* Go to Home Page Button */}
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-neutral-200 bg-white hover:bg-accent-50 text-neutral-700 hover:text-primary font-bold text-xs transition-colors shadow-2xs group"
-              title="Return to Customer Storefront / Home Page"
-            >
-              <HiOutlineHome className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
-              <span>Go to Home Page</span>
-            </Link>
-
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Database Connected</span>
