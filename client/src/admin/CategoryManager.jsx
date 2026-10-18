@@ -17,7 +17,8 @@ import {
   HiOutlineShoppingBag,
   HiOutlineChevronDown,
   HiOutlineChevronUp,
-  HiOutlineArrowRight
+  HiOutlineArrowRight,
+  HiOutlineArrowLeft
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -41,6 +42,15 @@ const CategoryManager = () => {
   const [genderFilter, setGenderFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'main', 'sub'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
+
+  // Pagination states
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 whenever search, department, type, or status filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, genderFilter, typeFilter, statusFilter, itemsPerPage]);
 
   // Form states for Add / Edit
   const [name, setName] = useState('');
@@ -261,6 +271,33 @@ const CategoryManager = () => {
 
     return true;
   });
+
+  // Pagination calculations
+  const totalItems = filteredCategories.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedCategories = filteredCategories.slice(startIndex, endIndex);
+
+  // Helper for pagination page numbers with ellipsis
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (safeCurrentPage <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+      } else if (safeCurrentPage >= totalPages - 3) {
+        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
 
   // Department counts
   const womenCount = safeCategories.filter((c) => c.gender === 'women' || !c.gender).length;
@@ -500,7 +537,7 @@ const CategoryManager = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {filteredCategories.map((cat) => {
+                {paginatedCategories.map((cat) => {
                   const isParent = !cat.parent;
                   const isVisible = cat.isActive !== false;
                   const isToggling = togglingId === cat._id;
@@ -772,6 +809,91 @@ const CategoryManager = () => {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls: 10/20/30 per table + Next / Prev + 1, 2, 3 Buttons */}
+          <div className="p-4 sm:p-5 bg-neutral-50/80 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+            {/* Left: Item Counts & 10/20/30 Per Table Selector */}
+            <div className="flex flex-wrap items-center gap-4 text-neutral-600">
+              <div>
+                Showing <span className="font-bold text-neutral-900">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}
+                <span className="font-bold text-neutral-900">{endIndex}</span> of{' '}
+                <span className="font-bold text-neutral-900">{totalItems}</span> categories
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500 font-medium">Per table:</span>
+                <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-0.5 shadow-xs">
+                  {[10, 20, 30].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => {
+                        setItemsPerPage(count);
+                        setCurrentPage(1);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        itemsPerPage === count
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Prev, 1, 2, 3..., Next Page Navigation */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-neutral-200 bg-white text-neutral-700 font-bold hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+              >
+                <HiOutlineArrowLeft className="w-3.5 h-3.5" />
+                <span>Prev</span>
+              </button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((pNum, idx) => {
+                  if (pNum === '...') {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="px-2 py-1 text-neutral-400 font-bold">
+                        ...
+                      </span>
+                    );
+                  }
+                  const isCurrent = pNum === safeCurrentPage;
+                  return (
+                    <button
+                      key={pNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pNum)}
+                      className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-bold transition-all ${
+                        isCurrent
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100 shadow-xs'
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-neutral-200 bg-white text-neutral-700 font-bold hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+              >
+                <span>Next</span>
+                <HiOutlineArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
