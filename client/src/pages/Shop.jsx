@@ -15,6 +15,7 @@ const Shop = () => {
   const [hasMore, setHasMore] = useState(true);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const loadMoreRef = useRef(null);
+  const productsSectionRef = useRef(null);
 
   // Filter state
   const selectedGender = searchParams.get('gender') || '';
@@ -189,12 +190,6 @@ const Shop = () => {
     setSearchParams(newParams);
   };
 
-  const clearFilters = () => {
-    setSearchParams({});
-    setPage(1);
-    setFilterDrawerOpen(false);
-  };
-
   const hasActiveFilters =
     Boolean(selectedGender) ||
     Boolean(selectedCategory) ||
@@ -204,6 +199,65 @@ const Shop = () => {
     Boolean(selectedTag) ||
     Boolean(minPrice) ||
     Boolean(maxPrice);
+
+  const clearFilters = () => {
+    setSearchParams({});
+    setPage(1);
+    setFilterDrawerOpen(false);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // On mobile view (< 1024px), automatically scroll to the applied filters and products grid when filters are active
+  useEffect(() => {
+    if (hasActiveFilters && typeof window !== 'undefined' && window.innerWidth < 1024) {
+      const scrollToAppliedFilters = () => {
+        if (!productsSectionRef.current) return;
+        const navElement = document.querySelector('header');
+        const navHeight = navElement ? navElement.offsetHeight : 70;
+        // Position applied filters bar right below header with comfortable offset
+        const targetY = productsSectionRef.current.getBoundingClientRect().top + window.pageYOffset - (navHeight + 10);
+
+        window.scrollTo({
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      };
+
+      // Slight timeout to let route navigation, header height, and DOM layout settle
+      const timer1 = setTimeout(scrollToAppliedFilters, 120);
+      const timer2 = setTimeout(() => {
+        // Confirmation check in case category chips or fonts shifted layout
+        if (!productsSectionRef.current) return;
+        const navElement = document.querySelector('header');
+        const navHeight = navElement ? navElement.offsetHeight : 70;
+        const targetY = productsSectionRef.current.getBoundingClientRect().top + window.pageYOffset - (navHeight + 10);
+        // Only adjust if still significantly above the target section
+        if (window.pageYOffset < targetY - 40) {
+          window.scrollTo({
+            top: Math.max(0, targetY),
+            behavior: 'smooth'
+          });
+        }
+      }, 350);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [
+    hasActiveFilters,
+    selectedGender,
+    selectedCategory,
+    selectedSubcategory,
+    inStockOnly,
+    searchQuery,
+    selectedTag,
+    minPrice,
+    maxPrice
+  ]);
 
   // Filtered categories based on selected gender
   const safeCategoryTree = Array.isArray(categoryTree) ? categoryTree : [];
@@ -553,14 +607,14 @@ const Shop = () => {
           </aside>
 
           {/* Product Grid Area */}
-          <div className="lg:col-span-3 space-y-6">
+          <div ref={productsSectionRef} id="shop-products-section" className="lg:col-span-3 space-y-6 scroll-mt-24">
             {/* Active Filters Display */}
             {hasActiveFilters && (
-              <div className="flex flex-wrap items-center gap-2 bg-white/70 p-3 rounded-2xl border border-accent-100 text-xs shadow-xs">
+              <div id="applied-filters-bar" className="flex flex-wrap items-center gap-2 bg-white/70 p-3 rounded-2xl border border-accent-100 text-xs shadow-xs">
                 <span className="text-neutral-500 font-medium">Applied Filters:</span>
                 {selectedGender && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold">
-                    Studio: {selectedGender === 'women' ? "Women's" : "Men's"}
+                    Studio: {selectedGender === 'women' ? "Women's" : selectedGender === 'men' ? "Men's" : "Kids'"}
                     <button onClick={() => updateParam('gender', '')}><HiOutlineX className="w-3.5 h-3.5" /></button>
                   </span>
                 )}

@@ -777,13 +777,12 @@ const Navbar = () => {
                           hasSubs ? 'cursor-pointer hover:bg-neutral-50 active:bg-neutral-100' : ''
                         }`}
                       >
-                        {/* Direct Category Name Text: Tapping text navigates to that category and scrolls to top */}
+                        {/* Direct Category Name Text: Tapping text navigates to that category and scrolls to applied filters on mobile */}
                         <Link
                           to={`/shop?gender=${mobileGenderTab}&category=${cat.slug}`}
                           onClick={(e) => {
                             e.stopPropagation(); // Prevents toggling dropdown when text is tapped
                             setMobileOpen(false);
-                            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                           }}
                           className="text-xs font-bold text-neutral-900 hover:text-primary active:text-primary py-0.5 px-1 -ml-1 rounded transition-colors inline-block"
                         >
@@ -809,7 +808,6 @@ const Navbar = () => {
                               to={`/shop?gender=${mobileGenderTab}&category=${cat.slug}&subcategory=${sub.slug}`}
                               onClick={() => {
                                 setMobileOpen(false);
-                                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                               }}
                               className="block py-1.5 px-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-primary hover:bg-white transition-colors"
                             >
