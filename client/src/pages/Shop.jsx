@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { HiOutlineFilter, HiOutlineX, HiOutlineAdjustments, HiOutlineSearch, HiCheck } from 'react-icons/hi';
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
+import SearchAutocomplete from '../components/SearchAutocomplete';
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -297,6 +298,19 @@ const Shop = () => {
               </div>
             </div>
           </div>
+
+          {/* Shop All Search Bar with Amazon & Flipkart Style Dropdown */}
+          <div className="mt-6 pt-5 border-t border-neutral-100">
+            <div className="max-w-2xl">
+              <SearchAutocomplete
+                autoFocus={false}
+                initialQuery={searchQuery}
+                onSearch={(term) => updateParam('search', term)}
+                onClear={() => updateParam('search', '')}
+                placeholder="Search dresses, silk sarees, kurtis, lehengas, shirts, fabrics..."
+              />
+            </div>
+          </div>
         </div>
 
         {/* Department / Gender Switcher Tabs */}
@@ -419,6 +433,18 @@ const Shop = () => {
                   Clear All
                 </button>
               )}
+            </div>
+
+            {/* Quick Search in Filter Sidebar */}
+            <div className="space-y-2 pb-3 border-b border-neutral-100">
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-600 block">Keyword Search</span>
+              <SearchAutocomplete
+                autoFocus={false}
+                initialQuery={searchQuery}
+                onSearch={(term) => updateParam('search', term)}
+                onClear={() => updateParam('search', '')}
+                placeholder="Search catalog..."
+              />
             </div>
 
             {/* Department (Gender) Filter */}
@@ -667,7 +693,22 @@ const Shop = () => {
               </button>
             </div>
 
-            <div className="py-6 space-y-6 flex-1">
+            <div className="py-4 space-y-6 flex-1">
+              {/* Quick Search in Mobile Drawer */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">Search Catalog</h4>
+                <SearchAutocomplete
+                  autoFocus={false}
+                  initialQuery={searchQuery}
+                  onSearch={(term) => {
+                    updateParam('search', term);
+                    setFilterDrawerOpen(false);
+                  }}
+                  onClear={() => updateParam('search', '')}
+                  placeholder="Search dresses..."
+                />
+              </div>
+
               {/* Department (Gender) */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">Department</h4>

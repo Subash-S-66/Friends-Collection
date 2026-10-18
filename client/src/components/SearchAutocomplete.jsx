@@ -41,14 +41,18 @@ const SearchAutocomplete = ({
   autoFocus = true,
   onClose,
   placeholder = "Search silk sarees, anarkalis, linen shirts, festive kurtas...",
-  className = ""
+  className = "",
+  initialQuery = "",
+  onSearch,
+  onClear,
+  onCategorySelect
 }) => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const debounceTimerRef = useRef(null);
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery || '');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suggestions, setSuggestions] = useState(DEFAULT_POPULAR_SEARCHES);
@@ -56,6 +60,13 @@ const SearchAutocomplete = ({
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+
+  // Synchronize internal query when initialQuery prop updates
+  useEffect(() => {
+    if (initialQuery !== undefined) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
 
   // Fetch suggestions from backend
   const fetchSuggestions = useCallback(async (searchTerm) => {
@@ -113,13 +124,15 @@ const SearchAutocomplete = ({
     };
   }, []);
 
-  // Submit search query to /shop?search=...
+  // Submit search query
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
     const trimmed = query.trim();
-    if (trimmed) {
-      setIsOpen(false);
-      if (onClose) onClose();
+    setIsOpen(false);
+    if (onClose) onClose();
+    if (onSearch) {
+      onSearch(trimmed);
+    } else if (trimmed) {
       navigate(`/shop?search=${encodeURIComponent(trimmed)}`);
     }
   };
@@ -135,16 +148,22 @@ const SearchAutocomplete = ({
   const handleSelectCategory = (catSlug) => {
     setIsOpen(false);
     if (onClose) onClose();
-    navigate(`/shop?category=${encodeURIComponent(catSlug)}`);
+    if (onCategorySelect) {
+      onCategorySelect(catSlug);
+    } else {
+      navigate(`/shop?category=${encodeURIComponent(catSlug)}`);
+    }
   };
 
   // Click on a suggestion chip
   const handleSelectSuggestion = (tag) => {
     setQuery(tag);
-    setIsOpen(true);
-    fetchSuggestions(tag);
-    if (inputRef.current) {
-      inputRef.current.focus();
+    setIsOpen(false);
+    if (onClose) onClose();
+    if (onSearch) {
+      onSearch(tag);
+    } else {
+      navigate(`/shop?search=${encodeURIComponent(tag)}`);
     }
   };
 
@@ -205,6 +224,7 @@ const SearchAutocomplete = ({
             onClick={() => {
               setQuery('');
               fetchSuggestions('');
+              if (onClear) onClear();
               if (inputRef.current) inputRef.current.focus();
             }}
             className="absolute right-12 p-1 text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer"
