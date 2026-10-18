@@ -63,8 +63,13 @@ app.use(cors({
 // Global Rate Limiting
 app.use('/api/', generalLimiter);
 
-// Body Parsing with size protection
-app.use(express.json({ limit: '10mb' }));
+// Body Parsing with size protection & raw body capture for payment webhooks
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // NoSQL Injection Sanitization (Strips operators starting with $ or containing .)

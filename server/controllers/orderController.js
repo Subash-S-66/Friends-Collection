@@ -643,3 +643,5 @@ exports.getOrderStats = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getEffectiveAvailableStock = getEffectiveAvailableStock;

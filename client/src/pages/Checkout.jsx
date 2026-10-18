@@ -337,14 +337,6 @@ const Checkout = () => {
           return;
         }
 
-        // Place initial order in DB with pending status
-        const res = await API.post('/orders', {
-          ...orderPayload,
-          paymentMethod: 'razorpay',
-          paymentStatus: 'pending'
-        });
-        const placedOrder = res.data;
-
         // Ensure Razorpay SDK script is ready
         const isLoaded = await loadRazorpayScript();
         if (!isLoaded || typeof window.Razorpay === 'undefined') {
@@ -355,10 +347,32 @@ const Checkout = () => {
           return;
         }
 
-        // Create Razorpay Order on server
+        // Create secure Payment Draft and Razorpay Order on server (No order placed in MongoDB yet!)
         let rzpOrderData;
         try {
-          const createRes = await API.post('/payment/create-order', { orderId: placedOrder.orderId });
+          const createRes = await API.post('/payment/create-order', {
+            items: availableItems.map((item) => ({
+              product: item.product,
+              quantity: item.quantity,
+              size: item.size || '',
+              color: item.color || '',
+              title: item.title,
+            })),
+            customer: {
+              name: formData.name.trim(),
+              phone: cleanPhone,
+              secondaryPhone: cleanSecPhone,
+              email: formData.email.trim() || undefined,
+              address: {
+                street: formData.street.trim(),
+                city: formData.city.trim(),
+                state: formData.state.trim(),
+                pincode: formData.pincode.trim(),
+              },
+            },
+            sessionId,
+            saveAddress: formData.saveInfo
+          });
           rzpOrderData = createRes.data;
         } catch (createErr) {
           setSubmitting(false);
@@ -374,7 +388,7 @@ const Checkout = () => {
           amount: rzpOrderData.amount,
           currency: rzpOrderData.currency || 'INR',
           name: 'Friends Collections',
-          description: `Order #${placedOrder.orderId} Payment`,
+          description: 'Online Payment (Cards, UPI, NetBanking)',
           image: '/logo.png',
           order_id: rzpOrderData.razorpayOrderId,
           prefill: {
@@ -383,13 +397,13 @@ const Checkout = () => {
             contact: cleanPhone
           },
           notes: {
-            orderId: placedOrder.orderId
+            customerPhone: cleanPhone
           },
           theme: {
             color: '#54142D'
           },
           handler: async function (response) {
-            // Cryptographically verify HMAC-SHA256 signature on backend
+            // Cryptographically verify HMAC-SHA256 signature on backend and place confirmed order
             try {
               setSubmitting(true);
               toast.loading('Verifying secure payment with Razorpay...', { id: 'rzp-verify' });
@@ -397,26 +411,26 @@ const Checkout = () => {
               const verifyRes = await API.post('/payment/verify', {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: placedOrder.orderId
+                razorpay_signature: response.razorpay_signature
               });
 
-              if (verifyRes.data?.success) {
+              if (verifyRes.data?.success && verifyRes.data?.order) {
                 toast.success('🎉 Payment verified! Order confirmed automatically.', { id: 'rzp-verify' });
 
-                // SUCCESS: Clear hold session and clear cart!
+                // SUCCESS ONLY: Clear hold session and clear cart!
                 sessionStorage.removeItem('fc_checkout_session');
                 clearCart();
 
-                navigate(`/order-success/${placedOrder.orderId}`, {
-                  state: { order: verifyRes.data.order || placedOrder }
+                navigate(`/order-success/${verifyRes.data.order.orderId}`, {
+                  state: { order: verifyRes.data.order }
                 });
               } else {
                 toast.error('Payment verification failed. Please contact support.', { id: 'rzp-verify' });
               }
             } catch (vErr) {
               console.error('Verification error:', vErr);
-              toast.error('Payment verification failed. Your items remain in your cart.', { id: 'rzp-verify' });
+              const vMsg = vErr.response?.data?.message || 'Payment verification failed. Your items remain in your cart.';
+              toast.error(vMsg, { id: 'rzp-verify' });
             } finally {
               setSubmitting(false);
             }
@@ -425,14 +439,14 @@ const Checkout = () => {
             ondismiss: function () {
               setSubmitting(false);
               API.post('/payment/failure', {
-                orderId: placedOrder.orderId,
+                razorpayOrderId: rzpOrderData.razorpayOrderId,
                 errorReason: 'Payment cancelled or dismissed by customer'
               }).catch(() => {});
-              toast('Payment was not completed. Your items remain safely in your cart so you can try again or choose Cash on Delivery.', {
+              toast('Payment was not completed. No order was placed, and your items remain safely in your cart.', {
                 icon: 'ℹ️',
                 duration: 5000
               });
-              // DO NOT CLEAR CART!
+              // CRITICAL: DO NOT CLEAR CART!
             }
           }
         };
@@ -441,16 +455,13 @@ const Checkout = () => {
         rzp.on('payment.failed', function (resp) {
           setSubmitting(false);
           API.post('/payment/failure', {
-            orderId: placedOrder.orderId,
-            errorReason: resp.error?.description || 'Transaction failed',
-            paymentDetails: {
-              razorpayPaymentId: resp.error?.metadata?.payment_id || ''
-            }
+            razorpayOrderId: rzpOrderData.razorpayOrderId,
+            errorReason: resp.error?.description || 'Transaction failed'
           }).catch(() => {});
-          toast.error(`Payment Failed: ${resp.error?.description || 'Payment was unsuccessful'}. Your cart has NOT been cleared.`, {
+          toast.error(`Payment Failed: ${resp.error?.description || 'Payment was unsuccessful'}. No order was placed, and your cart items are saved.`, {
             duration: 6000
           });
-          // DO NOT CLEAR CART!
+          // CRITICAL: DO NOT CLEAR CART!
         });
 
         rzp.open();
