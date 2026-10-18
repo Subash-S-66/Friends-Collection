@@ -674,25 +674,27 @@ const Account = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 text-white rounded-3xl p-6 sm:p-8 shadow-card mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center sm:text-left">
-              <span className="text-xs uppercase tracking-widest text-accent-300 font-bold block">
-                Order Tracking & Customer Portal
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-200/80 shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
+            <div className="space-y-2 text-center sm:text-left relative z-10">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary uppercase tracking-wider">
+                <HiOutlineTruck className="w-3.5 h-3.5 text-primary" />
+                <span>Order Tracking & Customer Portal</span>
               </span>
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold">
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-primary tracking-tight">
                 View Previous Orders & Download Invoices
               </h1>
-              <p className="text-xs text-white/70 max-w-lg">
-                Enter your mobile number to view all orders placed with Friends Collections, monitor live courier status, and print tax invoices.
+              <p className="text-xs sm:text-sm text-neutral-600 max-w-xl">
+                Enter your mobile number or Order ID below to view all orders placed with Friends Collections, monitor live courier status, and print tax invoices.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative z-10 shrink-0">
               <Link
                 to="/login"
-                className="px-5 py-2.5 rounded-xl bg-accent text-primary-950 text-xs font-bold hover:bg-accent-light transition-all shadow-md"
+                className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >
-                Sign In to Account
+                <HiOutlineUser className="w-4 h-4" />
+                <span>Sign In to Account</span>
               </Link>
             </div>
           </div>
