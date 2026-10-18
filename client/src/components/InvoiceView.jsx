@@ -389,12 +389,12 @@ const InvoiceView = ({
 
   // Otherwise, full modal overlay
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:fixed-none">
-      <div className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden my-auto border border-neutral-200 print:border-none print:shadow-none print:rounded-none print:max-w-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs print:p-0 print:bg-white print:fixed-none animate-fade-in">
+      <div className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden my-auto border border-neutral-200 print:border-none print:shadow-none print:rounded-none print:max-w-none flex flex-col max-h-[92vh]">
         
-        {/* Modal Action Bar (Hidden when printing) */}
+        {/* Modal Action Bar (Fixed at top, hidden when printing) */}
         <div
-          className="print:hidden text-white px-6 py-4 flex items-center justify-between border-b border-white/10"
+          className="sticky top-0 z-30 print:hidden text-white px-6 py-4 flex items-center justify-between border-b border-white/10 shrink-0 shadow-sm"
           style={{ backgroundColor: primaryColor }}
         >
           <div className="flex items-center gap-3">
@@ -427,8 +427,9 @@ const InvoiceView = ({
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all cursor-pointer border border-white/20 shadow-2xs"
                 aria-label="Close"
+                title="Close (Esc)"
               >
                 <HiOutlineX className="w-5 h-5" />
               </button>
@@ -436,7 +437,10 @@ const InvoiceView = ({
           </div>
         </div>
 
-        {invoiceSheet}
+        {/* Scrollable invoice content sheet */}
+        <div className="overflow-y-auto flex-1 print:overflow-visible">
+          {invoiceSheet}
+        </div>
       </div>
     </div>
   );

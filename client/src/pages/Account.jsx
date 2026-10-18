@@ -1230,8 +1230,9 @@ const Account = () => {
         {/* Full Order Details Modal */}
         {detailOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-accent-100">
-              <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+            <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-accent-100">
+              {/* Fixed Header with Pinned Close "X" Button */}
+              <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
                 <div>
                   <span className="text-xs uppercase font-bold text-accent-700 tracking-wider">
                     Order Summary & Tracking
@@ -1243,14 +1244,18 @@ const Account = () => {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setDetailOrder(null)}
-                  className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                  className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+                  title="Close (Esc)"
                 >
-                  <HiOutlineX className="w-6 h-6" />
+                  <HiOutlineX className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Customer & Address Details */}
+              {/* Scrollable Modal Content */}
+              <div className="overflow-y-auto p-6 sm:p-8 space-y-6 flex-1">
+                {/* Customer & Address Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-cream-light/60 border border-accent-100 text-xs">
                 <div>
                   <strong className="block text-neutral-900 font-bold mb-1">Customer Info:</strong>
@@ -1377,6 +1382,7 @@ const Account = () => {
                   </button>
                 </div>
               </div>
+              </div>
             </div>
           </div>
         )}
@@ -1384,8 +1390,9 @@ const Account = () => {
         {/* Dedicated Live Tracking Modal Overlay */}
         {trackingOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-            <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto border border-accent-100">
-              <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+            <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-accent-100">
+              {/* Fixed Header with Pinned Close "X" Button */}
+              <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
                 <div>
                   <span className="text-[11px] uppercase font-bold text-accent-700 tracking-wider flex items-center gap-1.5">
                     <HiOutlineTruck className="w-4 h-4" />
@@ -1400,47 +1407,52 @@ const Account = () => {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setTrackingOrder(null)}
-                  className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                  className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+                  title="Close (Esc)"
                 >
-                  <HiOutlineX className="w-6 h-6" />
+                  <HiOutlineX className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Visual Timeline and Logistics Info */}
-              {renderTrackingTimeline(trackingOrder)}
+              {/* Scrollable Modal Content */}
+              <div className="overflow-y-auto p-6 sm:p-8 space-y-6 flex-1">
+                {/* Visual Timeline and Logistics Info */}
+                {renderTrackingTimeline(trackingOrder)}
 
-              {/* Modal Footer Controls */}
-              <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInvoiceOrder(trackingOrder);
-                  }}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-                  <span>Download / Print Tax Invoice</span>
-                </button>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {/* Modal Footer Controls */}
+                <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      setDetailOrder(trackingOrder);
-                      setTrackingOrder(null);
+                      setInvoiceOrder(trackingOrder);
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                   >
-                    View Order Details
+                    <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                    <span>Download / Print Tax Invoice</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setTrackingOrder(null)}
-                    className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold cursor-pointer shadow-xs"
-                  >
-                    Close
-                  </button>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailOrder(trackingOrder);
+                        setTrackingOrder(null);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                    >
+                      View Order Details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrackingOrder(null)}
+                      className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold cursor-pointer shadow-xs"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

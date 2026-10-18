@@ -1232,9 +1232,10 @@ const ProductManager = () => {
 
       {/* Add / Edit Product Modal with Multi-Image Preview & Variant Stock Builder */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-neutral-200/80">
+            {/* Fixed Header with Pinned Close "X" Button */}
+            <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
               <div>
                 <span className="text-xs uppercase font-bold text-accent-700 tracking-wider">Catalog Studio</span>
                 <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
@@ -1242,14 +1243,18 @@ const ProductManager = () => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100"
+                className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+                title="Close (Esc)"
               >
-                <HiOutlineX className="w-6 h-6" />
+                <HiOutlineX className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Scrollable Form Body */}
+            <div className="overflow-y-auto p-6 sm:p-8 space-y-6 flex-1">
+              <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Info */}
               <div className="space-y-4">
                 <div>
@@ -1964,7 +1969,8 @@ const ProductManager = () => {
             </form>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 };

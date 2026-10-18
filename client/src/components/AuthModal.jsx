@@ -371,20 +371,25 @@ const AuthModal = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-2xl z-10 overflow-hidden max-h-[90vh] overflow-y-auto"
+          className="relative max-w-md w-full bg-white rounded-3xl border border-accent-100 shadow-2xl z-10 overflow-hidden max-h-[90vh] flex flex-col"
         >
-          {/* Close Button */}
-          <button
-            type="button"
-            onClick={closeAuthModal}
-            className="absolute top-4 right-4 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors z-20"
-            aria-label="Close popup"
-          >
-            <HiOutlineX className="w-5 h-5" />
-          </button>
+          {/* Sticky Pinned Close Button Header */}
+          <div className="sticky top-0 z-30 flex items-center justify-end px-5 pt-4 pb-1 bg-white/95 backdrop-blur-md shrink-0">
+            <button
+              type="button"
+              onClick={closeAuthModal}
+              className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95"
+              aria-label="Close popup"
+              title="Close (Esc)"
+            >
+              <HiOutlineX className="w-5 h-5" />
+            </button>
+          </div>
 
-          {/* Header Brand */}
-          <div className="text-center space-y-1.5 mb-5">
+          {/* Scrollable Form Body */}
+          <div className="overflow-y-auto px-6 pb-6 sm:px-8 sm:pb-8 flex-1">
+            {/* Header Brand */}
+            <div className="text-center space-y-1.5 mb-5">
             <img
               src="/logo.png"
               alt="Friends Collections"
@@ -984,6 +989,7 @@ const AuthModal = () => {
               )}
             </div>
           )}
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>

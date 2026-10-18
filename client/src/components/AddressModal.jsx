@@ -189,10 +189,10 @@ const AddressModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl z-10 max-h-[90vh] overflow-y-auto border border-neutral-100"
+          className="relative bg-white rounded-3xl max-w-lg w-full shadow-2xl z-10 max-h-[90vh] flex flex-col overflow-hidden border border-neutral-100"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+          {/* Fixed Pinned Header with Close "X" Button */}
+          <div className="sticky top-0 z-30 flex items-center justify-between p-6 sm:p-8 pb-4 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
                 <HiOutlineLocationMarker className="w-5 h-5" />
@@ -212,14 +212,16 @@ const AddressModal = ({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+              className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+              title="Close (Esc)"
             >
               <HiOutlineX className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Scrollable Form Body */}
+          <div className="overflow-y-auto p-6 sm:p-8 pt-4 flex-1">
+            <form onSubmit={handleSubmit} className="space-y-4">
             {/* Address Type / Label Selection */}
             <div>
               <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
@@ -446,6 +448,7 @@ const AddressModal = ({
               </button>
             </div>
           </form>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>

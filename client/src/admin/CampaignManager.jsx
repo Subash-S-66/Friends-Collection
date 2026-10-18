@@ -14,7 +14,8 @@ import {
   HiOutlineDeviceMobile,
   HiOutlineDesktopComputer,
   HiOutlineColorSwatch,
-  HiOutlineLightningBolt
+  HiOutlineLightningBolt,
+  HiOutlineX
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -1182,50 +1183,62 @@ const CampaignManager = () => {
       {/* ======================================================== */}
       {testModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-neutral-200/80">
+            {/* Pinned Header with Fixed Close "X" Button */}
+            <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-7 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
               <h3 className="font-serif text-lg font-bold text-neutral-900 flex items-center gap-2">
                 <HiOutlinePaperAirplane className="w-5 h-5 text-accent-700" />
                 <span>Send Test Campaign Email</span>
               </h3>
+              <button
+                type="button"
+                onClick={() => setTestModalOpen(false)}
+                className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+                title="Close (Esc)"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
             </div>
 
-            <p className="text-xs text-neutral-500 leading-relaxed">
-              We will dispatch a real test preview of <strong>&ldquo;{subject}&rdquo;</strong> via Nodemailer directly to the address below.
-            </p>
+            {/* Scrollable Modal Body */}
+            <div className="overflow-y-auto p-6 sm:p-7 space-y-4 flex-1">
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                We will dispatch a real test preview of <strong>&ldquo;{subject}&rdquo;</strong> via Nodemailer directly to the address below.
+              </p>
 
-            <form onSubmit={handleSendTest} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">
-                  Recipient Test Email Address *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={testEmailAddress}
-                  onChange={(e) => setTestEmailAddress(e.target.value)}
-                  placeholder="admin@example.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
+              <form onSubmit={handleSendTest} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">
+                    Recipient Test Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={testEmailAddress}
+                    onChange={(e) => setTestEmailAddress(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-neutral-100">
-                <button
-                  type="button"
-                  onClick={() => setTestModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={testEmailLoading}
-                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
-                >
-                  {testEmailLoading ? 'Dispatching...' : 'Send Test Email Now'}
-                </button>
-              </div>
-            </form>
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-neutral-100">
+                  <button
+                    type="button"
+                    onClick={() => setTestModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={testEmailLoading}
+                    className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md transition-all disabled:opacity-50"
+                  >
+                    {testEmailLoading ? 'Dispatching...' : 'Send Test Email Now'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -593,8 +593,9 @@ const OrderManager = () => {
       {/* Order Details & Tracking Edit Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-accent-100">
-            <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-accent-100">
+            {/* Fixed Header with Pinned Close "X" Button */}
+            <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
               <div>
                 <span className="text-xs uppercase font-bold text-accent-700 tracking-wider">
                   Order Management & Dispatch
@@ -607,14 +608,18 @@ const OrderManager = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95 shrink-0"
+                title="Close (Esc)"
               >
-                <HiOutlineX className="w-6 h-6" />
+                <HiOutlineX className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Customer & Address */}
+            {/* Scrollable Modal Body */}
+            <div className="overflow-y-auto p-6 sm:p-8 space-y-6 flex-1">
+              {/* Customer & Address */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-cream-light border border-accent-100 text-xs">
               <div>
                 <strong className="block text-neutral-900 font-bold mb-1">Customer Info:</strong>
@@ -959,7 +964,8 @@ const OrderManager = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Tax Invoice Modal for Admin Printing */}
       {invoiceOrder && (

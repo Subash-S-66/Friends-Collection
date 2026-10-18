@@ -128,35 +128,40 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
       }}
     >
       <div
-        className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-accent-100 relative max-h-[92vh] overflow-y-auto transform transition-all"
+        className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-accent-100 relative max-h-[92vh] flex flex-col overflow-hidden transform transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="absolute top-5 right-5 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
-          aria-label="Close modal"
-        >
-          <HiOutlineX className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="text-center space-y-2 pb-4 border-b border-neutral-100">
-          <div className="w-14 h-14 rounded-full bg-accent-100/80 text-primary flex items-center justify-center mx-auto shadow-sm">
-            <HiOutlineBell className="w-7 h-7 text-accent-700" />
-          </div>
-          <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
-            {successDone ? "You're on the Waitlist!" : "Notify Me When Available"}
-          </h3>
-          <p className="text-xs text-neutral-500 max-w-xs mx-auto">
-            {successDone
-              ? "We've registered your alert. We'll send you an email the instant this garment restocks!"
-              : "Never miss out. Enter your details to get an instant email when this design arrives."}
-          </p>
+        {/* Sticky Fixed Close Button Header */}
+        <div className="sticky top-0 z-30 flex items-center justify-end px-5 pt-4 pb-1 bg-white/95 backdrop-blur-md shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all border border-neutral-200/80 shadow-2xs bg-white cursor-pointer active:scale-95"
+            aria-label="Close modal"
+            title="Close (Esc)"
+          >
+            <HiOutlineX className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Scrollable Modal Content */}
+        <div className="overflow-y-auto px-6 pb-6 sm:px-8 sm:pb-8 flex-1 space-y-4">
+          {/* Modal Header */}
+          <div className="text-center space-y-2 pb-4 border-b border-neutral-100">
+            <div className="w-14 h-14 rounded-full bg-accent-100/80 text-primary flex items-center justify-center mx-auto shadow-sm">
+              <HiOutlineBell className="w-7 h-7 text-accent-700" />
+            </div>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
+              {successDone ? "You're on the Waitlist!" : "Notify Me When Available"}
+            </h3>
+            <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+              {successDone
+                ? "We've registered your alert. We'll send you an email the instant this garment restocks!"
+                : "Never miss out. Enter your details to get an instant email when this design arrives."}
+            </p>
+          </div>
 
         {/* Product Quick Snapshot Card */}
         <div className="my-4 p-3 rounded-2xl bg-cream border border-accent-200/60 flex items-center gap-3">
@@ -335,6 +340,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
             )}
           </form>
         )}
+        </div>
       </div>
     </div>
   );
