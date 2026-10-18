@@ -109,7 +109,7 @@ const AdminLayout = () => {
       title: 'STORE CONFIGURATION',
       items: [
         { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, shipping & copy' },
-        { name: 'Universal Tax Invoice', path: '/admin/settings?tab=invoice', icon: HiOutlineDocumentText, badge: 'Unified', desc: 'Customize invoice layout & details' },
+        { name: 'Tax Invoice Settings', path: '/admin/invoice', icon: HiOutlineDocumentText, desc: 'Customize invoice layout & details' },
       ],
     },
   ];
@@ -205,7 +205,7 @@ const AdminLayout = () => {
                     ? location.pathname === itemPath && currentQuery === itemQuery
                     : item.exact
                     ? location.pathname === itemPath && !currentQuery
-                    : location.pathname.startsWith(itemPath) && (!currentQuery || itemPath !== '/admin/settings');
+                    : location.pathname === itemPath || (itemPath !== '/admin' && location.pathname.startsWith(itemPath + '/'));
                   const Icon = item.icon;
                   return (
                     <Link

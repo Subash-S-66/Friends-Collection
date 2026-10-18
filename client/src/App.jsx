@@ -42,6 +42,7 @@ import CategoryManager from './admin/CategoryManager';
 import OrderManager from './admin/OrderManager';
 import BannerManager from './admin/BannerManager';
 import SettingsManager from './admin/SettingsManager';
+import InvoiceSettingsManager from './admin/InvoiceSettingsManager';
 import CampaignManager from './admin/CampaignManager';
 
 // Redirect legacy /track links into My Orders portal
@@ -113,6 +114,8 @@ const AppLayout = () => {
             <Route path="campaigns" element={<CampaignManager />} />
             <Route path="banners" element={<BannerManager />} />
             <Route path="settings" element={<SettingsManager />} />
+            <Route path="invoice" element={<InvoiceSettingsManager />} />
+            <Route path="tax-invoice" element={<Navigate to="/admin/invoice" replace />} />
           </Route>
 
           {/* 404 Fallback */}
