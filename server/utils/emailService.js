@@ -672,4 +672,183 @@ exports.sendCampaignEmail = async ({ to, name, campaign }) => {
   }
 };
 
+// 5. Send Order Confirmation Email with PDF Invoice & Delivery Window
+exports.sendOrderConfirmationEmail = async ({ order }) => {
+  try {
+    const customer = order.customer || {};
+    const to = customer.email;
+    if (!to) {
+      console.log(`ℹ️ [Email Skipped] Order #${order.orderId} customer provided no email address.`);
+      return { success: false, reason: 'No customer email provided' };
+    }
+
+    const mailClient = await getTransporter();
+    const { generateInvoicePdf, getExpectedDeliveryRange } = require('./invoiceGenerator');
+
+    const deliveryRange = getExpectedDeliveryRange(order.createdAt || new Date());
+    const isPaid = order.paymentStatus === 'paid';
+    const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const trackUrl = `${clientUrl}/account?tab=track&orderId=${order.orderId}`;
+
+    const itemsHtml = (order.items || []).map((it) => {
+      const varTxt = [it.color, it.size].filter(Boolean).join(' • ');
+      return `
+        <tr style="border-bottom: 1px solid #EEDCD0;">
+          <td style="padding: 12px 8px; font-size: 13px; color: #2D2522; font-weight: 600;">
+            ${it.title}
+            ${varTxt ? `<br><span style="font-size: 11px; color: #8C5338; font-weight: normal;">${varTxt}</span>` : ''}
+          </td>
+          <td style="padding: 12px 8px; font-size: 13px; color: #4A4543; text-align: center;">
+            ${it.quantity}
+          </td>
+          <td style="padding: 12px 8px; font-size: 13px; color: #4A0E17; font-weight: 700; text-align: right;">
+            ₹${(Number(it.price) * Number(it.quantity)).toLocaleString('en-IN')}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const paymentBadge = isPaid
+      ? `<span style="display: inline-block; background-color: #E6F4EA; color: #137333; font-weight: bold; font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #CEEAD6;">✓ Paid Online via Razorpay</span>`
+      : `<span style="display: inline-block; background-color: #FEF7E0; color: #B06000; font-weight: bold; font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #FEEFC3;">Cash on Delivery (COD)</span>`;
+
+    const contentHtml = `
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="display: inline-block; background: #E6F4EA; color: #137333; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; padding: 5px 14px; border-radius: 9999px; border: 1px solid #CEEAD6;">
+          ✦ Order Confirmed & Received ✦
+        </span>
+        <h2 class="content-title" style="margin-top: 14px; margin-bottom: 8px;">
+          Thank You for Shopping with Us!
+        </h2>
+        <p class="content-text" style="text-align: center; max-width: 460px; margin: 0 auto 16px;">
+          Dear <strong>${customer.name || 'Valued Customer'}</strong>, your order has been successfully placed. Our boutique artisans at Jamalia, Chennai are packing your garments with supreme care.
+        </p>
+      </div>
+
+      <!-- Expected Delivery Window Banner -->
+      <div style="background: linear-gradient(135deg, #FDF9F5 0%, #F5EDE4 100%); border: 2px dashed #C88A65; border-radius: 16px; padding: 18px 20px; text-align: center; margin: 20px 0;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #8C5338; font-weight: 700; display: block; margin-bottom: 4px;">
+          Estimated Arrival Window
+        </span>
+        <span style="font-family: Georgia, serif; font-size: 20px; color: #4A0E17; font-weight: 800; display: inline-block;">
+          📦 ${deliveryRange}
+        </span>
+        <span style="font-size: 11px; color: #7A726E; display: block; margin-top: 6px;">
+          Standard Boutique Express Delivery to ${customer.address?.city || 'your address'}
+        </span>
+      </div>
+
+      <!-- Order Reference Pill -->
+      <div style="text-align: center; margin: 18px 0;">
+        <span style="font-size: 12px; color: #665C58;">Order Reference: </span>
+        <span style="font-family: monospace; font-size: 15px; font-weight: bold; color: #4A0E17; background: #FAF7F2; padding: 4px 12px; border-radius: 8px; border: 1px solid #EEDCD0;">
+          ${order.orderId}
+        </span>
+      </div>
+
+      <!-- Itemized Table -->
+      <div style="margin: 24px 0; background: #FFFFFF; border: 1px solid #EEDCD0; border-radius: 14px; overflow: hidden;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          <thead>
+            <tr style="background: #4A0E17; color: #FFFFFF; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">
+              <th style="padding: 10px 8px; text-align: left;">Item</th>
+              <th style="padding: 10px 8px; text-align: center; width: 40px;">Qty</th>
+              <th style="padding: 10px 8px; text-align: right; width: 70px;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        <div style="background: #FAF7F2; padding: 14px 16px; border-top: 1px solid #EEDCD0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; line-height: 1.8;">
+            <tr>
+              <td style="color: #665C58;">Subtotal:</td>
+              <td style="text-align: right; font-weight: bold; color: #2D2522;">₹${Number(order.totalAmount || 0).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td style="color: #665C58;">Delivery Charge:</td>
+              <td style="text-align: right; font-weight: bold; color: #137333;">${Number(order.shippingCharge || 0) === 0 ? 'FREE' : `₹${order.shippingCharge}`}</td>
+            </tr>
+            <tr style="border-top: 1px dashed #D9C5B6; font-size: 14px;">
+              <td style="padding-top: 8px; font-weight: bold; color: #4A0E17;">Grand Total:</td>
+              <td style="padding-top: 8px; text-align: right; font-weight: 900; color: #4A0E17; font-size: 16px;">₹${grandTotal.toLocaleString('en-IN')}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payment & Address Details -->
+      <div style="background: #FAF7F2; border: 1px solid #EEDCD0; border-radius: 14px; padding: 16px 20px; margin: 20px 0; font-size: 12px; line-height: 1.6;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align: top; width: 50%; padding-right: 10px;">
+              <strong style="color: #4A0E17; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Delivering To:</strong>
+              <span style="font-weight: 600; color: #2D2522;">${customer.name}</span><br>
+              <span style="color: #665C58;">
+                ${customer.address?.street || ''}<br>
+                ${customer.address?.city || ''}, ${customer.address?.state || ''} - ${customer.address?.pincode || ''}<br>
+                Phone: +91 ${customer.phone || ''}
+              </span>
+            </td>
+            <td style="vertical-align: top; width: 50%; padding-left: 10px;">
+              <strong style="color: #4A0E17; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Payment Method:</strong>
+              ${paymentBadge}<br>
+              ${order.paymentDetails?.razorpayPaymentId ? `<span style="font-size: 11px; color: #665C58; display: block; margin-top: 4px;">Txn ID: <code style="font-family: monospace;">${order.paymentDetails.razorpayPaymentId}</code></span>` : ''}
+              <span style="font-size: 11px; color: #8C5338; display: block; margin-top: 6px;">
+                📎 <strong>Your Official Tax Invoice PDF</strong> is attached directly to this email.
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- CTA Track Button -->
+      <div style="text-align: center; margin: 28px 0 16px;">
+        <a href="${trackUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
+          Track Live Order Status →
+        </a>
+      </div>
+
+      <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 20px;">
+        Questions or need tailoring adjustments? Reach our Jamalia boutique team on WhatsApp at 
+        <a href="https://wa.me/919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a>.
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `Order Confirmation #${order.orderId} - Friends Collections`,
+      preheader: `Thank you for your order #${order.orderId}! Expected arrival: ${deliveryRange}. Tax Invoice attached.`,
+      contentHtml
+    });
+
+    // Generate Invoice PDF to attach
+    let pdfAttachment = [];
+    try {
+      const pdfBuffer = await generateInvoicePdf(order);
+      pdfAttachment.push({
+        filename: `Invoice-${order.orderId}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      });
+    } catch (pdfErr) {
+      console.error(`⚠️ Could not attach PDF invoice to email for order #${order.orderId}:`, pdfErr);
+    }
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: `🛍️ Order Confirmed #${order.orderId} - Friends Collections (Invoice Attached)`,
+      html,
+      attachments: [...getLogoAttachment(), ...pdfAttachment]
+    });
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendOrderConfirmationEmail:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 exports.renderCampaignHtml = renderCampaignHtml;

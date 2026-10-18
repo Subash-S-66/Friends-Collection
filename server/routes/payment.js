@@ -385,6 +385,16 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
       }
     }
 
+    // 12. Asynchronously Dispatch Order Confirmation Email with PDF Invoice & Delivery Window
+    try {
+      const { sendOrderConfirmationEmail } = require('../utils/emailService');
+      sendOrderConfirmationEmail({ order }).catch((mailErr) =>
+        console.error(`⚠️ Email dispatch failed for order #${order.orderId}:`, mailErr)
+      );
+    } catch (eErr) {
+      console.warn('Could not initiate confirmation email:', eErr);
+    }
+
     res.json({
       success: true,
       message: 'Payment verified successfully and order confirmed automatically.',
@@ -478,7 +488,7 @@ router.post('/webhook', async (req, res) => {
             }
 
             // Create confirmed order
-            await Order.create({
+            const webhookOrder = await Order.create({
               items: draft.items,
               customer: draft.customer,
               user: draft.user,
@@ -520,6 +530,12 @@ router.post('/webhook', async (req, res) => {
 
             draft.status = 'completed';
             await draft.save();
+
+            // Dispatch confirmation email with PDF invoice
+            try {
+              const { sendOrderConfirmationEmail } = require('../utils/emailService');
+              sendOrderConfirmationEmail({ order: webhookOrder }).catch(() => {});
+            } catch (wMailErr) {}
           }
         }
       }

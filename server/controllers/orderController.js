@@ -344,6 +344,15 @@ exports.placeOrder = async (req, res, next) => {
         { status: 'completed' }
       );
     }
+    // Asynchronously dispatch Order Confirmation Email with PDF Invoice & Delivery Window
+    try {
+      const { sendOrderConfirmationEmail } = require('../utils/emailService');
+      sendOrderConfirmationEmail({ order }).catch((mailErr) =>
+        console.error(`⚠️ Email dispatch failed for COD order #${order.orderId}:`, mailErr)
+      );
+    } catch (eErr) {
+      console.warn('Could not initiate COD confirmation email:', eErr);
+    }
 
     res.status(201).json(order);
   } catch (error) {

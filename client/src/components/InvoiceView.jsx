@@ -62,6 +62,15 @@ const InvoiceView = ({ order, isOpen, onClose }) => {
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href={`/api/orders/${order.orderId}/invoice.pdf`}
+              download={`Invoice-${order.orderId}.pdf`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all shadow-xs cursor-pointer border border-white/20"
+              title="Download Authentic PDF Invoice"
+            >
+              <HiOutlineDownload className="w-4 h-4 text-accent-300" />
+              <span>Download PDF</span>
+            </a>
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-light text-primary-950 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
