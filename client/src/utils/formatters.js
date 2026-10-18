@@ -7,9 +7,15 @@ export const getDiscount = (price, salePrice) => {
   return Math.round(((price - salePrice) / price) * 100);
 };
 
-export const getImageUrl = (path, fallback = '/fallback-product.png') => {
+export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
   if (!path) return fallback;
-  if (path === '/uploads/card.png' || path === '/card.png') return fallback;
+  if (path === '/uploads/card.png' || path === '/card.png' || path === '/fallback-product.png') {
+    return fallback;
+  }
+  // Prevent store logo from being used as a product photo
+  if (path.includes('logo.png') && !fallback.includes('logo')) {
+    return fallback;
+  }
   if (path.startsWith('http')) return path;
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -21,7 +27,7 @@ export const getImageUrl = (path, fallback = '/fallback-product.png') => {
   return path;
 };
 
-export const handleImageError = (e, fallback = '/fallback-product.png') => {
+export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
   if (e?.currentTarget) {
     e.currentTarget.onerror = null;
     e.currentTarget.src = fallback;

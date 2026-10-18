@@ -36,15 +36,33 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const primaryImage = product.images?.[0];
-  const secondaryImage =
-    product.images &&
-    product.images.length > 1 &&
-    product.images[1] &&
-    product.images[1] !== primaryImage
-      ? product.images[1]
+  // Clean product images: remove any store logo mistakenly placed in product images
+  const cleanImages = (product.images || []).filter(
+    (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
+  );
+
+  const rawPrimary = cleanImages[0];
+  const rawSecondary =
+    cleanImages.length > 1 && cleanImages[1] && cleanImages[1] !== rawPrimary
+      ? cleanImages[1]
       : null;
-  const hasSecondImage = Boolean(secondaryImage);
+
+  // Detect whether primary image is missing or a fallback
+  const isPrimaryFallback =
+    !rawPrimary ||
+    rawPrimary === '/fallback-product.png' ||
+    rawPrimary === '/fallback-product-1.png' ||
+    rawPrimary.includes('card.png');
+
+  // Primary image to display
+  const primaryImage = isPrimaryFallback ? '/fallback-product-1.png' : rawPrimary;
+
+  // Secondary/Hover image:
+  // 1) If product has a real distinct 2nd image -> use rawSecondary
+  // 2) If using fallback -> use /fallback-product-2.png for seamless hover animation
+  // 3) If product has only 1 real custom image -> null (no hover animation as requested)
+  const hoverImage = rawSecondary || (isPrimaryFallback ? '/fallback-product-2.png' : null);
+  const hasHoverImage = Boolean(hoverImage);
 
   return (
     <motion.div
@@ -63,19 +81,19 @@ const ProductCard = ({ product }) => {
         {/* Image Container with 3:4 Aspect Ratio Guard */}
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-cream-dark">
           <img
-            src={getImageUrl(primaryImage)}
+            src={getImageUrl(primaryImage, '/fallback-product-1.png')}
             alt={product.title}
-            onError={(e) => handleImageError(e, '/fallback-product.png')}
+            onError={(e) => handleImageError(e, '/fallback-product-1.png')}
             className={`w-full h-full object-cover object-top ${
-              hasSecondImage ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
+              hasHoverImage ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
             } ${isOutOfStock ? 'grayscale-[35%] opacity-85' : ''}`}
             loading="lazy"
           />
-          {hasSecondImage && (
+          {hasHoverImage && (
             <img
-              src={getImageUrl(secondaryImage)}
+              src={getImageUrl(hoverImage, '/fallback-product-2.png')}
               alt={`${product.title} hover view`}
-              onError={(e) => handleImageError(e, '/fallback-product.png')}
+              onError={(e) => handleImageError(e, '/fallback-product-2.png')}
               className={`absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 ${
                 isOutOfStock ? 'grayscale-[35%] opacity-85' : ''
               }`}

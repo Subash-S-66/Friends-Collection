@@ -174,7 +174,7 @@ const seed = async () => {
         salePrice: 2299,
         category: categoryMap['sarees'],
         subcategory: subcategoryMap['banarasi-silk'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['Free Size'],
         colors: ['Maroon', 'Wine'],
         variants: [
@@ -194,7 +194,7 @@ const seed = async () => {
         salePrice: 1899,
         category: categoryMap['salwar-suits'],
         subcategory: subcategoryMap['anarkali-suits'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['S', 'M', 'L', 'XL'],
         colors: ['Navy Blue', 'Wine'],
         variants: [
@@ -218,7 +218,7 @@ const seed = async () => {
         salePrice: 999,
         category: categoryMap['kurtis'],
         subcategory: subcategoryMap['a-line-kurtis'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['M', 'L', 'XL', 'XXL'],
         colors: ['Pastel Pink', 'Mint Green'],
         variants: [
@@ -241,7 +241,7 @@ const seed = async () => {
         salePrice: 4499,
         category: categoryMap['lehengas'],
         subcategory: subcategoryMap['bridal-lehengas'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['Free Size'],
         colors: ['Deep Red', 'Emerald Green'],
         variants: [
@@ -261,7 +261,7 @@ const seed = async () => {
         salePrice: 3899,
         category: categoryMap['sarees'],
         subcategory: subcategoryMap['kanchipuram-silk'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['Free Size'],
         colors: ['Peacock Blue', 'Crimson'],
         variants: [
@@ -281,7 +281,7 @@ const seed = async () => {
         salePrice: 1299,
         category: categoryMap['western-wear'],
         subcategory: subcategoryMap['co-ord-sets'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['S', 'M', 'L'],
         colors: ['Mustard', 'Olive'],
         variants: [
@@ -304,7 +304,7 @@ const seed = async () => {
         salePrice: 1699,
         category: categoryMap['men-shirts'],
         subcategory: subcategoryMap['men-linen-shirts'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['M', 'L', 'XL', 'XXL'],
         colors: ['Beige', 'Sky Blue', 'White'],
         variants: [
@@ -327,7 +327,7 @@ const seed = async () => {
         salePrice: 2799,
         category: categoryMap['men-kurtas'],
         subcategory: subcategoryMap['men-kurta-sets'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['38', '40', '42', '44'],
         colors: ['Wine', 'Ivory Cream'],
         variants: [
@@ -349,7 +349,7 @@ const seed = async () => {
         salePrice: 1399,
         category: categoryMap['men-trousers'],
         subcategory: subcategoryMap['men-chinos'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['30', '32', '34', '36'],
         colors: ['Khaki', 'Navy Blue', 'Olive'],
         variants: [
@@ -371,7 +371,7 @@ const seed = async () => {
         salePrice: 4199,
         category: categoryMap['men-suits'],
         subcategory: subcategoryMap['men-wedding-blazers'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['38', '40', '42'],
         colors: ['Midnight Blue', 'Emerald Green'],
         variants: [
@@ -391,7 +391,7 @@ const seed = async () => {
         salePrice: 799,
         category: categoryMap['men-tshirts'],
         subcategory: subcategoryMap['men-oversized-tees'],
-        images: ['/uploads/card.png', '/uploads/logo.png'],
+        images: ['/fallback-product-1.png', '/fallback-product-2.png'],
         sizes: ['M', 'L', 'XL'],
         colors: ['Charcoal Black', 'Off-White'],
         variants: [

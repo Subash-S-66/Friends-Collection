@@ -144,8 +144,10 @@ const ProductManager = () => {
     setVariants(prod.variants && prod.variants.length > 0 ? prod.variants : [
       { color: 'Default', size: 'Standard', stock: prod.stock || 10, sku: '' }
     ]);
-    setTags(prod.tags || []);
-    setExistingImages(prod.images || []);
+    const cleanExisting = (prod.images || []).filter(
+      (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
+    );
+    setExistingImages(cleanExisting);
     setImages([]);
     setImagePreviews([]);
     setModalOpen(true);
