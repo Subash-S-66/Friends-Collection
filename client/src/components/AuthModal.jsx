@@ -105,6 +105,7 @@ const AuthModal = () => {
   // Password / Username Login Submission
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
+    if (loginLoading) return; // Prevent double click
     if (!loginEmail.trim()) {
       toast.error('Please enter your email or admin username');
       return;
@@ -130,6 +131,7 @@ const AuthModal = () => {
   // Request 6-digit email token for passwordless sign in
   const handleRequestToken = async (e) => {
     e.preventDefault();
+    if (loginLoading) return; // Prevent double click
     if (!loginEmail.trim() || !/\S+@\S+\.\S+/.test(loginEmail.trim())) {
       toast.error('Please enter a valid email address');
       return;
@@ -154,6 +156,7 @@ const AuthModal = () => {
   // Verify 6-digit email token
   const handleVerifyToken = async (e) => {
     e.preventDefault();
+    if (loginLoading) return; // Prevent double click
     if (!tokenCode || tokenCode.length < 6) {
       toast.error('Please enter the complete 6-digit code');
       return;
@@ -174,6 +177,7 @@ const AuthModal = () => {
   // Register Form Submission
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (regLoading) return; // Prevent double click
     if (!regName.trim()) {
       toast.error('Please enter your full name');
       return;
@@ -222,6 +226,7 @@ const AuthModal = () => {
   // Verify account token inside modal
   const handleVerifyEmail = async (e) => {
     if (e) e.preventDefault();
+    if (verifyLoading) return; // Prevent double click
     if (!verifyCode || verifyCode.length < 6) {
       toast.error('Please enter the 6-digit verification code');
       return;
@@ -296,6 +301,7 @@ const AuthModal = () => {
   // Forgot password request OTP
   const handleForgotRequest = async (e) => {
     e.preventDefault();
+    if (forgotLoading) return; // Prevent double click
     if (!forgotEmail.trim()) {
       toast.error('Please enter your email address');
       return;
@@ -319,6 +325,7 @@ const AuthModal = () => {
   // Forgot password verify OTP and save new password
   const handleForgotVerify = async (e) => {
     e.preventDefault();
+    if (forgotLoading) return; // Prevent double click
     if (!forgotCode || forgotCode.length < 6) {
       toast.error('Please enter the 6-digit code');
       return;

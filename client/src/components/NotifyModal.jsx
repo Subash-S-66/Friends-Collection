@@ -62,6 +62,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
   // 1. Send 6-digit verification token via Nodemailer
   const handleSendToken = async (e) => {
     e.preventDefault();
+    if (loading) return;
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       toast.error('Please enter a valid email address');
       return;
@@ -85,6 +86,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
   // 2. Verify 6-digit token, log in, and auto-subscribe
   const handleVerifyTokenAndSubscribe = async (e) => {
     e.preventDefault();
+    if (loading) return;
     if (!code || code.length < 6) {
       toast.error('Please enter the 6-digit code sent to your email');
       return;
@@ -106,6 +108,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
   // 3. Password login then auto-subscribe
   const handlePasswordLoginAndSubscribe = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
       const authData = await login(email, password);

@@ -22,6 +22,7 @@ const OrderManager = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -54,6 +55,8 @@ const OrderManager = () => {
   };
 
   const handleStatusUpdate = async (orderId, newStatus, notes) => {
+    if (updatingStatus) return;
+    setUpdatingStatus(true);
     try {
       const payload = { status: newStatus };
       if (notes !== undefined) payload.notes = notes;
@@ -66,6 +69,8 @@ const OrderManager = () => {
       fetchOrders();
     } catch {
       toast.error('Failed to update order status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -328,8 +333,9 @@ const OrderManager = () => {
                 <span className="font-bold text-neutral-700">Update Order Status:</span>
                 <select
                   value={selectedOrder.status}
+                  disabled={updatingStatus}
                   onChange={(e) => handleStatusUpdate(selectedOrder._id, e.target.value, adminNotes)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="px-4 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 >
                   <option value="pending">Pending</option>
                   <option value="confirmed">Confirmed</option>
@@ -350,10 +356,18 @@ const OrderManager = () => {
                 />
                 <button
                   type="button"
+                  disabled={updatingStatus}
                   onClick={() => handleStatusUpdate(selectedOrder._id, selectedOrder.status, adminNotes)}
-                  className="mt-2 px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-semibold"
+                  className="mt-2 px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-semibold disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Save Notes
+                  {updatingStatus ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Notes...</span>
+                    </>
+                  ) : (
+                    <span>Save Notes</span>
+                  )}
                 </button>
               </div>
 

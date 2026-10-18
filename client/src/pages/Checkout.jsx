@@ -180,6 +180,7 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // Prevent double entry clicks
     setErrorMsg('');
 
     // Validation
@@ -604,7 +605,10 @@ const Checkout = () => {
               className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Confirming Order... Please wait</span>
+                </>
               ) : (
                 <>
                   <HiOutlineLockClosed className="w-4 h-4" />

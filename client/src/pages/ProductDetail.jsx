@@ -36,6 +36,7 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [isWaitlisted, setIsWaitlisted] = useState(false);
 
@@ -88,12 +89,47 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center p-4">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-accent-300 border-t-primary rounded-full"
-        />
+      <div className="min-h-screen bg-cream py-8 sm:py-12 animate-pulse">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb Skeleton */}
+          <div className="h-4 bg-neutral-200/80 rounded w-48 mb-6" />
+
+          {/* Product Card Showcase Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 bg-white rounded-3xl p-6 sm:p-10 border border-accent-100 shadow-sm">
+            {/* Gallery Skeleton */}
+            <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
+              <div className="flex sm:flex-col gap-3 overflow-hidden sm:w-20 shrink-0">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="aspect-[3/4] w-16 sm:w-20 rounded-xl bg-neutral-200" />
+                ))}
+              </div>
+              <div className="aspect-[3/4] flex-1 rounded-2xl bg-neutral-200" />
+            </div>
+
+            {/* Info Column Skeleton */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <div className="h-4 bg-neutral-200 rounded w-28" />
+                <div className="h-8 bg-neutral-200 rounded w-4/5" />
+                <div className="h-6 bg-neutral-200 rounded w-1/3" />
+                <div className="space-y-2 pt-4">
+                  <div className="h-4 bg-neutral-200 rounded w-20" />
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-10 w-12 rounded-xl bg-neutral-200" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-6">
+                <div className="h-14 rounded-2xl bg-neutral-200 w-full" />
+                <div className="h-12 rounded-2xl bg-neutral-200 w-full" />
+                <div className="h-11 rounded-2xl bg-neutral-200 w-full" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -134,14 +170,19 @@ const ProductDetail = () => {
     : product.sizes || [];
 
   const handleAddToCart = () => {
-    if (isOutOfStock) return;
+    if (isOutOfStock || isProcessing || added) return;
+    setIsProcessing(true);
     addToCart(product, quantity, selectedSize, selectedColor);
     setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    setTimeout(() => {
+      setAdded(false);
+      setIsProcessing(false);
+    }, 1500);
   };
 
   const handleBuyNow = () => {
-    if (isOutOfStock) return;
+    if (isOutOfStock || isProcessing) return;
+    setIsProcessing(true);
     addToCart(product, quantity, selectedSize, selectedColor);
     navigate('/checkout');
   };
@@ -486,17 +527,25 @@ const ProductDetail = () => {
                 ) : (
                   <>
                     <motion.button
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={!isProcessing && !added ? { scale: 0.98 } : undefined}
                       onClick={handleAddToCart}
+                      disabled={isProcessing || added}
                       className={`w-full py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5 shadow-md transition-all ${
                         added
                           ? 'bg-emerald-600 text-white'
+                          : isProcessing
+                          ? 'bg-primary/80 text-white cursor-not-allowed'
                           : 'bg-primary hover:bg-primary-light text-white shadow-lg'
                       }`}
                     >
                       {added ? (
                         <>
                           <HiCheck className="w-5 h-5" /> Added to Shopping Bag
+                        </>
+                      ) : isProcessing ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Adding to Bag...</span>
                         </>
                       ) : (
                         <>
@@ -506,11 +555,21 @@ const ProductDetail = () => {
                     </motion.button>
 
                     <motion.button
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={!isProcessing ? { scale: 0.98 } : undefined}
                       onClick={handleBuyNow}
-                      className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 bg-accent hover:bg-accent-light text-white shadow-md transition-all"
+                      disabled={isProcessing}
+                      className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 bg-accent hover:bg-accent-light text-white shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <HiOutlineLightningBolt className="w-5 h-5" /> Buy Now (No Login Needed)
+                      {isProcessing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Preparing Checkout...</span>
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineLightningBolt className="w-5 h-5" /> Buy Now (No Login Needed)
+                        </>
+                      )}
                     </motion.button>
                   </>
                 )}

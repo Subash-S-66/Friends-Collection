@@ -96,6 +96,7 @@ const SettingsManager = () => {
 
   // Handle Custom Color Apply
   const handleSaveCustomTheme = async () => {
+    if (savingTheme) return;
     setSavingTheme(true);
     try {
       const customConfig = {
@@ -121,6 +122,7 @@ const SettingsManager = () => {
   // Save Hero Section & Copy
   const handleSaveHero = async (e) => {
     e.preventDefault();
+    if (savingHero) return;
     setSavingHero(true);
     try {
       await API.put('/settings/admin/heroSection', {
@@ -142,6 +144,7 @@ const SettingsManager = () => {
   // Save Announcement Bar
   const handleSaveAnnouncement = async (e) => {
     e.preventDefault();
+    if (savingAnnouncement) return;
     setSavingAnnouncement(true);
     try {
       await API.put('/settings/admin/announcementBar', {
@@ -158,6 +161,7 @@ const SettingsManager = () => {
   // Save Shipping Settings
   const handleSaveShipping = async (e) => {
     e.preventDefault();
+    if (savingShipping) return;
     setSavingShipping(true);
     try {
       await API.put('/settings/admin/shippingCharge', {
@@ -174,6 +178,7 @@ const SettingsManager = () => {
   // Save Contact Info
   const handleSaveContact = async (e) => {
     e.preventDefault();
+    if (savingContact) return;
     setSavingContact(true);
     try {
       await API.put('/settings/admin/contactInfo', {

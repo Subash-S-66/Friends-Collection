@@ -154,6 +154,7 @@ const CategoryManager = () => {
   // Handle Form Submission (Add or Edit)
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!name.trim()) {
       toast.error('Please enter a category name');
       return;

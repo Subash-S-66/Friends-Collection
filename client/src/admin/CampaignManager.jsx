@@ -314,6 +314,7 @@ const CampaignManager = () => {
 
   // Save campaign (create or update)
   const handleSaveCampaign = async (status = 'draft') => {
+    if (saving) return;
     if (!title || !subject || !bodyHtml) {
       toast.error('Please enter Campaign Title, Subject, and Content');
       return;
@@ -356,6 +357,7 @@ const CampaignManager = () => {
   // Send Test Email
   const handleSendTest = async (e) => {
     e.preventDefault();
+    if (testEmailLoading) return;
     if (!testEmailAddress || !/\S+@\S+\.\S+/.test(testEmailAddress)) {
       toast.error('Please enter a valid test email address');
       return;
@@ -393,6 +395,7 @@ const CampaignManager = () => {
 
   // Send Live Campaign Blast to All Recipients
   const handleSendBlast = async () => {
+    if (sendingBlast) return;
     if (!editingId) {
       // Auto-save first
       await handleSaveCampaign();

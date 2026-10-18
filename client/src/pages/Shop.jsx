@@ -548,7 +548,7 @@ const Shop = () => {
               <div className="pt-8 flex items-center justify-center gap-2">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page === 1 || loading}
                   className="px-4 py-2 rounded-xl border border-accent-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white shadow-xs"
                 >
                   Previous
@@ -557,7 +557,8 @@ const Shop = () => {
                   <button
                     key={idx + 1}
                     onClick={() => setPage(idx + 1)}
-                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                    disabled={loading}
+                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 ${
                       page === idx + 1
                         ? 'bg-primary text-white shadow-md'
                         : 'bg-white border border-accent-200 text-neutral-700 hover:bg-accent-100/60'
@@ -568,7 +569,7 @@ const Shop = () => {
                 ))}
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
+                  disabled={page === totalPages || loading}
                   className="px-4 py-2 rounded-xl border border-accent-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white shadow-xs"
                 >
                   Next

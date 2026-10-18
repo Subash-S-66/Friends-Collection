@@ -9,6 +9,7 @@ import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../util
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const discount = getDiscount(product.price, product.salePrice);
   const isOutOfStock = product.stock <= 0;
@@ -17,23 +18,27 @@ const ProductCard = ({ product }) => {
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isOutOfStock) {
-      // Pick first available variant or size
-      let defaultSize = '';
-      let defaultColor = '';
-      if (product.variants && product.variants.length > 0) {
-        const inStock = product.variants.find((v) => v.stock > 0) || product.variants[0];
-        defaultSize = inStock.size || '';
-        defaultColor = inStock.color || '';
-      } else {
-        defaultSize = product.sizes?.[0] || '';
-        defaultColor = product.colors?.[0] || '';
-      }
+    if (isAdding || added || isOutOfStock) return;
+    setIsAdding(true);
 
-      addToCart(product, 1, defaultSize, defaultColor);
-      setAdded(true);
-      setTimeout(() => setAdded(false), 1500);
+    // Pick first available variant or size
+    let defaultSize = '';
+    let defaultColor = '';
+    if (product.variants && product.variants.length > 0) {
+      const inStock = product.variants.find((v) => v.stock > 0) || product.variants[0];
+      defaultSize = inStock.size || '';
+      defaultColor = inStock.color || '';
+    } else {
+      defaultSize = product.sizes?.[0] || '';
+      defaultColor = product.colors?.[0] || '';
     }
+
+    addToCart(product, 1, defaultSize, defaultColor);
+    setAdded(true);
+    setTimeout(() => {
+      setAdded(false);
+      setIsAdding(false);
+    }, 1500);
   };
 
   // Clean product images: remove any store logo mistakenly placed in product images
@@ -151,20 +156,28 @@ const ProductCard = ({ product }) => {
               </button>
             </div>
           ) : (
-            /* Quick Add Overlay on desktop hover */
+            /* Quick Add Overlay on desktop hover with double-click guard */
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={!isAdding && !added ? { scale: 0.95 } : undefined}
               onClick={handleQuickAdd}
               type="button"
+              disabled={isAdding || added}
               className={`hidden sm:flex absolute bottom-3 left-3 right-3 py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm items-center justify-center gap-2 shadow-lg transition-all duration-300 z-10 ${
                 added
                   ? 'bg-emerald-600 text-white translate-y-0 opacity-100'
+                  : isAdding
+                  ? 'bg-primary text-white translate-y-0 opacity-100 cursor-not-allowed'
                   : 'bg-primary/95 hover:bg-primary text-white translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 sm:translate-y-3'
               }`}
             >
               {added ? (
                 <>
                   <HiCheck className="w-4 h-4" /> Added to Bag
+                </>
+              ) : isAdding ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Adding...</span>
                 </>
               ) : (
                 <>
@@ -229,10 +242,17 @@ const ProductCard = ({ product }) => {
             ) : (
               <button
                 onClick={handleQuickAdd}
-                className="sm:hidden p-1.5 rounded-full bg-accent-100/80 text-primary hover:bg-primary hover:text-white transition-colors shrink-0"
+                disabled={isAdding || added}
+                className="sm:hidden p-1.5 rounded-full bg-accent-100/80 text-primary hover:bg-primary hover:text-white transition-colors shrink-0 disabled:opacity-50"
                 aria-label="Add to cart"
               >
-                {added ? <HiCheck className="w-3.5 h-3.5 text-emerald-600" /> : <HiOutlineShoppingBag className="w-3.5 h-3.5" />}
+                {added ? (
+                  <HiCheck className="w-3.5 h-3.5 text-emerald-600" />
+                ) : isAdding ? (
+                  <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <HiOutlineShoppingBag className="w-3.5 h-3.5" />
+                )}
               </button>
             )}
           </div>

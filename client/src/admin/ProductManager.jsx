@@ -311,6 +311,7 @@ const ProductManager = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!title || !price || !category) {
       toast.error('Please enter Title, Price, and Category');
       return;

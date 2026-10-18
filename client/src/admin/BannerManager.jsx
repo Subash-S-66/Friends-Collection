@@ -59,6 +59,7 @@ const BannerManager = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim()) {
       toast.error('Please enter a banner title');
       return;
