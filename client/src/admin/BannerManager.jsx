@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { getImageUrl, handleImageError } from '../utils/formatters';
 
 const BannerManager = () => {
+  const { confirm } = useConfirm();
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -81,6 +83,19 @@ const BannerManager = () => {
         formData.append('image', imageFile);
       }
 
+      const isEditing = Boolean(editingBanner);
+      const ok = await confirm({
+        title: isEditing ? 'Save Banner Changes?' : 'Publish Homepage Banner?',
+        message: isEditing
+          ? `Are you sure you want to save changes to "${title.trim() || 'this banner'}"?`
+          : `Are you sure you want to add "${title.trim() || 'this banner'}" to the hero slideshow?`,
+        type: 'save',
+        confirmText: isEditing ? 'Save Banner' : 'Publish Banner',
+        cancelText: 'Keep Editing',
+        details: `Button: "${ctaText}" ➔ ${ctaLink}`
+      });
+      if (!ok) return;
+
       if (editingBanner) {
         await API.put(`/banners/admin/${editingBanner._id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -104,7 +119,15 @@ const BannerManager = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this banner?')) return;
+    const ok = await confirm({
+      title: 'Delete Homepage Banner?',
+      message: 'Are you sure you want to remove this promotional banner from the hero slideshow?',
+      type: 'danger',
+      confirmText: 'Yes, Delete Banner',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
     try {
       await API.delete(`/banners/admin/${id}`);
       toast.success('Banner removed');

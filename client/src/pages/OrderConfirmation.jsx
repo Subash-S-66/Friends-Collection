@@ -18,12 +18,14 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
   const location = useLocation();
+  const { confirmDownload } = useConfirm();
   const [order, setOrder] = useState(location.state?.order || null);
   const [loading, setLoading] = useState(!order);
   const [showInvoice, setShowInvoice] = useState(false);
@@ -69,28 +71,14 @@ const OrderConfirmation = () => {
 
   const handleDownloadPdf = async () => {
     if (!order?.orderId) return;
-    setDownloadingPdf(true);
-    toast.loading('Generating your official Tax Invoice PDF...', { id: 'pdf-dl' });
-    try {
-      const response = await fetch(`/api/orders/${order.orderId}/invoice.pdf`);
-      if (!response.ok) throw new Error('Could not download PDF invoice');
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `Invoice-${order.orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(blobUrl);
-      toast.success('Tax Invoice PDF downloaded successfully!', { id: 'pdf-dl', icon: '📄' });
-    } catch (err) {
-      console.error('Invoice download error:', err);
-      toast.error('Could not download PDF directly. Opening printable invoice view...', { id: 'pdf-dl' });
-      setShowInvoice(true);
-    } finally {
-      setDownloadingPdf(false);
-    }
+    await confirmDownload({
+      title: 'Download Tax Invoice?',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
+      orderId: order.orderId,
+      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
+      fileName: `Invoice-${order.orderId}.pdf`,
+      details: `Friends Collections • Order #${order.orderId}`
+    });
   };
 
   if (loading) {

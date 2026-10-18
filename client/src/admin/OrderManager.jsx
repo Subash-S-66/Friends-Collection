@@ -18,6 +18,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
 
@@ -35,6 +36,7 @@ const COURIER_OPTIONS = [
 ];
 
 const OrderManager = () => {
+  const { confirm, confirmDownload } = useConfirm();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -105,6 +107,18 @@ const OrderManager = () => {
 
   const handleQuickStatusUpdate = async (orderId, newStatus) => {
     if (updatingStatus) return;
+    const ok = await confirm({
+      title: 'Update Fulfillment Status?',
+      message: `Change fulfillment status to "${newStatus.replace('_', ' ').toUpperCase()}"?`,
+      type: 'warning',
+      confirmText: 'Yes, Update Status',
+      cancelText: 'Cancel'
+    });
+    if (!ok) {
+      fetchOrders(); // reset select visual state if user cancelled
+      return;
+    }
+
     setUpdatingStatus(true);
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { status: newStatus });
@@ -122,6 +136,18 @@ const OrderManager = () => {
 
   const handleQuickPaymentUpdate = async (orderId, newPaymentStatus) => {
     if (updatingStatus) return;
+    const ok = await confirm({
+      title: 'Update Payment Status?',
+      message: `Change payment status to "${newPaymentStatus.replace('_', ' ').toUpperCase()}"?`,
+      type: 'warning',
+      confirmText: 'Yes, Update Payment',
+      cancelText: 'Cancel'
+    });
+    if (!ok) {
+      fetchOrders();
+      return;
+    }
+
     setUpdatingStatus(true);
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { paymentStatus: newPaymentStatus });
@@ -139,6 +165,16 @@ const OrderManager = () => {
 
   const handleSaveTrackingAndStatus = async () => {
     if (!selectedOrder || updatingStatus) return;
+    const ok = await confirm({
+      title: 'Save Order Status & Tracking?',
+      message: `Save updated fulfillment details and courier tracking information for order #${selectedOrder.orderId}?`,
+      type: 'save',
+      confirmText: 'Save Order Changes',
+      cancelText: 'Keep Editing',
+      details: `${trackingCourier || 'Direct Store Delivery'} • AWB: ${trackingNumber || 'Pending'} • Status: ${modalStatus}`
+    });
+    if (!ok) return;
+
     setUpdatingStatus(true);
     try {
       const payload = {

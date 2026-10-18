@@ -21,9 +21,11 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const CategoryManager = () => {
+  const { confirm } = useConfirm();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +162,19 @@ const CategoryManager = () => {
       return;
     }
 
+    const isEditing = Boolean(editingCategory);
+    const ok = await confirm({
+      title: isEditing ? 'Save Category Changes?' : 'Create Category?',
+      message: isEditing
+        ? `Are you sure you want to save updates to category "${name.trim()}"?`
+        : `Are you sure you want to create category "${name.trim()}"?`,
+      type: 'save',
+      confirmText: isEditing ? 'Save Changes' : 'Create Category',
+      cancelText: 'Keep Editing',
+      details: `Department: ${gender.toUpperCase()} • Type: ${parentId ? 'Subcategory' : 'Main Department'}`
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       const formData = new FormData();
@@ -202,7 +217,14 @@ const CategoryManager = () => {
       ? `Deleting "${cat.name}" will also remove ${subsCount} nested subcategory varieties. Continue?`
       : `Are you sure you want to delete "${cat.name}"?`;
 
-    if (!window.confirm(msg)) return;
+    const ok = await confirm({
+      title: 'Delete Category?',
+      message: msg,
+      type: 'danger',
+      confirmText: 'Yes, Delete',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
 
     try {
       await API.delete(`/categories/admin/${cat._id}`);

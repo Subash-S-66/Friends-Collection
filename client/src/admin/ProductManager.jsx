@@ -21,6 +21,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 export const ADULT_SIZES = [
@@ -49,6 +50,7 @@ export const KIDS_SIZES = [
 
 const ProductManager = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { confirm } = useConfirm();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -504,6 +506,21 @@ const ProductManager = () => {
       return;
     }
 
+    // Dynamic confirmation popup before publishing/updating
+    const matchedCategoryName = safeCategories.find((c) => c._id === category)?.name || 'Catalog';
+    const isEditing = Boolean(editingProduct);
+    const confirmed = await confirm({
+      title: isEditing ? 'Save Product Changes?' : 'Publish New Dress?',
+      message: isEditing
+        ? `Are you sure you want to save all changes to "${title.trim()}"?`
+        : `Are you sure you want to publish "${title.trim()}" to your live boutique catalog?`,
+      type: 'save',
+      confirmText: isEditing ? 'Save & Update' : 'Publish Dress',
+      cancelText: 'Keep Editing',
+      details: `${matchedCategoryName} • ₹${price} • ${variants.length} Variants (${variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)} Total Units)`
+    });
+    if (!confirmed) return;
+
     setSaving(true);
     try {
       const formData = new FormData();
@@ -552,8 +569,16 @@ const ProductManager = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this dress?')) return;
+  const handleDelete = async (id, prodTitle = '') => {
+    const confirmed = await confirm({
+      title: 'Delete Product from Catalog?',
+      message: `Are you sure you want to permanently delete "${prodTitle || 'this dress'}"? This action cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Yes, Delete Dress',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
+
     try {
       await API.delete(`/products/admin/${id}`);
       toast.success('Product deleted');
@@ -564,7 +589,15 @@ const ProductManager = () => {
   };
 
   const handleNotifyWaitlist = async (productId, title) => {
-    if (!window.confirm(`Dispatch restock email alerts to all waitlisted customers for "${title}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Dispatch Waitlist Restock Alerts?',
+      message: `Send automated email notifications to all shoppers who joined the waitlist for "${title}"?`,
+      type: 'warning',
+      confirmText: 'Dispatch Email Alerts',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
+
     try {
       const res = await API.post(`/notifications/admin/notify/${productId}`);
       toast.success(res.data.message || 'Notification emails dispatched via Nodemailer!', { icon: '🔔' });
@@ -982,8 +1015,8 @@ const ProductManager = () => {
                             <HiOutlinePencil className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(prod._id)}
-                            className="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            onClick={() => handleDelete(prod._id, prod.title)}
+                            className="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete"
                           >
                             <HiOutlineTrash className="w-4 h-4" />

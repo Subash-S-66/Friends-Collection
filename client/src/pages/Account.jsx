@@ -22,6 +22,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
 
@@ -51,6 +52,7 @@ const getStepProgress = (status) => {
 
 const Account = () => {
   const { user, logout } = useAuth();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -103,7 +105,17 @@ const Account = () => {
     }
   }, [searchParams]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: 'Sign Out of Account?',
+      message: 'Are you sure you want to sign out? You will need to sign in again to view your order history.',
+      type: 'logout',
+      confirmText: 'Yes, Sign Out',
+      cancelText: 'Stay Signed In',
+      details: user ? `Logged in as: ${user.name} (${user.email || user.phone})` : null
+    });
+    if (!ok) return;
+
     logout();
     toast.success('Signed out successfully.');
     setActiveTab('phone_lookup');
@@ -618,6 +630,15 @@ const Account = () => {
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setInvoiceOrder(order)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 font-bold transition-colors cursor-pointer text-xs"
+              title="View & Download Tax Invoice"
+            >
+              <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+              <span>Tax Invoice</span>
+            </button>
+
             <button
               onClick={() => setDetailOrder(order)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold transition-colors cursor-pointer"

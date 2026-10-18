@@ -6,6 +6,7 @@ import {
   HiOutlinePhone
 } from 'react-icons/hi';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice } from '../utils/formatters';
 
 export const DEFAULT_INVOICE_SETTINGS = {
@@ -33,6 +34,7 @@ const InvoiceView = ({
   asCard = false
 }) => {
   const invoiceRef = useRef(null);
+  const { confirmDownload } = useConfirm();
   const [fetchedSettings, setFetchedSettings] = useState(null);
 
   useEffect(() => {
@@ -95,6 +97,18 @@ const InvoiceView = ({
   const downloadPdfUrl = order.orderId === 'FC-SAMPLE-8899'
     ? '/api/orders/invoice/sample/pdf'
     : `/api/orders/${order.orderId}/invoice.pdf`;
+
+  const handleDownloadPdf = async (e) => {
+    if (e) e.preventDefault();
+    await confirmDownload({
+      title: 'Download Tax Invoice?',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
+      orderId: order.orderId,
+      downloadUrl: downloadPdfUrl,
+      fileName: `Invoice-${order.orderId}.pdf`,
+      details: `${inv.companyName || 'Friends Collections'} • High-Definition GST Vector PDF`
+    });
+  };
 
   const invoiceSheet = (
     <div
@@ -393,15 +407,15 @@ const InvoiceView = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href={downloadPdfUrl}
-              download={`Invoice-${order.orderId}.pdf`}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all shadow-xs cursor-pointer border border-white/20"
               title="Download Authentic PDF Invoice"
             >
               <HiOutlineDownload className="w-4 h-4 text-accent-300" />
               <span>Download PDF</span>
-            </a>
+            </button>
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-neutral-900 hover:bg-neutral-100 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"

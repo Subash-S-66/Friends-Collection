@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useTheme, THEME_PRESETS, adjustColor } from '../context/ThemeContext';
+import { useConfirm } from '../context/ConfirmContext';
 import InvoiceView, { DEFAULT_INVOICE_SETTINGS } from '../components/InvoiceView';
 
 const SAMPLE_PREVIEW_ORDER = {
@@ -63,6 +64,7 @@ const SAMPLE_PREVIEW_ORDER = {
 
 const SettingsManager = () => {
   const { theme, changeTheme, applyPreset, presets } = useTheme();
+  const { confirm, confirmDownload } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Tab control from URL (?tab=invoice, theming, hero, shipping, contact)
@@ -177,6 +179,16 @@ const SettingsManager = () => {
   // Handle Custom Color Apply
   const handleSaveCustomTheme = async () => {
     if (savingTheme) return;
+    const ok = await confirm({
+      title: 'Apply Custom Brand Theme?',
+      message: 'Save and apply these custom brand colors across the entire boutique website?',
+      type: 'save',
+      confirmText: 'Apply Theme',
+      cancelText: 'Cancel',
+      details: `Primary: ${customPrimary} • Accent: ${customAccent} • Background: ${customBg}`
+    });
+    if (!ok) return;
+
     setSavingTheme(true);
     try {
       const customConfig = {
@@ -203,6 +215,16 @@ const SettingsManager = () => {
   const handleSaveHero = async (e) => {
     e.preventDefault();
     if (savingHero) return;
+    const ok = await confirm({
+      title: 'Update Homepage Hero Copy?',
+      message: 'Are you sure you want to publish these hero headlines and promotional text to the live storefront?',
+      type: 'save',
+      confirmText: 'Update Hero Copy',
+      cancelText: 'Keep Editing',
+      details: `Headline: "${heroTitle.trim() || 'Default'}"`
+    });
+    if (!ok) return;
+
     setSavingHero(true);
     try {
       await API.put('/settings/admin/heroSection', {
@@ -225,6 +247,15 @@ const SettingsManager = () => {
   const handleSaveAnnouncement = async (e) => {
     e.preventDefault();
     if (savingAnnouncement) return;
+    const ok = await confirm({
+      title: 'Update Top Announcement Bar?',
+      message: `Save and update the store-wide announcement strip (${announcementActive ? 'ACTIVE' : 'HIDDEN'})?`,
+      type: 'save',
+      confirmText: 'Save Announcement',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
     setSavingAnnouncement(true);
     try {
       await API.put('/settings/admin/announcementBar', {
@@ -242,6 +273,15 @@ const SettingsManager = () => {
   const handleSaveShipping = async (e) => {
     e.preventDefault();
     if (savingShipping) return;
+    const ok = await confirm({
+      title: 'Save Shipping & Delivery Rates?',
+      message: `Update standard shipping fee to ₹${shippingFee} with free delivery above ₹${freeAbove}?`,
+      type: 'save',
+      confirmText: 'Save Shipping Rules',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
     setSavingShipping(true);
     try {
       await API.put('/settings/admin/shippingCharge', {
@@ -259,6 +299,15 @@ const SettingsManager = () => {
   const handleSaveContact = async (e) => {
     e.preventDefault();
     if (savingContact) return;
+    const ok = await confirm({
+      title: 'Save Store Contact Details?',
+      message: 'Update showroom address, contact phones, and social media handles in the database?',
+      type: 'save',
+      confirmText: 'Save Contact Details',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
     setSavingContact(true);
     try {
       await API.put('/settings/admin/contactInfo', {
@@ -289,6 +338,16 @@ const SettingsManager = () => {
   const handleSaveInvoice = async (e) => {
     if (e) e.preventDefault();
     if (savingInvoice) return;
+    const ok = await confirm({
+      title: 'Save Universal Tax Invoice Format?',
+      message: 'Save this invoice format? It will be applied everywhere across customer receipts, PDF downloads, and email confirmations.',
+      type: 'save',
+      confirmText: 'Save Invoice Format',
+      cancelText: 'Keep Editing',
+      details: `${invoiceForm.companyName || 'Friends Collections'} • GSTIN: ${invoiceForm.gstin || 'None'} • Title: ${invoiceForm.invoiceTitle || 'Tax Invoice'}`
+    });
+    if (!ok) return;
+
     setSavingInvoice(true);
     try {
       await API.put('/settings/admin/invoiceSettings', {
@@ -304,33 +363,47 @@ const SettingsManager = () => {
   };
 
   // Reset to Defaults
-  const handleResetInvoiceDefaults = () => {
-    if (window.confirm('Reset all invoice fields to Jamalia boutique defaults?')) {
+  const handleResetInvoiceDefaults = async () => {
+    const ok = await confirm({
+      title: 'Restore Jamalia Boutique Defaults?',
+      message: 'Reset all invoice labels, company address, and default terms to factory defaults?',
+      type: 'warning',
+      confirmText: 'Restore Defaults',
+      cancelText: 'Keep Custom Settings'
+    });
+    if (ok) {
       setInvoiceForm(DEFAULT_INVOICE_SETTINGS);
       toast.success('Restored Jamalia boutique defaults. Click "Save Invoice Format" to persist.');
     }
   };
 
-  // Download Live Test Sample PDF
+  // Download Live Test Sample PDF with Cool Animation
   const handleDownloadSamplePdf = async () => {
     if (downloadingSample) return;
     setDownloadingSample(true);
     try {
-      const res = await API.post(
-        '/orders/invoice/sample/pdf',
-        { invoiceSettings: invoiceForm },
-        { responseType: 'blob' }
-      );
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Sample-Tax-Invoice-${(invoiceForm.companyName || 'Friends_Collections').replace(/\s+/g, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Sample PDF downloaded! Check your downloads folder.');
+      await confirmDownload({
+        title: 'Download Sample Tax Invoice',
+        message: 'Generate and download an official sample PDF using your customized invoice settings?',
+        fileName: `Sample-Tax-Invoice-${(invoiceForm.companyName || 'Friends_Collections').replace(/\s+/g, '_')}.pdf`,
+        details: `${invoiceForm.companyName || 'Friends Collections'} • High Definition Vector PDF`,
+        onExecuteDownload: async () => {
+          const res = await API.post(
+            '/orders/invoice/sample/pdf',
+            { invoiceSettings: invoiceForm },
+            { responseType: 'blob' }
+          );
+          const blob = new Blob([res.data], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Sample-Tax-Invoice-${(invoiceForm.companyName || 'Friends_Collections').replace(/\s+/g, '_')}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        }
+      });
     } catch (err) {
       console.error('Download sample error:', err);
       toast.error('Could not generate sample invoice PDF');

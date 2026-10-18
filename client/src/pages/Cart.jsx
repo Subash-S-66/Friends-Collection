@@ -9,6 +9,7 @@ import {
   HiOutlineExclamationCircle
 } from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const Cart = () => {
@@ -24,6 +25,34 @@ const Cart = () => {
     subtotal,
     refreshCartStock
   } = useCart();
+  const { confirm } = useConfirm();
+
+  const handleRemoveWithConfirm = async (index, item) => {
+    const ok = await confirm({
+      title: 'Remove from Bag?',
+      message: `Are you sure you want to remove "${item.title || 'this item'}" from your shopping bag?`,
+      type: 'danger',
+      confirmText: 'Yes, Remove',
+      cancelText: 'Keep in Bag',
+      details: item.size ? `Selected: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : null
+    });
+    if (ok) {
+      removeItem(index);
+    }
+  };
+
+  const handleClearWithConfirm = async () => {
+    const ok = await confirm({
+      title: 'Clear Entire Shopping Bag?',
+      message: 'Are you sure you want to remove all dresses from your shopping bag? This action cannot be undone.',
+      type: 'danger',
+      confirmText: 'Yes, Clear Bag',
+      cancelText: 'Cancel'
+    });
+    if (ok) {
+      clearCart();
+    }
+  };
 
   useEffect(() => {
     refreshCartStock();
@@ -70,8 +99,8 @@ const Cart = () => {
             </p>
           </div>
           <button
-            onClick={clearCart}
-            className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1.5 transition-colors"
+            onClick={handleClearWithConfirm}
+            className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <HiOutlineTrash className="w-4 h-4" /> Clear Bag
           </button>
@@ -168,8 +197,8 @@ const Cart = () => {
                     <div className="flex items-center gap-6">
                       {isSoldOut ? (
                         <button
-                          onClick={() => removeItem(index)}
-                          className="px-3 py-1.5 rounded-xl border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+                          onClick={() => handleRemoveWithConfirm(index, item)}
+                          className="px-3 py-1.5 rounded-xl border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-1.5 cursor-pointer"
                         >
                           <HiOutlineTrash className="w-4 h-4" />
                           <span>Remove</span>
@@ -206,8 +235,8 @@ const Cart = () => {
 
                       {!isSoldOut && (
                         <button
-                          onClick={() => removeItem(index)}
-                          className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors"
+                          onClick={() => handleRemoveWithConfirm(index, item)}
+                          className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                           aria-label="Remove item"
                           title="Remove item"
                         >

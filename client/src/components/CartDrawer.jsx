@@ -11,6 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const CartDrawer = () => {
@@ -27,6 +28,21 @@ const CartDrawer = () => {
     setIsCartOpen,
     refreshCartStock
   } = useCart();
+  const { confirm } = useConfirm();
+
+  const handleRemoveWithConfirm = async (index, item) => {
+    const ok = await confirm({
+      title: 'Remove from Bag?',
+      message: `Are you sure you want to remove "${item.title || 'this item'}" from your shopping bag?`,
+      type: 'danger',
+      confirmText: 'Yes, Remove',
+      cancelText: 'Keep in Bag',
+      details: item.size ? `Variant: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : null
+    });
+    if (ok) {
+      removeItem(index);
+    }
+  };
 
   const freeShippingThreshold = 999;
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
@@ -188,8 +204,8 @@ const CartDrawer = () => {
                                 {item.title}
                               </Link>
                               <button
-                                onClick={() => removeItem(index)}
-                                className="text-neutral-400 hover:text-red-500 p-1 rounded-md transition-colors"
+                                onClick={() => handleRemoveWithConfirm(index, item)}
+                                className="text-neutral-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
                                 aria-label="Remove item"
                                 title="Remove item from bag"
                               >
@@ -230,8 +246,8 @@ const CartDrawer = () => {
                           <div className="flex items-center justify-between mt-2">
                             {isSoldOut ? (
                               <button
-                                onClick={() => removeItem(index)}
-                                className="text-[11px] font-bold text-red-600 hover:underline flex items-center gap-1"
+                                onClick={() => handleRemoveWithConfirm(index, item)}
+                                className="text-[11px] font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
                               >
                                 <HiOutlineTrash className="w-3.5 h-3.5" />
                                 <span>Remove item</span>

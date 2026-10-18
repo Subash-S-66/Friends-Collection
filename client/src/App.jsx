@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AlertProvider } from './context/AlertContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 
 // Storefront Components
 import Navbar from './components/Navbar';
@@ -13,6 +14,7 @@ import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import AuthModal from './components/AuthModal';
 import DynamicAlertModal from './components/DynamicAlertModal';
+import DynamicConfirmModal from './components/DynamicConfirmModal';
 import ScrollToTop from './components/ScrollToTop';
 
 // Storefront Pages
@@ -61,6 +63,7 @@ const AppLayout = () => {
       <CartDrawer />
       <AuthModal />
       <DynamicAlertModal />
+      <DynamicConfirmModal />
 
       <div className={`flex-1 ${isAdminRoute ? 'h-full overflow-hidden' : ''}`}>
         <Routes>
@@ -110,29 +113,31 @@ function App() {
   return (
     <ThemeProvider>
       <AlertProvider>
-        <AuthProvider>
-          <CartProvider>
-            <Router>
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 3500,
-                  style: {
-                    background: '#FFFFFF',
-                    color: '#1A1A1A',
-                    fontSize: '13px',
-                    borderRadius: '16px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                    border: '1px solid #F0EAE1',
-                    padding: '12px 18px',
-                  },
-                }}
-              />
-              <ScrollToTop />
-              <AppLayout />
-            </Router>
-          </CartProvider>
-        </AuthProvider>
+        <ConfirmProvider>
+          <AuthProvider>
+            <CartProvider>
+              <Router>
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 3500,
+                    style: {
+                      background: '#FFFFFF',
+                      color: '#1A1A1A',
+                      fontSize: '13px',
+                      borderRadius: '16px',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                      border: '1px solid #F0EAE1',
+                      padding: '12px 18px',
+                    },
+                  }}
+                />
+                <ScrollToTop />
+                <AppLayout />
+              </Router>
+            </CartProvider>
+          </AuthProvider>
+        </ConfirmProvider>
       </AlertProvider>
     </ThemeProvider>
   );

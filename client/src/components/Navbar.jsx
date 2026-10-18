@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import API from '../utils/api';
 
 const Navbar = () => {
@@ -41,6 +42,7 @@ const Navbar = () => {
 
   const { totalItems, setIsCartOpen } = useCart();
   const { user, isAdmin, openAuthModal, logout } = useAuth();
+  const { confirm } = useConfirm();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
   const navigate = useNavigate();
@@ -57,8 +59,18 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setUserMenuOpen(false);
+    const ok = await confirm({
+      title: 'Sign Out of Account?',
+      message: 'Are you sure you want to sign out of Friends Collections?',
+      type: 'logout',
+      confirmText: 'Yes, Sign Out',
+      cancelText: 'Stay Signed In',
+      details: user ? `Logged in as: ${user.name} (${user.email || user.phone})` : null
+    });
+    if (!ok) return;
+
     logout();
     toast.success('Signed out successfully.');
     navigate('/');

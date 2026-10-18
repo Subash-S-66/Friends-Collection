@@ -15,12 +15,29 @@ import {
 } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 const AdminLayout = () => {
   const { user, isAdmin, loading, logout } = useAuth();
+  const { confirm } = useConfirm();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleAdminLogout = async () => {
+    const ok = await confirm({
+      title: 'Sign Out of Admin Control Panel?',
+      message: 'Are you sure you want to sign out of the Friends Collections management dashboard?',
+      type: 'logout',
+      confirmText: 'Yes, Sign Out',
+      cancelText: 'Stay in Admin',
+      details: user ? `Administrator: ${user.name} (${user.email})` : null
+    });
+    if (ok) {
+      logout();
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -167,10 +184,7 @@ const AdminLayout = () => {
             <HiOutlineExternalLink className="w-4 h-4" />
           </Link>
           <button
-            onClick={() => {
-              logout();
-              navigate('/login');
-            }}
+            onClick={handleAdminLogout}
             className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors cursor-pointer"
           >
             <HiOutlineLogout className="w-4 h-4" />
