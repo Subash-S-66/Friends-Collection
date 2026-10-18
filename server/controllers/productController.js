@@ -130,7 +130,7 @@ exports.getHomepageBundle = async (req, res, next) => {
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ createdAt: -1 })
-        .limit(16)
+        .limit(10)
         .lean(),
 
       // 3. New Arrivals Products
@@ -138,7 +138,7 @@ exports.getHomepageBundle = async (req, res, next) => {
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ createdAt: -1 })
-        .limit(16)
+        .limit(10)
         .lean(),
 
       // 4. Settings

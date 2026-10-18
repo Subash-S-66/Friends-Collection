@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HiOutlineFilter, HiOutlineX, HiOutlineAdjustments, HiOutlineSearch, HiCheck } from 'react-icons/hi';
 import API from '../utils/api';
@@ -10,7 +10,10 @@ const Shop = () => {
   const [categories, setCategories] = useState([]);
   const [categoryTree, setCategoryTree] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const loadMoreRef = useRef(null);
 
   // Filter state
   const selectedGender = searchParams.get('gender') || '';
@@ -23,7 +26,7 @@ const Shop = () => {
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
 
-  // Pagination
+  // Pagination & Infinite Scroll
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
@@ -54,10 +57,34 @@ const Shop = () => {
       .catch((err) => console.error('Categories load error:', err));
   }, []);
 
-  // Fetch products whenever filters or page changes
+  // Reset pagination when filters change
   useEffect(() => {
+    setPage(1);
+    setProducts([]);
+    setHasMore(true);
+  }, [
+    selectedGender,
+    selectedCategory,
+    selectedSubcategory,
+    inStockOnly,
+    searchQuery,
+    selectedTag,
+    selectedSort,
+    minPrice,
+    maxPrice
+  ]);
+
+  // Fetch products incrementally whenever filters or page changes
+  useEffect(() => {
+    let isCancelled = false;
+
     const fetchProducts = async () => {
-      setLoading(true);
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
       try {
         const params = new URLSearchParams();
         if (selectedGender) params.append('gender', selectedGender);
@@ -73,18 +100,73 @@ const Shop = () => {
         params.append('limit', '12');
 
         const res = await API.get(`/products?${params.toString()}`);
-        setProducts(res.data.products || []);
-        setTotalPages(res.data.pages || 1);
-        setTotalProducts(res.data.total || 0);
+        if (!isCancelled) {
+          const fetchedItems = res.data.products || [];
+          const totalP = res.data.pages || 1;
+          const totalCount = res.data.total || 0;
+
+          setTotalPages(totalP);
+          setTotalProducts(totalCount);
+          setHasMore(page < totalP);
+
+          if (page === 1) {
+            setProducts(fetchedItems);
+          } else {
+            setProducts((prev) => {
+              const existingIds = new Set(prev.map((p) => p._id));
+              const uniqueNew = fetchedItems.filter((p) => !existingIds.has(p._id));
+              return [...prev, ...uniqueNew];
+            });
+          }
+        }
       } catch (error) {
         console.error('Error fetching shop products:', error);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     };
 
     fetchProducts();
-  }, [selectedGender, selectedCategory, selectedSubcategory, inStockOnly, searchQuery, selectedTag, selectedSort, minPrice, maxPrice, page]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    selectedGender,
+    selectedCategory,
+    selectedSubcategory,
+    inStockOnly,
+    searchQuery,
+    selectedTag,
+    selectedSort,
+    minPrice,
+    maxPrice,
+    page
+  ]);
+
+  // Infinite scroll intersection observer: trigger next page when user scrolls near bottom
+  useEffect(() => {
+    if (!loadMoreRef.current || loading || loadingMore || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '350px 0px',
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore]);
 
   const updateParam = (key, value) => {
     const newParams = new URLSearchParams(searchParams);
@@ -536,45 +618,38 @@ const Shop = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
-                {products.map((product) => (
-                  <ProductCard key={product._id} product={product} />
-                ))}
-              </div>
-            )}
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
+                  {products.map((product) => (
+                    <ProductCard key={product._id} product={product} />
+                  ))}
+                </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pt-8 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1 || loading}
-                  className="px-4 py-2 rounded-xl border border-accent-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white shadow-xs"
-                >
-                  Previous
-                </button>
-                {[...Array(totalPages)].map((_, idx) => (
-                  <button
-                    key={idx + 1}
-                    onClick={() => setPage(idx + 1)}
-                    disabled={loading}
-                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 ${
-                      page === idx + 1
-                        ? 'bg-primary text-white shadow-md'
-                        : 'bg-white border border-accent-200 text-neutral-700 hover:bg-accent-100/60'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages || loading}
-                  className="px-4 py-2 rounded-xl border border-accent-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-white shadow-xs"
-                >
-                  Next
-                </button>
-              </div>
+                {/* Infinite Scroll Trigger Sentinel & Loading Indicator */}
+                <div ref={loadMoreRef} className="w-full py-8 flex flex-col items-center justify-center">
+                  {loadingMore && (
+                    <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-white border border-accent-200 shadow-sm text-primary text-xs font-semibold animate-pulse">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span>Loading more boutique designs...</span>
+                    </div>
+                  )}
+
+                  {!hasMore && products.length > 0 && !loading && (
+                    <div className="text-center py-6 space-y-2">
+                      <div className="w-12 h-0.5 bg-accent-200 mx-auto rounded-full" />
+                      <p className="text-xs text-neutral-400 font-medium tracking-wide">
+                        ✨ You've viewed all {products.length} designs
+                      </p>
+                      <button
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="text-[11px] font-bold text-accent-700 hover:text-primary transition-colors underline pt-1 cursor-pointer"
+                      >
+                        Back to Top ↑
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

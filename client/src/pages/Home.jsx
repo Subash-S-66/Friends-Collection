@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   HiOutlineArrowRight,
@@ -16,6 +16,42 @@ import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl, handleImageError } from '../utils/formatters';
+
+// Lightweight on-scroll section loader: only mounts child DOM tree when user scrolls within 300px of it
+const LazySection = ({ children, minHeight = '320px', rootMargin = '300px' }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+  const sectionRef = useRef(null);
+
+  useEffect(() => {
+    if (shouldRender) return;
+    const el = sectionRef.current;
+    if (!el) return;
+
+    if (!('IntersectionObserver' in window)) {
+      setShouldRender(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldRender, rootMargin]);
+
+  return (
+    <div ref={sectionRef} style={{ minHeight: shouldRender ? 'auto' : minHeight }}>
+      {shouldRender ? children : null}
+    </div>
+  );
+};
 
 // In-memory module cache for instant SWR (Stale-While-Revalidate)
 let homeMemoryCache = null;
@@ -376,153 +412,210 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Categories from DB (with loading skeleton) */}
+      {/* Featured Categories from DB (loaded only when user scrolls near) */}
       {(loading || categories.length > 0) && (
-        <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold">
-              Explore Collections
-            </span>
-            <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-              Shop by Department & Category
-            </h2>
-            <div className="w-16 h-0.5 bg-accent-400 mx-auto rounded-full mt-2" />
-          </div>
-
-          {/* Department Filter Tabs */}
-          <div className="w-full overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
-            <div className="flex items-center justify-start sm:justify-center gap-2 min-w-max mx-auto">
-              <button
-                disabled={loading}
-                onClick={() => setSelectedGender('all')}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                  selectedGender === 'all'
-                    ? 'bg-neutral-900 text-white shadow-md'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200'
-                }`}
-              >
-                ✨ All Collections
-              </button>
-              <button
-                disabled={loading}
-                onClick={() => setSelectedGender('women')}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                  selectedGender === 'women'
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                }`}
-              >
-                🌸 Women's Studio
-              </button>
-              <button
-                disabled={loading}
-                onClick={() => setSelectedGender('men')}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                  selectedGender === 'men'
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                }`}
-              >
-                👔 Men's Studio
-              </button>
-              <button
-                disabled={loading}
-                onClick={() => setSelectedGender('kids')}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                  selectedGender === 'kids'
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                }`}
-              >
-                🧒 Kids' Studio
-              </button>
+        <LazySection minHeight="420px">
+          <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+            <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold">
+                Explore Collections
+              </span>
+              <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
+                Shop by Department & Category
+              </h2>
+              <div className="w-16 h-0.5 bg-accent-400 mx-auto rounded-full mt-2" />
             </div>
-          </div>
 
-          {/* Categories Grid (strictly max 2 rows: 4 mobile, 6 tablet, 10 desktop) */}
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
-              {[...Array(10)].map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-200/80 animate-pulse border border-accent-100/40 ${
-                    idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
-                  }`}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
-              {displayedCategories.map((cat, idx) => (
-                <Link
-                  to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
-                  key={cat._id}
-                  className={`group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1 ${
-                    idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
+            {/* Department Filter Tabs */}
+            <div className="w-full overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
+              <div className="flex items-center justify-start sm:justify-center gap-2 min-w-max mx-auto">
+                <button
+                  disabled={loading}
+                  onClick={() => setSelectedGender('all')}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    selectedGender === 'all'
+                      ? 'bg-neutral-900 text-white shadow-md'
+                      : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200'
                   }`}
                 >
-                  <img
-                    src={getImageUrl(cat.image, '/fallback-product.png')}
-                    alt={cat.name}
-                    onError={(e) => handleImageError(e, '/fallback-product.png')}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary-950/85 via-primary-900/30 to-transparent flex flex-col justify-end p-3 sm:p-5">
-                    <span className={`self-start mb-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${
-                      cat.gender === 'men'
-                        ? 'bg-blue-600/80 text-white'
-                        : cat.gender === 'kids'
-                        ? 'bg-amber-600/80 text-white'
-                        : 'bg-rose-600/80 text-white'
-                    }`}>
-                      {cat.gender === 'men' ? 'Men' : cat.gender === 'kids' ? 'Kids' : 'Women'}
-                    </span>
-                    <h3 className="font-serif text-sm sm:text-lg font-bold text-white leading-tight line-clamp-1">
-                      {cat.name}
-                    </h3>
-                    <span className="text-[10px] sm:text-xs font-medium text-accent-300 flex items-center gap-1 mt-0.5 sm:mt-1 opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
-                      Shop Now <HiOutlineArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                  ✨ All Collections
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => setSelectedGender('women')}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    selectedGender === 'women'
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                  }`}
+                >
+                  🌸 Women's Studio
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => setSelectedGender('men')}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    selectedGender === 'men'
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                  }`}
+                >
+                  👔 Men's Studio
+                </button>
+                <button
+                  disabled={loading}
+                  onClick={() => setSelectedGender('kids')}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    selectedGender === 'kids'
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                  }`}
+                >
+                  🧒 Kids' Studio
+                </button>
+              </div>
             </div>
-          )}
 
-          {!loading && rootCategories.length > displayedCategories.length && (
-            <div className="text-center mt-8 sm:mt-10">
-              <Link
-                to={selectedGender === 'all' ? '/shop' : `/shop?gender=${selectedGender}`}
-                className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full bg-white hover:bg-neutral-50 text-neutral-800 text-xs sm:text-sm font-semibold border border-neutral-200 shadow-xs hover:shadow-md transition-all transform hover:-translate-y-0.5"
-              >
-                <span>Explore All Categories in Boutique</span>
-                <HiOutlineArrowRight className="w-4 h-4 text-accent" />
-              </Link>
-            </div>
-          )}
-        </section>
+            {/* Categories Grid (strictly max 2 rows: 4 mobile, 6 tablet, 10 desktop) */}
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
+                {[...Array(10)].map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-200/80 animate-pulse border border-accent-100/40 ${
+                      idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
+                {displayedCategories.map((cat, idx) => (
+                  <Link
+                    to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
+                    key={cat._id}
+                    className={`group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1 ${
+                      idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
+                    }`}
+                  >
+                    <img
+                      src={getImageUrl(cat.image, '/fallback-product.png')}
+                      alt={cat.name}
+                      onError={(e) => handleImageError(e, '/fallback-product.png')}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary-950/85 via-primary-900/30 to-transparent flex flex-col justify-end p-3 sm:p-5">
+                      <span className={`self-start mb-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${
+                        cat.gender === 'men'
+                          ? 'bg-blue-600/80 text-white'
+                          : cat.gender === 'kids'
+                          ? 'bg-amber-600/80 text-white'
+                          : 'bg-rose-600/80 text-white'
+                      }`}>
+                        {cat.gender === 'men' ? 'Men' : cat.gender === 'kids' ? 'Kids' : 'Women'}
+                      </span>
+                      <h3 className="font-serif text-sm sm:text-lg font-bold text-white leading-tight line-clamp-1">
+                        {cat.name}
+                      </h3>
+                      <span className="text-[10px] sm:text-xs font-medium text-accent-300 flex items-center gap-1 mt-0.5 sm:mt-1 opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                        Shop Now <HiOutlineArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {!loading && rootCategories.length > displayedCategories.length && (
+              <div className="text-center mt-8 sm:mt-10">
+                <Link
+                  to={selectedGender === 'all' ? '/shop' : `/shop?gender=${selectedGender}`}
+                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full bg-white hover:bg-neutral-50 text-neutral-800 text-xs sm:text-sm font-semibold border border-neutral-200 shadow-xs hover:shadow-md transition-all transform hover:-translate-y-0.5"
+                >
+                  <span>Explore All Categories in Boutique</span>
+                  <HiOutlineArrowRight className="w-4 h-4 text-accent" />
+                </Link>
+              </div>
+            )}
+          </section>
+        </LazySection>
       )}
 
-      {/* Trending Products from DB (with loading skeleton; strictly max 2 rows) */}
+      {/* Trending Products from DB (loaded only when user scrolls near) */}
       {(loading || featured.length > 0) && (
-        <section className="py-14 sm:py-16 bg-cream-dark/50 border-y border-accent-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <LazySection minHeight="420px">
+          <section className="py-14 sm:py-16 bg-cream-dark/50 border-y border-accent-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
+                <div>
+                  <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold block">
+                    Handpicked Favorites
+                  </span>
+                  <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
+                    Trending This Season
+                  </h2>
+                </div>
+                <Link
+                  to="/shop?tag=trending"
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-primary hover:text-accent-700 transition-colors"
+                >
+                  <span>View All Trending</span>
+                  <HiOutlineArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                  {[...Array(8)].map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`bg-white rounded-2xl p-3 sm:p-4 space-y-3 animate-pulse border border-accent-100/60 ${
+                        idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''
+                      }`}
+                    >
+                      <div className="aspect-[3/4] bg-neutral-200 rounded-xl w-full" />
+                      <div className="h-4 bg-neutral-200 rounded w-3/4 mt-2" />
+                      <div className="h-4 bg-neutral-200 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                  {displayedFeatured.map((product, idx) => (
+                    <div
+                      key={product._id}
+                      className={`${idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''}`}
+                    >
+                      <ProductCard product={product} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </LazySection>
+      )}
+
+      {/* New Arrivals from DB (loaded only when user scrolls near) */}
+      {(loading || newArrivals.length > 0) && (
+        <LazySection minHeight="420px">
+          <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
               <div>
                 <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold block">
-                  Handpicked Favorites
+                  Fresh Drops
                 </span>
                 <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-                  Trending This Season
+                  New Arrivals
                 </h2>
               </div>
               <Link
-                to="/shop?tag=trending"
+                to="/shop?sort=newest"
                 className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-primary hover:text-accent-700 transition-colors"
               >
-                <span>View All Trending</span>
+                <span>Explore All Fresh In</span>
                 <HiOutlineArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -544,7 +637,7 @@ const Home = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-                {displayedFeatured.map((product, idx) => (
+                {displayedNewArrivals.map((product, idx) => (
                   <div
                     key={product._id}
                     className={`${idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''}`}
@@ -554,107 +647,58 @@ const Home = () => {
                 ))}
               </div>
             )}
-          </div>
-        </section>
+          </section>
+        </LazySection>
       )}
 
-      {/* New Arrivals from DB (with loading skeleton; strictly max 2 rows) */}
-      {(loading || newArrivals.length > 0) && (
-        <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
-            <div>
-              <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold block">
-                Fresh Drops
-              </span>
-              <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-                New Arrivals
-              </h2>
-            </div>
-            <Link
-              to="/shop?sort=newest"
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-primary hover:text-accent-700 transition-colors"
-            >
-              <span>Explore All Fresh In</span>
-              <HiOutlineArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-              {[...Array(8)].map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`bg-white rounded-2xl p-3 sm:p-4 space-y-3 animate-pulse border border-accent-100/60 ${
-                    idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''
-                  }`}
-                >
-                  <div className="aspect-[3/4] bg-neutral-200 rounded-xl w-full" />
-                  <div className="h-4 bg-neutral-200 rounded w-3/4 mt-2" />
-                  <div className="h-4 bg-neutral-200 rounded w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-              {displayedNewArrivals.map((product, idx) => (
-                <div
-                  key={product._id}
-                  className={`${idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''}`}
-                >
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Dynamic Store & Jamalia Showroom Section from DB Settings */}
-      <section className="py-16 bg-gradient-to-br from-primary-900 via-primary-950 to-primary-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-accent-400/20 p-8 sm:p-12 bg-white/5 backdrop-blur-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-8 space-y-4">
-              <span className="text-xs uppercase tracking-[0.25em] text-accent-300 font-semibold">
-                Experience Friends Collections In Person
-              </span>
-              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
-                Visit Our Jamalia, Chennai Boutique
-              </h2>
-              <p className="text-sm sm:text-base text-neutral-300 font-light max-w-2xl leading-relaxed">
-                Step into our showroom to touch the premium fabrics, try out exquisite drape styles, and consult with our friendly fashion specialists.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 pt-2 text-xs sm:text-sm text-neutral-200">
-                <div className="flex items-center gap-2.5">
-                  <HiOutlineLocationMarker className="w-5 h-5 text-accent-400 shrink-0" />
-                  <span>{storeAddress}</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <HiOutlinePhone className="w-5 h-5 text-accent-400 shrink-0" />
-                  <span>Call/WhatsApp: {storePhone}</span>
+      {/* Dynamic Store & Jamalia Showroom Section from DB Settings (loaded only when user scrolls near) */}
+      <LazySection minHeight="300px">
+        <section className="py-16 bg-gradient-to-br from-primary-900 via-primary-950 to-primary-900 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="rounded-3xl border border-accent-400/20 p-8 sm:p-12 bg-white/5 backdrop-blur-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-8 space-y-4">
+                <span className="text-xs uppercase tracking-[0.25em] text-accent-300 font-semibold">
+                  Experience Friends Collections In Person
+                </span>
+                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
+                  Visit Our Jamalia, Chennai Boutique
+                </h2>
+                <p className="text-sm sm:text-base text-neutral-300 font-light max-w-2xl leading-relaxed">
+                  Step into our showroom to touch the premium fabrics, try out exquisite drape styles, and consult with our friendly fashion specialists.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 pt-2 text-xs sm:text-sm text-neutral-200">
+                  <div className="flex items-center gap-2.5">
+                    <HiOutlineLocationMarker className="w-5 h-5 text-accent-400 shrink-0" />
+                    <span>{storeAddress}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <HiOutlinePhone className="w-5 h-5 text-accent-400 shrink-0" />
+                    <span>Call/WhatsApp: {storePhone}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3 justify-center">
-              <Link
-                to="/contact"
-                className="w-full text-center px-6 py-3.5 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm shadow-lg transition-all"
-              >
-                Store Location & Hours
-              </Link>
-              <a
-                href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20would%20like%20to%20visit%20your%20store`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
-              >
-                <FaWhatsapp className="w-5 h-5 text-white" />
-                <span>Chat with Us on WhatsApp</span>
-              </a>
+              <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3 justify-center">
+                <Link
+                  to="/contact"
+                  className="w-full text-center px-6 py-3.5 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm shadow-lg transition-all"
+                >
+                  Store Location & Hours
+                </Link>
+                <a
+                  href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20would%20like%20to%20visit%20your%20store`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+                >
+                  <FaWhatsapp className="w-5 h-5 text-white" />
+                  <span>Chat with Us on WhatsApp</span>
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </LazySection>
 
       {/* Floating WhatsApp Button (Dynamic from DB Settings) */}
       <a
