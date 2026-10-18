@@ -77,6 +77,12 @@ const OrderConfirmation = () => {
                     <HiOutlinePhone className="w-4 h-4 text-accent-700" />
                     +91 {order.customer?.phone}
                   </p>
+                  {order.customer?.secondaryPhone && (
+                    <p className="flex items-center gap-1.5 text-neutral-600 text-[11px] mt-0.5">
+                      <span className="font-semibold text-neutral-500">2nd Number:</span>
+                      +91 {order.customer.secondaryPhone}
+                    </p>
+                  )}
                   {order.customer?.email && (
                     <p className="text-neutral-500 mt-1">{order.customer.email}</p>
                   )}

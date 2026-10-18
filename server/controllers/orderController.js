@@ -179,6 +179,16 @@ exports.placeOrder = async (req, res, next) => {
       return res.status(400).json({ message: 'Please enter a valid 10-digit Indian phone number' });
     }
 
+    if (customer.secondaryPhone && customer.secondaryPhone.trim()) {
+      const cleanSecPhone = customer.secondaryPhone.replace(/\s/g, '');
+      if (!phoneRegex.test(cleanSecPhone)) {
+        return res.status(400).json({ message: 'Secondary phone number must be a valid 10-digit Indian phone number' });
+      }
+      customer.secondaryPhone = cleanSecPhone;
+    } else {
+      customer.secondaryPhone = '';
+    }
+
     // Build order items and calculate total
     let totalAmount = 0;
     const orderItems = [];
@@ -230,6 +240,55 @@ exports.placeOrder = async (req, res, next) => {
       totalAmount,
       shippingCharge: Number(shippingCharge)
     });
+
+    // Auto-save address to user profile if user is logged in and opted to save
+    if (req.user && req.body.saveAddress) {
+      try {
+        const User = require('../models/User');
+        const user = await User.findById(req.user._id);
+        if (user) {
+          if (!user.phone && customer.phone) user.phone = customer.phone;
+          if (customer.secondaryPhone) user.secondaryPhone = customer.secondaryPhone;
+
+          const cleanStreet = customer.address.street.trim();
+          const cleanPincode = customer.address.pincode.trim();
+          const cleanCity = customer.address.city.trim();
+          const cleanState = customer.address.state.trim();
+
+          const existingIdx = user.savedAddresses.findIndex(
+            (a) => a.street?.toLowerCase() === cleanStreet.toLowerCase() && a.pincode === cleanPincode
+          );
+
+          if (existingIdx >= 0) {
+            user.savedAddresses[existingIdx].city = cleanCity;
+            user.savedAddresses[existingIdx].state = cleanState;
+            user.savedAddresses[existingIdx].phone = customer.phone;
+            user.savedAddresses[existingIdx].secondaryPhone = customer.secondaryPhone || '';
+            user.savedAddresses[existingIdx].isDefault = true;
+            user.savedAddresses.forEach((a, i) => {
+              if (i !== existingIdx) a.isDefault = false;
+            });
+          } else {
+            user.savedAddresses.forEach((a) => {
+              a.isDefault = false;
+            });
+            user.savedAddresses.unshift({
+              label: 'Delivery Address',
+              street: cleanStreet,
+              city: cleanCity,
+              state: cleanState,
+              pincode: cleanPincode,
+              phone: customer.phone,
+              secondaryPhone: customer.secondaryPhone || '',
+              isDefault: true
+            });
+          }
+          await user.save();
+        }
+      } catch (saveErr) {
+        console.error('Failed to auto-save address to user profile:', saveErr);
+      }
+    }
 
     // Mark any active reservation for this session as completed (hold is cleared)
     if (sessionId) {

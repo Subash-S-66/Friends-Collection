@@ -7,6 +7,8 @@ const addressSchema = new mongoose.Schema({
   city: { type: String, required: true },
   state: { type: String, required: true },
   pincode: { type: String, required: true },
+  phone: { type: String, trim: true },
+  secondaryPhone: { type: String, trim: true },
   isDefault: { type: Boolean, default: false }
 });
 
@@ -14,6 +16,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, trim: true, sparse: true },
+  secondaryPhone: { type: String, trim: true, default: '' },
   password: { type: String, minlength: 6 },
   googleId: { type: String, sparse: true },
   authProvider: { type: String, enum: ['local', 'google', 'token'], default: 'local' },

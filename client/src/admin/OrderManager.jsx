@@ -175,6 +175,16 @@ const OrderManager = () => {
                         <HiOutlinePhone className="w-3.5 h-3.5 text-accent-700" />
                         +91 {order.customer?.phone}
                       </a>
+                      {order.customer?.secondaryPhone && (
+                        <a
+                          href={`tel:+91${order.customer.secondaryPhone}`}
+                          className="text-neutral-500 hover:text-primary flex items-center gap-1 mt-0.5 text-[11px]"
+                          title="Alternate / 2nd number"
+                        >
+                          <span className="text-accent-700 font-bold text-[10px]">2nd:</span>
+                          +91 {order.customer.secondaryPhone}
+                        </a>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
@@ -284,8 +294,20 @@ const OrderManager = () => {
                 <p className="font-semibold text-neutral-800">{selectedOrder.customer?.name}</p>
                 <p className="flex items-center gap-1 mt-1 text-neutral-600">
                   <HiOutlinePhone className="w-3.5 h-3.5 text-accent-700" />
-                  +91 {selectedOrder.customer?.phone}
+                  <a href={`tel:+91${selectedOrder.customer?.phone}`} className="hover:underline">
+                    +91 {selectedOrder.customer?.phone}
+                  </a>
                 </p>
+                {selectedOrder.customer?.secondaryPhone && (
+                  <p className="flex items-center gap-1 mt-1 text-neutral-600">
+                    <span className="text-[10px] font-bold text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded border border-accent-200">
+                      2nd Phone
+                    </span>
+                    <a href={`tel:+91${selectedOrder.customer.secondaryPhone}`} className="hover:underline">
+                      +91 {selectedOrder.customer.secondaryPhone}
+                    </a>
+                  </p>
+                )}
                 {selectedOrder.customer?.email && (
                   <p className="text-neutral-500 mt-0.5">{selectedOrder.customer.email}</p>
                 )}

@@ -167,11 +167,50 @@ exports.getMe = async (req, res, next) => {
 // @route   PUT /api/auth/profile
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, secondaryPhone, address } = req.body;
     const user = await User.findById(req.user._id);
 
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
+    if (name) user.name = name.trim();
+    if (phone !== undefined) user.phone = phone.trim();
+    if (secondaryPhone !== undefined) user.secondaryPhone = secondaryPhone.trim();
+
+    if (address && address.street && address.city && address.pincode) {
+      const cleanStreet = address.street.trim();
+      const cleanCity = address.city.trim();
+      const cleanState = (address.state || 'Tamil Nadu').trim();
+      const cleanPincode = address.pincode.trim();
+      const cleanLabel = (address.label || 'Home').trim();
+
+      const existingIdx = user.savedAddresses.findIndex(
+        (a) => a.street?.toLowerCase() === cleanStreet.toLowerCase() && a.pincode === cleanPincode
+      );
+
+      if (existingIdx >= 0) {
+        user.savedAddresses[existingIdx].label = cleanLabel;
+        user.savedAddresses[existingIdx].city = cleanCity;
+        user.savedAddresses[existingIdx].state = cleanState;
+        user.savedAddresses[existingIdx].phone = user.phone || '';
+        user.savedAddresses[existingIdx].secondaryPhone = user.secondaryPhone || '';
+        user.savedAddresses[existingIdx].isDefault = true;
+        user.savedAddresses.forEach((a, i) => {
+          if (i !== existingIdx) a.isDefault = false;
+        });
+      } else {
+        user.savedAddresses.forEach((a) => {
+          a.isDefault = false;
+        });
+        user.savedAddresses.unshift({
+          label: cleanLabel,
+          street: cleanStreet,
+          city: cleanCity,
+          state: cleanState,
+          pincode: cleanPincode,
+          phone: user.phone || '',
+          secondaryPhone: user.secondaryPhone || '',
+          isDefault: true
+        });
+      }
+    }
 
     await user.save();
     res.json(user);
@@ -185,13 +224,22 @@ exports.updateProfile = async (req, res, next) => {
 exports.addAddress = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-    const { label, street, city, state, pincode, isDefault } = req.body;
+    const { label, street, city, state, pincode, phone, secondaryPhone, isDefault } = req.body;
 
     if (isDefault) {
-      user.savedAddresses.forEach(addr => addr.isDefault = false);
+      user.savedAddresses.forEach((addr) => (addr.isDefault = false));
     }
 
-    user.savedAddresses.push({ label, street, city, state, pincode, isDefault: isDefault || user.savedAddresses.length === 0 });
+    user.savedAddresses.push({
+      label: label || 'Home',
+      street: street.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      pincode: pincode.trim(),
+      phone: phone ? phone.trim() : (user.phone || ''),
+      secondaryPhone: secondaryPhone ? secondaryPhone.trim() : (user.secondaryPhone || ''),
+      isDefault: isDefault || user.savedAddresses.length === 0
+    });
     await user.save();
     res.json(user.savedAddresses);
   } catch (error) {

@@ -19,7 +19,7 @@ import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters'
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [threshold, setThreshold] = useState(999);
   useEffect(() => {
@@ -123,6 +123,7 @@ const Checkout = () => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    secondaryPhone: '',
     email: '',
     street: '',
     city: 'Chennai',
@@ -144,11 +145,16 @@ const Checkout = () => {
 
     const saved = getSavedAddress();
     if (user) {
-      const defaultAddr = user.savedAddresses?.[0] || {};
+      const defaultAddr =
+        user.savedAddresses?.find((a) => a.isDefault) ||
+        user.savedAddresses?.[0] ||
+        {};
+
       setFormData((prev) => ({
         ...prev,
         name: user.name || prev.name,
-        phone: user.phone || prev.phone,
+        phone: user.phone || defaultAddr.phone || prev.phone,
+        secondaryPhone: user.secondaryPhone || defaultAddr.secondaryPhone || prev.secondaryPhone,
         email: user.email || prev.email,
         street: defaultAddr.street || saved?.street || prev.street,
         city: defaultAddr.city || saved?.city || prev.city,
@@ -160,6 +166,7 @@ const Checkout = () => {
         ...prev,
         name: saved.name || '',
         phone: saved.phone || '',
+        secondaryPhone: saved.secondaryPhone || '',
         email: saved.email || '',
         street: saved.street || '',
         city: saved.city || 'Chennai',
@@ -178,16 +185,43 @@ const Checkout = () => {
     setErrorMsg('');
   };
 
+  const handleSelectSavedAddress = (addr) => {
+    setFormData((prev) => ({
+      ...prev,
+      street: addr.street,
+      city: addr.city || prev.city,
+      state: addr.state || prev.state,
+      pincode: addr.pincode || prev.pincode,
+      phone: addr.phone || user?.phone || prev.phone,
+      secondaryPhone: addr.secondaryPhone || user?.secondaryPhone || prev.secondaryPhone,
+    }));
+    toast.success(`Loaded "${addr.label || 'Saved Address'}"! You can edit any details below.`, { icon: '📍' });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return; // Prevent double entry clicks
     setErrorMsg('');
 
-    // Validation
+    // Validation for primary phone
     const cleanPhone = formData.phone.replace(/\D/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9).');
+      setErrorMsg('Please enter a valid 10-digit Indian mobile number for primary contact.');
       return;
+    }
+
+    // Validation for 2nd phone number (optional)
+    let cleanSecPhone = '';
+    if (formData.secondaryPhone && formData.secondaryPhone.trim()) {
+      cleanSecPhone = formData.secondaryPhone.replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanSecPhone)) {
+        setErrorMsg('Please enter a valid 10-digit Indian mobile number for the 2nd number (or leave it blank).');
+        return;
+      }
+      if (cleanSecPhone === cleanPhone) {
+        setErrorMsg('Alternate 2nd number should be different from your primary mobile number.');
+        return;
+      }
     }
 
     if (!formData.street.trim()) {
@@ -203,17 +237,41 @@ const Checkout = () => {
     setSubmitting(true);
 
     try {
-      // Save address if opted
+      // Save address locally if opted
       if (formData.saveInfo) {
         saveAddress({
           name: formData.name,
           phone: cleanPhone,
+          secondaryPhone: cleanSecPhone,
           email: formData.email,
           street: formData.street,
           city: formData.city,
           state: formData.state,
           pincode: formData.pincode,
         });
+
+        // Also save/update address directly in User profile in MongoDB if logged in
+        if (user) {
+          try {
+            const profileRes = await API.put('/auth/profile', {
+              name: formData.name.trim(),
+              phone: cleanPhone,
+              secondaryPhone: cleanSecPhone,
+              address: {
+                street: formData.street.trim(),
+                city: formData.city.trim(),
+                state: formData.state.trim(),
+                pincode: formData.pincode.trim(),
+                label: 'Home'
+              }
+            });
+            if (profileRes.data && updateUser) {
+              updateUser(profileRes.data);
+            }
+          } catch (profileErr) {
+            console.warn('Could not sync address to profile:', profileErr);
+          }
+        }
       }
 
       const orderPayload = {
@@ -228,6 +286,7 @@ const Checkout = () => {
         customer: {
           name: formData.name.trim(),
           phone: cleanPhone,
+          secondaryPhone: cleanSecPhone,
           email: formData.email.trim() || undefined,
           address: {
             street: formData.street.trim(),
@@ -237,6 +296,7 @@ const Checkout = () => {
           },
         },
         shippingCharge,
+        saveAddress: formData.saveInfo
       };
 
       const res = await API.post('/orders', orderPayload);
@@ -378,6 +438,21 @@ const Checkout = () => {
                 )}
               </div>
 
+              {/* Logged-In User Banner */}
+              {user && (
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between gap-3 text-xs text-emerald-900">
+                  <div className="flex items-center gap-2">
+                    <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>
+                      Signed in as <strong>{user.name}</strong> ({user.email}). Details auto-filled from your profile — you can edit anything below.
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
+                    Auto-Filled
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-neutral-700 mb-1">
@@ -395,9 +470,14 @@ const Checkout = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Mobile Number (Mandatory for Delivery) <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-neutral-700">
+                      Mobile Number (Mandatory) <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      Primary Contact
+                    </span>
+                  </div>
                   <div className="relative">
                     <span className="absolute left-3.5 top-3.5 text-xs font-bold text-neutral-500">+91</span>
                     <input
@@ -413,7 +493,34 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <div className="sm:col-span-2">
+                {/* Option for 2nd Number */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-neutral-700">
+                      Alternate / 2nd Mobile Number (Optional)
+                    </label>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Backup Contact
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-3.5 text-xs font-bold text-neutral-500">+91</span>
+                    <input
+                      type="tel"
+                      name="secondaryPhone"
+                      maxLength={10}
+                      value={formData.secondaryPhone}
+                      onChange={handleChange}
+                      placeholder="e.g. 98401 12345 (Optional)"
+                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400 mt-1">
+                    Courier will call this 2nd number if primary number is unreachable.
+                  </p>
+                </div>
+
+                <div>
                   <label className="block text-xs font-bold text-neutral-700 mb-1">
                     Email Address (Optional — for order receipt & tracking)
                   </label>
@@ -431,9 +538,59 @@ const Checkout = () => {
 
             {/* Shipping Address Card */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-4">
-              <h2 className="font-serif text-lg font-bold text-neutral-900 pb-3 border-b border-neutral-100">
-                2. Delivery Address
-              </h2>
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                <h2 className="font-serif text-lg font-bold text-neutral-900">
+                  2. Delivery Address
+                </h2>
+                {user && (
+                  <span className="text-xs text-neutral-500">
+                    Edit or enter any address below
+                  </span>
+                )}
+              </div>
+
+              {/* Saved Addresses Selector for Logged-in User */}
+              {user && user.savedAddresses?.length > 0 && (
+                <div className="p-4 rounded-2xl bg-cream-light/80 border border-accent-200/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📍</span> Saved Addresses in Your Profile:
+                    </span>
+                    <span className="text-[11px] text-neutral-500">Click to auto-fill</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {user.savedAddresses.map((addr, idx) => {
+                      const isSelected =
+                        formData.street === addr.street && formData.pincode === addr.pincode;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectSavedAddress(addr)}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? 'border-primary bg-white shadow-sm ring-2 ring-primary/20'
+                              : 'border-neutral-200 bg-white/70 hover:bg-white hover:border-accent-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold text-neutral-900 mb-1">
+                            <span>{addr.label || `Address #${idx + 1}`}</span>
+                            {addr.isDefault && (
+                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-neutral-700 line-clamp-1">{addr.street}</p>
+                          <p className="text-[11px] text-neutral-500">
+                            {addr.city}, {addr.state} - {addr.pincode}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>
@@ -499,15 +656,27 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2.5 pt-2 cursor-pointer text-xs font-medium text-neutral-700">
+                {/* Option to Save Address for Future Use */}
+                <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-cream-light/60 border border-accent-200/60 cursor-pointer text-xs font-medium text-neutral-700 transition-colors hover:bg-cream-light">
                   <input
                     type="checkbox"
                     name="saveInfo"
                     checked={formData.saveInfo}
                     onChange={handleChange}
-                    className="h-4 w-4 rounded border-accent-300 text-primary focus:ring-primary"
+                    className="h-4 w-4 mt-0.5 rounded border-accent-300 text-primary focus:ring-primary shrink-0"
                   />
-                  <span>Save this address on this browser for future orders</span>
+                  <div>
+                    <span className="font-bold text-neutral-900 block">
+                      {user
+                        ? 'Save & update this address and numbers in my profile for future orders'
+                        : 'Save this address and contact numbers on this browser for future orders'}
+                    </span>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      {user
+                        ? 'Your account profile will be updated so your next checkout will pre-fill these details automatically.'
+                        : 'Stores your address securely on this device so you will not have to type it again.'}
+                    </p>
+                  </div>
                 </label>
               </div>
             </div>
