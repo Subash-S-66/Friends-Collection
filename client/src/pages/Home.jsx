@@ -200,6 +200,16 @@ const Home = () => {
               >
                 👔 Men's Studio
               </button>
+              <button
+                onClick={() => setSelectedGender('kids')}
+                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                  selectedGender === 'kids'
+                    ? 'bg-primary text-white shadow-md'
+                    : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                }`}
+              >
+                🧒 Kids' Studio
+              </button>
             </div>
           </div>
 
@@ -222,9 +232,13 @@ const Home = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-primary-950/85 via-primary-900/30 to-transparent flex flex-col justify-end p-3 sm:p-5">
                     <span className={`self-start mb-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${
-                      cat.gender === 'men' ? 'bg-blue-600/80 text-white' : 'bg-rose-600/80 text-white'
+                      cat.gender === 'men'
+                        ? 'bg-blue-600/80 text-white'
+                        : cat.gender === 'kids'
+                        ? 'bg-amber-600/80 text-white'
+                        : 'bg-rose-600/80 text-white'
                     }`}>
-                      {cat.gender === 'men' ? 'Men' : 'Women'}
+                      {cat.gender === 'men' ? 'Men' : cat.gender === 'kids' ? 'Kids' : 'Women'}
                     </span>
                     <h3 className="font-serif text-sm sm:text-lg font-bold text-white leading-tight line-clamp-1">
                       {cat.name}

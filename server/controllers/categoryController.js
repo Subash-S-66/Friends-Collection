@@ -163,3 +163,23 @@ exports.deleteCategory = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Toggle category active visibility (admin)
+// @route   PATCH /api/categories/admin/:id/toggle
+exports.toggleCategoryStatus = async (req, res, next) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+
+    category.isActive = !category.isActive;
+    await category.save();
+
+    const populated = await Category.findById(category._id).populate('parent', 'name slug gender');
+    res.json({
+      message: `Category is now ${category.isActive ? 'visible' : 'hidden'} on storefront`,
+      category: populated
+    });
+  } catch (error) {
+    next(error);
+  }
+};

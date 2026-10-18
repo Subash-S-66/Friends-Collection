@@ -145,7 +145,7 @@ const Shop = () => {
               <>
                 <span>/</span>
                 <span className="capitalize text-neutral-800 font-semibold">
-                  {selectedGender === 'women' ? "Women's Collection" : "Men's Collection"}
+                  {selectedGender === 'women' ? "Women's Collection" : selectedGender === 'men' ? "Men's Collection" : "Kids' Collection"}
                 </span>
               </>
             )}
@@ -176,6 +176,8 @@ const Shop = () => {
                   ? "Women's Collection"
                   : selectedGender === 'men'
                   ? "Men's Collection"
+                  : selectedGender === 'kids'
+                  ? "Kids' Collection"
                   : searchQuery
                   ? `Search: "${searchQuery}"`
                   : 'All Dresses & Collections'}
@@ -247,6 +249,16 @@ const Shop = () => {
           >
             👔 Men's Studio
           </button>
+          <button
+            onClick={() => updateParam('gender', 'kids')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 ${
+              selectedGender === 'kids'
+                ? 'bg-primary text-white shadow-md'
+                : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+            }`}
+          >
+            🧒 Kids' Studio
+          </button>
         </div>
 
         {/* Primary Category Pills Bar (Filtered by Gender) */}
@@ -259,7 +271,7 @@ const Shop = () => {
                 : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
             }`}
           >
-            All {selectedGender === 'women' ? "Women's" : selectedGender === 'men' ? "Men's" : 'Categories'}
+            All {selectedGender === 'women' ? "Women's" : selectedGender === 'men' ? "Men's" : selectedGender === 'kids' ? "Kids'" : 'Categories'}
           </button>
           {displayedCategories.map((cat) => (
             <button
@@ -335,6 +347,7 @@ const Shop = () => {
                   { label: 'All Departments', value: '' },
                   { label: "Women's Studio", value: 'women' },
                   { label: "Men's Studio", value: 'men' },
+                  { label: "Kids' Studio", value: 'kids' },
                 ].map((item, idx) => (
                   <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:text-primary">
                     <input
@@ -587,6 +600,7 @@ const Shop = () => {
                     { label: 'All Departments', value: '' },
                     { label: "🌸 Women's Studio", value: 'women' },
                     { label: "👔 Men's Studio", value: 'men' },
+                    { label: "🧒 Kids' Studio", value: 'kids' },
                   ].map((item, idx) => (
                     <button
                       key={idx}

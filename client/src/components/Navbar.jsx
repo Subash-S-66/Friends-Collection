@@ -120,6 +120,31 @@ const defaultMenTree = [
   }
 ];
 
+const defaultKidsTree = [
+  {
+    _id: 'default-kids-boys',
+    name: "Boys' Wear",
+    slug: 'boys-wear',
+    gender: 'kids',
+    subcategories: [
+      { _id: 'sub-boys-shirts', name: 'Shirts & T-Shirts', slug: 'boys-shirts' },
+      { _id: 'sub-boys-kurtas', name: 'Kurta & Dhoti Sets', slug: 'boys-kurtas' },
+      { _id: 'sub-boys-jeans', name: 'Jeans & Trousers', slug: 'boys-jeans' }
+    ]
+  },
+  {
+    _id: 'default-kids-girls',
+    name: "Girls' Wear",
+    slug: 'girls-wear',
+    gender: 'kids',
+    subcategories: [
+      { _id: 'sub-girls-frocks', name: 'Frocks & Gowns', slug: 'girls-frocks' },
+      { _id: 'sub-girls-lehengas', name: 'Pattu Pavadai & Lehengas', slug: 'girls-lehengas' },
+      { _id: 'sub-girls-kurtis', name: 'Kurtis & Sets', slug: 'girls-kurtis' }
+    ]
+  }
+];
+
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -127,7 +152,7 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTree, setCategoryTree] = useState([]);
   
-  // Flipkart Mega Menu state: 'women' | 'men' | null
+  // Flipkart Mega Menu state: 'women' | 'men' | 'kids' | null
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const leaveTimeoutRef = useRef(null);
 
@@ -159,18 +184,21 @@ const Navbar = () => {
         if (Array.isArray(res.data) && res.data.length > 0) {
           setCategoryTree(res.data);
         } else {
-          setCategoryTree([...defaultWomenTree, ...defaultMenTree]);
+          setCategoryTree([...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree]);
         }
       })
       .catch(() => {
-        setCategoryTree([...defaultWomenTree, ...defaultMenTree]);
+        setCategoryTree([...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree]);
       });
   }, []);
 
   // Filter categories by gender
-  const allCategories = Array.isArray(categoryTree) && categoryTree.length > 0 ? categoryTree : [...defaultWomenTree, ...defaultMenTree];
+  const allCategories = Array.isArray(categoryTree) && categoryTree.length > 0
+    ? categoryTree
+    : [...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree];
   const womenCategories = allCategories.filter((c) => c && (c.gender === 'women' || !c.gender));
   const menCategories = allCategories.filter((c) => c && c.gender === 'men');
+  const kidsCategories = allCategories.filter((c) => c && c.gender === 'kids');
 
   // Handle smooth mouse enter/leave for mega menu
   const handleMouseEnter = (gender) => {
@@ -303,6 +331,32 @@ const Navbar = () => {
                 </Link>
               </div>
 
+              {/* KIDS - Mega Menu Trigger */}
+              <div
+                className="relative py-2"
+                onMouseEnter={() => handleMouseEnter('kids')}
+                onMouseLeave={handleMouseLeave}
+              >
+                <Link
+                  to="/shop?gender=kids"
+                  className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
+                    activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')
+                      ? 'text-primary'
+                      : 'text-neutral-800 hover:text-primary'
+                  }`}
+                >
+                  <span>Kids</span>
+                  <HiChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                      activeMegaMenu === 'kids' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                    }`}
+                  />
+                  {(activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')) && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
+                  )}
+                </Link>
+              </div>
+
               {/* Shop All */}
               <Link
                 to="/shop"
@@ -403,21 +457,25 @@ const Navbar = () => {
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse" />
                     <span className="text-xs font-bold uppercase tracking-wider text-accent-700">
-                      {activeMegaMenu === 'women' ? "Women's Fashion & Ethnic Studio" : "Men's Sartorial & Traditional Studio"}
+                      {activeMegaMenu === 'women'
+                        ? "Women's Fashion & Ethnic Studio"
+                        : activeMegaMenu === 'men'
+                        ? "Men's Sartorial & Traditional Studio"
+                        : "Kids' Festive & Playful Studio"}
                     </span>
                   </div>
                   <Link
                     to={`/shop?gender=${activeMegaMenu}`}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent-700 transition-colors group"
                   >
-                    <span>View All {activeMegaMenu === 'women' ? "Women's" : "Men's"} Collection</span>
+                    <span>View All {activeMegaMenu === 'women' ? "Women's" : activeMegaMenu === 'men' ? "Men's" : "Kids'"} Collection</span>
                     <HiOutlineArrowNarrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
 
                 {/* Columns Grid: Categories & Their Varieties/Types */}
                 <div className="grid grid-cols-5 xl:grid-cols-6 gap-6 items-start">
-                  {(activeMegaMenu === 'women' ? womenCategories : menCategories).map((cat) => (
+                  {(activeMegaMenu === 'women' ? womenCategories : activeMegaMenu === 'men' ? menCategories : kidsCategories).map((cat) => (
                     <div key={cat._id || cat.slug} className="space-y-3">
                       {/* Column Header: Category */}
                       <Link
@@ -466,12 +524,16 @@ const Navbar = () => {
                       <h4 className="font-serif font-bold text-sm text-neutral-900 leading-snug mb-1">
                         {activeMegaMenu === 'women'
                           ? 'Pure Kanchipuram & Banarasi Silks'
-                          : 'Handwoven Linens & Festive Raw Silks'}
+                          : activeMegaMenu === 'men'
+                          ? 'Handwoven Linens & Festive Raw Silks'
+                          : 'Adorable Ethnic Pattu & Festive Sets'}
                       </h4>
                       <p className="text-[11px] text-neutral-600 leading-relaxed mb-3">
                         {activeMegaMenu === 'women'
                           ? 'Authentic zari craftsmanship from royal weavers of Tamil Nadu.'
-                          : 'Structured breathable comfort tailored for weddings & celebrations.'}
+                          : activeMegaMenu === 'men'
+                          ? 'Structured breathable comfort tailored for weddings & celebrations.'
+                          : 'Skin-friendly fabrics tailored for tender comfort and vibrant celebrations.'}
                       </p>
                       <Link
                         to={`/shop?gender=${activeMegaMenu}&tag=trending`}
@@ -575,8 +637,8 @@ const Navbar = () => {
                 </Link>
               </div>
 
-              {/* Segmented Women & Men Switcher for Mobile */}
-              <div className="bg-neutral-100 p-1 rounded-xl flex items-center">
+              {/* Segmented Women, Men & Kids Switcher for Mobile */}
+              <div className="bg-neutral-100 p-1 rounded-xl flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setMobileGenderTab('women')}
@@ -599,6 +661,17 @@ const Navbar = () => {
                 >
                   👔 Men
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileGenderTab('kids')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    mobileGenderTab === 'kids'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  🧒 Kids
+                </button>
               </div>
 
               {/* View Entire Gender Section Link */}
@@ -607,12 +680,12 @@ const Navbar = () => {
                 onClick={() => setMobileOpen(false)}
                 className="block text-center py-2 px-3 rounded-xl bg-accent-100/70 border border-accent-200 text-xs font-bold text-primary hover:bg-accent-200 transition-colors"
               >
-                Explore All {mobileGenderTab === 'women' ? "Women's" : "Men's"} Collection →
+                Explore All {mobileGenderTab === 'women' ? "Women's" : mobileGenderTab === 'men' ? "Men's" : "Kids'"} Collection →
               </Link>
 
               {/* Categories & Accordion Types */}
               <div className="space-y-1.5 pt-1">
-                {(mobileGenderTab === 'women' ? womenCategories : menCategories).map((cat) => {
+                {(mobileGenderTab === 'women' ? womenCategories : mobileGenderTab === 'men' ? menCategories : kidsCategories).map((cat) => {
                   const hasSubs = cat.subcategories && cat.subcategories.length > 0;
                   const isExpanded = mobileExpandedCat === cat.slug;
 

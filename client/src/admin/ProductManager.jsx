@@ -309,6 +309,7 @@ const ProductManager = () => {
             <option value="all">All Departments</option>
             <option value="women">🌸 Women's</option>
             <option value="men">👔 Men's</option>
+            <option value="kids">🧒 Kids</option>
             <option value="unisex">✨ Unisex</option>
           </select>
 
@@ -321,7 +322,7 @@ const ProductManager = () => {
             {parentCategories.map((p) => {
               const subs = categories.filter((c) => c.parent && (c.parent._id || c.parent) === p._id);
               return (
-                <optgroup key={p._id} label={`${p.name} (${p.gender === 'men' ? 'Men' : 'Women'})`}>
+                <optgroup key={p._id} label={`${p.name} (${p.gender === 'men' ? 'Men' : p.gender === 'kids' ? 'Kids' : 'Women'})`}>
                   <option value={p._id}>All {p.name}</option>
                   {subs.map((s) => (
                     <option key={s._id} value={s._id}>
@@ -547,6 +548,7 @@ const ProductManager = () => {
                     >
                       <option value="women">🌸 Women's</option>
                       <option value="men">👔 Men's</option>
+                      <option value="kids">🧒 Kids</option>
                       <option value="unisex">✨ Unisex</option>
                     </select>
                   </div>
@@ -566,7 +568,7 @@ const ProductManager = () => {
                       {parentCategories
                         .filter((c) => !gender || gender === 'unisex' || c.gender === gender || c.gender === 'all')
                         .map((c) => (
-                          <option key={c._id} value={c._id}>{c.name} ({c.gender === 'men' ? 'Men' : 'Women'})</option>
+                          <option key={c._id} value={c._id}>{c.name} ({c.gender === 'men' ? 'Men' : c.gender === 'kids' ? 'Kids' : 'Women'})</option>
                         ))}
                     </select>
                   </div>
