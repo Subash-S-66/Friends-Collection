@@ -5,7 +5,8 @@ import {
   HiOutlineTruck,
   HiOutlineOfficeBuilding,
   HiOutlineCheck,
-  HiOutlineRefresh
+  HiOutlineRefresh,
+  HiOutlineSparkles
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -19,6 +20,13 @@ const SettingsManager = () => {
   const [customPrimary, setCustomPrimary] = useState(theme.primary || '#54142D');
   const [customAccent, setCustomAccent] = useState(theme.accent || '#C88A65');
   const [customBg, setCustomBg] = useState(theme.bgTint || '#FAF7F2');
+
+  // Homepage Hero Headline & Copy state
+  const [heroBadge, setHeroBadge] = useState("Chennai's Trendy Fashion House");
+  const [heroTitle, setHeroTitle] = useState('Style That Defines You');
+  const [heroDescription, setHeroDescription] = useState(
+    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'
+  );
 
   // Announcement Bar state
   const [announcementText, setAnnouncementText] = useState('🎉 Free Shipping on Orders Above ₹999!');
@@ -35,6 +43,7 @@ const SettingsManager = () => {
   const [storeInstagram, setStoreInstagram] = useState('friends_collection_in');
 
   const [savingTheme, setSavingTheme] = useState(false);
+  const [savingHero, setSavingHero] = useState(false);
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
   const [savingShipping, setSavingShipping] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
@@ -43,6 +52,9 @@ const SettingsManager = () => {
     API.get('/settings')
       .then((res) => {
         const data = res.data;
+        if (data.heroBadge) setHeroBadge(data.heroBadge);
+        if (data.heroTitle) setHeroTitle(data.heroTitle);
+        if (data.heroDescription) setHeroDescription(data.heroDescription);
         if (data.announcementBar) {
           setAnnouncementText(data.announcementBar.text || '');
           setAnnouncementActive(Boolean(data.announcementBar.isActive));
@@ -99,6 +111,26 @@ const SettingsManager = () => {
       toast.error('Failed to save theme settings');
     } finally {
       setSavingTheme(false);
+    }
+  };
+
+  // Save Hero Section & Copy
+  const handleSaveHero = async (e) => {
+    e.preventDefault();
+    setSavingHero(true);
+    try {
+      await API.put('/settings/admin/heroSection', {
+        value: {
+          heroBadge: heroBadge.trim(),
+          heroTitle: heroTitle.trim(),
+          heroDescription: heroDescription.trim(),
+        },
+      });
+      toast.success('Homepage hero copy updated and saved to database!');
+    } catch {
+      toast.error('Failed to update hero copy');
+    } finally {
+      setSavingHero(false);
     }
   };
 
@@ -306,7 +338,109 @@ const SettingsManager = () => {
         </div>
       </div>
 
-      {/* 2. Announcement Bar */}
+      {/* 2. Homepage Hero Showcase & Brand Copy */}
+      <form onSubmit={handleSaveHero} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-6">
+        <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+          <div className="w-10 h-10 rounded-2xl bg-accent-50 text-accent-700 flex items-center justify-center">
+            <HiOutlineSparkles className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="font-serif text-lg font-bold text-neutral-900">Homepage Hero Showcase & Brand Copy</h2>
+            <p className="text-xs text-neutral-500">
+              Customize the prominent hero banner headlines and brand description dynamically from the database
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Hero Badge Tag</label>
+            <input
+              type="text"
+              required
+              value={heroBadge}
+              onChange={(e) => setHeroBadge(e.target.value)}
+              placeholder="e.g. Chennai's Trendy Fashion House"
+              className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1">Hero Main Headline</label>
+            <input
+              type="text"
+              required
+              value={heroTitle}
+              onChange={(e) => setHeroTitle(e.target.value)}
+              placeholder="e.g. Style That Defines You"
+              className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-serif font-bold"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-bold text-neutral-700">
+              Hero Brand Description & Subtitle *
+            </label>
+            <button
+              type="button"
+              onClick={() =>
+                setHeroDescription(
+                  'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'
+                )
+              }
+              className="text-[11px] text-accent hover:underline font-medium"
+            >
+              Reset to Original Heritage Text
+            </button>
+          </div>
+          <textarea
+            rows={3}
+            required
+            value={heroDescription}
+            onChange={(e) => setHeroDescription(e.target.value)}
+            placeholder="Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves."
+            className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary leading-relaxed resize-y"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">
+            Stored dynamically in MongoDB (`heroDescription`). Displays beneath the headline on the storefront homepage hero section.
+          </p>
+        </div>
+
+        {/* Live Hero Simulation Box */}
+        <div className="rounded-2xl bg-gradient-to-r from-[#380B1C] to-[#54142D] p-5 sm:p-6 text-white space-y-3 border border-accent-300/20 shadow-inner">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-accent-300">
+              Live Storefront Preview
+            </span>
+            <span className="text-[10px] text-neutral-300">Homepage Hero Banner</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-[11px] font-semibold tracking-wider uppercase">
+            <HiOutlineSparkles className="w-3.5 h-3.5" />
+            <span>{heroBadge || "Chennai's Trendy Fashion House"}</span>
+          </div>
+          <h3 className="font-serif text-2xl font-bold tracking-tight text-white">
+            {heroTitle || 'Style That Defines You'}
+          </h3>
+          <p className="text-xs text-neutral-200 font-light leading-relaxed max-w-2xl">
+            {heroDescription ||
+              'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <button
+            type="submit"
+            disabled={savingHero}
+            className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+          >
+            {savingHero ? 'Saving Hero Text...' : 'Save Hero Copy to Database'}
+          </button>
+        </div>
+      </form>
+
+      {/* 3. Announcement Bar */}
       <form onSubmit={handleSaveAnnouncement} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-4">
         <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
           <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center">

@@ -71,6 +71,16 @@ exports.updateBanner = async (req, res, next) => {
     }
 
     await banner.save();
+
+    // Keep Settings synced if this banner is active or priority 1
+    const Settings = require('../models/Settings');
+    if (banner.subtitle) {
+      await Settings.findOneAndUpdate({ key: 'heroDescription' }, { value: banner.subtitle }, { upsert: true });
+    }
+    if (banner.title) {
+      await Settings.findOneAndUpdate({ key: 'heroTitle' }, { value: banner.title }, { upsert: true });
+    }
+
     res.json(banner);
   } catch (error) {
     next(error);

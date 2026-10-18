@@ -105,13 +105,7 @@ const Home = () => {
               </div>
 
               <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                {currentBanner ? (
-                  currentBanner.title
-                ) : (
-                  <>
-                    {settings.heroTitle || 'Style That Defines You'}
-                  </>
-                )}
+                {currentBanner?.title || settings.heroTitle || 'Style That Defines You'}
               </h1>
 
               <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">

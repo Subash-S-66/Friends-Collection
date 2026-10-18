@@ -155,9 +155,9 @@ const BannerManager = () => {
                   onError={(e) => handleImageError(e, '/fallback-banner.png')}
                   className="w-full h-full object-cover filter brightness-90"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-5 text-white">
-                  <h3 className="font-serif text-xl font-bold">{b.title}</h3>
-                  <p className="text-xs text-neutral-300 line-clamp-1">{b.subtitle}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-5 text-white">
+                  <h3 className="font-serif text-lg font-bold">{b.title}</h3>
+                  <p className="text-xs text-neutral-200 line-clamp-3 leading-relaxed mt-1">{b.subtitle}</p>
                 </div>
               </div>
 
@@ -219,14 +219,19 @@ const BannerManager = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Subtitle / Promo Text</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Hero Subtitle & Brand Description
+                </label>
+                <textarea
+                  rows={3}
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="e.g. Handcrafted elegance for traditional celebrations"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary leading-relaxed resize-y"
                 />
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Displays dynamically beneath the headline on the storefront hero banner.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
