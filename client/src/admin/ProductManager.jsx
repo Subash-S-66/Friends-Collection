@@ -23,6 +23,30 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
+export const ADULT_SIZES = [
+  'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size',
+  '30', '32', '34', '36', '38', '40', '42', '44'
+];
+
+export const KIDS_SIZES = [
+  '0-6M',
+  '6-12M',
+  '1-2',
+  '2-3',
+  '3-4',
+  '4-5',
+  '5-6',
+  '6-7',
+  '7-8',
+  '8-9',
+  '9-10',
+  '10-12',
+  '12-14',
+  '14-16',
+  'Custom Size'
+];
+
+
 const ProductManager = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -45,6 +69,8 @@ const ProductManager = () => {
   const [salePrice, setSalePrice] = useState('');
   const [selectedSizes, setSelectedSizes] = useState(['S', 'M', 'L', 'XL']);
   const [selectedColors, setSelectedColors] = useState(['Maroon']);
+  const [customSizeInput, setCustomSizeInput] = useState('');
+  const [customSizesList, setCustomSizesList] = useState([]);
   const [variants, setVariants] = useState([
     { color: 'Maroon', size: 'S', stock: 5, sku: 'FC-MRN-S' },
     { color: 'Maroon', size: 'M', stock: 5, sku: 'FC-MRN-M' },
@@ -57,7 +83,9 @@ const ProductManager = () => {
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size', '30', '32', '34', '36', '38', '40', '42', '44'];
+  const isKids = gender === 'kids';
+  const baseAvailableSizes = isKids ? KIDS_SIZES : ADULT_SIZES;
+  const availableSizes = Array.from(new Set([...baseAvailableSizes, ...customSizesList]));
   const availableTags = ['trending', 'new-arrival', 'festive', 'bestseller'];
   const commonColors = ['Maroon', 'Navy Blue', 'Wine', 'Emerald Green', 'Black', 'Pastel Pink', 'Mustard Yellow', 'Royal Blue', 'Red', 'Beige', 'White', 'Khaki', 'Charcoal Black', 'Olive'];
 
@@ -110,19 +138,27 @@ const ProductManager = () => {
     setDescription('');
     const catToUse = preselectedCatId || selectedCat || parentCategories[0]?._id || '';
     const matchedCat = safeCategories.find((c) => c._id === catToUse);
-    setGender(matchedCat?.gender || 'women');
+    const initialGender = matchedCat?.gender || (selectedGenderFilter !== 'all' ? selectedGenderFilter : 'women');
+    setGender(initialGender);
     setCategory(catToUse);
     setSubcategory('');
     setPrice('');
     setSalePrice('');
-    setSelectedSizes(['S', 'M', 'L', 'XL']);
+
+    const isKidsMode = initialGender === 'kids';
+    const initialSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
+    setSelectedSizes(initialSizes);
     setSelectedColors(['Maroon']);
-    setVariants([
-      { color: 'Maroon', size: 'S', stock: 5, sku: 'FC-MRN-S' },
-      { color: 'Maroon', size: 'M', stock: 5, sku: 'FC-MRN-M' },
-      { color: 'Maroon', size: 'L', stock: 5, sku: 'FC-MRN-L' },
-      { color: 'Maroon', size: 'XL', stock: 5, sku: 'FC-MRN-XL' },
-    ]);
+    setCustomSizesList([]);
+    setCustomSizeInput('');
+    setVariants(
+      initialSizes.map((sz) => ({
+        color: 'Maroon',
+        size: sz,
+        stock: 5,
+        sku: `FC-MRN-${sz.replace(/[^A-Z0-9]/gi, '')}`
+      }))
+    );
     setTags(['new-arrival']);
     setImages([]);
     setImagePreviews([]);
@@ -134,13 +170,32 @@ const ProductManager = () => {
     setEditingProduct(prod);
     setTitle(prod.title);
     setDescription(prod.description || '');
-    setGender(prod.gender || 'women');
+    const prodGender = prod.gender || 'women';
+    setGender(prodGender);
     setCategory(prod.category?._id || prod.category || '');
     setSubcategory(prod.subcategory?._id || prod.subcategory || '');
     setPrice(prod.price.toString());
     setSalePrice(prod.salePrice ? prod.salePrice.toString() : '');
-    setSelectedSizes(prod.sizes || []);
-    setSelectedColors(prod.colors || []);
+
+    const isKidsMode = prodGender === 'kids';
+    const baseList = isKidsMode ? KIDS_SIZES : ADULT_SIZES;
+    const defaultSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
+
+    const prodSizes = prod.sizes && prod.sizes.length > 0
+      ? prod.sizes
+      : (prod.variants && prod.variants.length > 0
+          ? Array.from(new Set(prod.variants.map((v) => v.size).filter(Boolean)))
+          : []);
+
+    const finalSizes = prodSizes.length > 0 ? prodSizes : defaultSizes;
+    setSelectedSizes(finalSizes);
+
+    // Track any sizes not in base preset as custom sizes
+    const customFound = finalSizes.filter((s) => !baseList.includes(s));
+    setCustomSizesList(customFound);
+    setCustomSizeInput('');
+
+    setSelectedColors(prod.colors && prod.colors.length > 0 ? prod.colors : ['Maroon']);
     const cleanExisting = (prod.images || []).filter(
       (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
     );
@@ -152,7 +207,7 @@ const ProductManager = () => {
     let initialVariants = prod.variants && prod.variants.length > 0 ? prod.variants : [];
     if (initialVariants.length === 0 && ((prod.sizes && prod.sizes.length > 0) || (prod.colors && prod.colors.length > 0))) {
       const colors = prod.colors && prod.colors.length > 0 ? prod.colors : ['Standard'];
-      const sizes = prod.sizes && prod.sizes.length > 0 ? prod.sizes : ['Standard'];
+      const sizes = prod.sizes && prod.sizes.length > 0 ? prod.sizes : (isKidsMode ? ['1-2', '2-3'] : ['Standard']);
       initialVariants = [];
       colors.forEach((c) => {
         sizes.forEach((s) => {
@@ -166,17 +221,112 @@ const ProductManager = () => {
       });
     }
     setVariants(initialVariants.length > 0 ? initialVariants : [
-      { color: 'Standard', size: 'Standard', stock: prod.stock || 10, sku: '' }
+      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '' }
     ]);
 
+    setTags(prod.tags && prod.tags.length > 0 ? prod.tags : ['new-arrival']);
     setModalOpen(true);
+  };
+
+  // Department switch handler with automatic size preset adaptation
+  const handleDepartmentChange = (newGender) => {
+    setGender(newGender);
+    setCategory('');
+    setSubcategory('');
+
+    if (newGender === 'kids') {
+      const defaultKids = ['1-2', '2-3', '3-4', '4-5'];
+      const isAdultCurrent = selectedSizes.every((s) => ADULT_SIZES.includes(s));
+      if (isAdultCurrent || selectedSizes.length === 0) {
+        setSelectedSizes(defaultKids);
+        setCustomSizesList([]);
+        const col = selectedColors[0] || 'Standard';
+        setVariants(
+          defaultKids.map((sz) => ({
+            color: col,
+            size: sz,
+            stock: 5,
+            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz.replace(/[^A-Z0-9]/gi, '')}`
+          }))
+        );
+      }
+    } else {
+      const defaultAdult = ['S', 'M', 'L', 'XL'];
+      const isKidsCurrent = selectedSizes.every((s) => KIDS_SIZES.includes(s) || customSizesList.includes(s));
+      if (isKidsCurrent || selectedSizes.length === 0) {
+        setSelectedSizes(defaultAdult);
+        setCustomSizesList([]);
+        const col = selectedColors[0] || 'Standard';
+        setVariants(
+          defaultAdult.map((sz) => ({
+            color: col,
+            size: sz,
+            stock: 5,
+            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz}`
+          }))
+        );
+      }
+    }
+  };
+
+  // Add / Remove Custom Size (Only for Kids department)
+  const handleAddCustomSize = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = customSizeInput.trim();
+    if (!trimmed) return;
+    if (!customSizesList.includes(trimmed)) {
+      setCustomSizesList((prev) => [...prev, trimmed]);
+    }
+    if (!selectedSizes.includes(trimmed)) {
+      setSelectedSizes((prev) => [...prev, trimmed]);
+    }
+    const col = selectedColors[0] || 'Standard';
+    setVariants((prev) => {
+      const exists = prev.some((v) => v.size.toLowerCase() === trimmed.toLowerCase());
+      if (!exists) {
+        return [
+          ...prev,
+          {
+            color: col,
+            size: trimmed,
+            stock: 5,
+            sku: `FC-${col.substring(0, 3).toUpperCase()}-${trimmed.replace(/[^A-Z0-9]/gi, '')}`
+          }
+        ];
+      }
+      return prev;
+    });
+    setCustomSizeInput('');
+    toast.success(`Custom size "${trimmed}" added!`);
+  };
+
+  const handleRemoveCustomSize = (sizeToRemove) => {
+    setCustomSizesList((prev) => prev.filter((s) => s !== sizeToRemove));
+    setSelectedSizes((prev) => prev.filter((s) => s !== sizeToRemove));
+    setVariants((prev) => prev.filter((v) => v.size !== sizeToRemove));
+  };
+
+  const handleToggleSize = (size) => {
+    setSelectedSizes((prev) => {
+      if (prev.includes(size)) {
+        if (prev.length === 1) {
+          toast.error('At least one size must remain selected');
+          return prev;
+        }
+        return prev.filter((s) => s !== size);
+      } else {
+        return [...prev, size];
+      }
+    });
   };
 
   // Add / Remove Variant Row
   const handleAddVariantRow = () => {
+    const isKidsMode = gender === 'kids';
+    const fallbackSize = isKidsMode ? '1-2' : 'M';
     setVariants((prev) => [
       ...prev,
-      { color: selectedColors[0] || 'Standard', size: selectedSizes[0] || 'M', stock: 5, sku: '' }
+      { color: selectedColors[0] || 'Standard', size: selectedSizes[0] || fallbackSize, stock: 5, sku: '' }
     ]);
   };
 
@@ -698,9 +848,13 @@ const ProductManager = () => {
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-neutral-900">{prod.category?.name || 'Unassigned'}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                              prod.gender === 'men' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
+                              prod.gender === 'men'
+                                ? 'bg-blue-100 text-blue-800'
+                                : prod.gender === 'kids'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-rose-100 text-rose-800'
                             }`}>
-                              {prod.gender === 'men' ? '👔 Men' : '🌸 Women'}
+                              {prod.gender === 'men' ? '👔 Men' : prod.gender === 'kids' ? '🧒 Kids' : '🌸 Women'}
                             </span>
                           </div>
                           {prod.subcategory?.name && (
@@ -969,11 +1123,7 @@ const ProductManager = () => {
                     <label className="block text-xs font-bold text-neutral-700 mb-1">Department *</label>
                     <select
                       value={gender}
-                      onChange={(e) => {
-                        setGender(e.target.value);
-                        setCategory('');
-                        setSubcategory('');
-                      }}
+                      onChange={(e) => handleDepartmentChange(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary bg-white font-medium"
                     >
                       <option value="women">🌸 Women's</option>
@@ -1329,24 +1479,139 @@ const ProductManager = () => {
               </div>
 
               {/* Variant Stock Builder (Color + Size + Stock) */}
-              <div className="p-4 rounded-2xl bg-white border border-neutral-200 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+              <div className="p-5 rounded-2xl bg-white border border-neutral-200 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-neutral-100 gap-2">
                   <div>
-                    <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
-                      Variant-Level Inventory (Color + Size + Stock)
+                    <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                      <span>Variant-Level Inventory & Sizing</span>
+                      {gender === 'kids' && (
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
+                          🧒 Kids Age Sizing (Years: 1-2, 2-3...)
+                        </span>
+                      )}
                     </h4>
                     <p className="text-[11px] text-neutral-500">
-                      Specify exact stock available for each variant (e.g. Blue XL: 4, Maroon M: 8)
+                      {gender === 'kids'
+                        ? 'Select year-based sizes for kids or enter custom manual sizes below.'
+                        : 'Choose standard sizes and manage stock for each color/size variant.'}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleAutoGenerateVariants}
-                    className="text-xs font-bold text-primary hover:text-accent-700 underline"
+                    className="text-xs font-bold text-primary hover:text-accent-700 underline self-start sm:self-auto cursor-pointer"
                   >
                     Auto-Generate Matrix
                   </button>
                 </div>
+
+                {/* Sizing Chips Selector */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
+                      {gender === 'kids' ? 'Select Kids Year-Based Sizes:' : 'Select Available Sizes:'}
+                    </span>
+                    <span className="text-[10px] text-neutral-400">
+                      {selectedSizes.length} sizes active
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableSizes.map((sz) => {
+                      const isSelected = selectedSizes.includes(sz);
+                      const isCustom = customSizesList.includes(sz);
+                      return (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => handleToggleSize(sz)}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            isSelected
+                              ? 'bg-primary text-white shadow-xs ring-1 ring-primary'
+                              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-200'
+                          }`}
+                        >
+                          <span>{sz}</span>
+                          {isCustom && (
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveCustomSize(sz);
+                              }}
+                              className="hover:text-red-300 ml-0.5"
+                              title="Delete custom size"
+                            >
+                              <HiOutlineX className="w-3 h-3" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Manual Input - ONLY rendered when Department is Kids */}
+                {gender === 'kids' && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>🧒</span>
+                        <span>Custom Manual Size Input (Kids Only)</span>
+                      </span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                        Manual Age / Fit
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                      Need a specific size? Type custom sizes like <strong>1-2</strong>, <strong>2-3</strong>, <strong>18-24M</strong>, or <strong>Custom Fit</strong> below:
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. 1-2, 2-3, 18-24M, Custom Size"
+                        value={customSizeInput}
+                        onChange={(e) => setCustomSizeInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomSize();
+                          }
+                        }}
+                        className="flex-1 px-3.5 py-2 rounded-xl border border-amber-300 bg-white text-xs text-neutral-900 placeholder:text-neutral-400 focus:ring-2 focus:ring-amber-500 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomSize}
+                        className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs whitespace-nowrap cursor-pointer"
+                      >
+                        + Add Custom Size
+                      </button>
+                    </div>
+
+                    {customSizesList.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[10px] font-bold text-amber-900 mr-1">Added Custom Sizes:</span>
+                        {customSizesList.map((cs) => (
+                          <span
+                            key={cs}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-white border border-amber-300 text-[11px] font-bold text-amber-900 shadow-2xs"
+                          >
+                            <span>{cs}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomSize(cs)}
+                              className="text-amber-700 hover:text-red-600 cursor-pointer"
+                              title="Remove custom size"
+                            >
+                              <HiOutlineX className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Variant Table */}
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -1361,12 +1626,31 @@ const ProductManager = () => {
                       />
                       <select
                         value={v.size}
-                        onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
-                        className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold"
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            const val = window.prompt('Enter custom manual size (e.g. 1-2, 2-3, 18-24M):');
+                            if (val && val.trim()) {
+                              const customVal = val.trim();
+                              if (!customSizesList.includes(customVal)) {
+                                setCustomSizesList((prev) => [...prev, customVal]);
+                              }
+                              if (!selectedSizes.includes(customVal)) {
+                                setSelectedSizes((prev) => [...prev, customVal]);
+                              }
+                              handleVariantChange(idx, 'size', customVal);
+                            }
+                          } else {
+                            handleVariantChange(idx, 'size', e.target.value);
+                          }
+                        }}
+                        className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold"
                       >
                         {availableSizes.map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
+                        {gender === 'kids' && (
+                          <option value="__custom__">+ Custom Size...</option>
+                        )}
                       </select>
                       <input
                         type="number"

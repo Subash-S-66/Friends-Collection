@@ -35,6 +35,7 @@ const ProductDetail = () => {
   // Variant Selection State
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
+  const [customChildSize, setCustomChildSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -194,10 +195,17 @@ const ProductDetail = () => {
     ? Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean)))
     : product.sizes || [];
 
+  const getFinalSize = () => {
+    if (product?.gender === 'kids' && customChildSize.trim()) {
+      return `${selectedSize || 'Custom'} (${customChildSize.trim()})`;
+    }
+    return selectedSize || 'Standard';
+  };
+
   const handleAddToCart = () => {
     if (isOutOfStock || isProcessing || added) return;
     setIsProcessing(true);
-    addToCart(product, quantity, selectedSize, selectedColor);
+    addToCart(product, quantity, getFinalSize(), selectedColor);
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
@@ -208,7 +216,7 @@ const ProductDetail = () => {
   const handleBuyNow = () => {
     if (isOutOfStock || isProcessing) return;
     setIsProcessing(true);
-    addToCart(product, quantity, selectedSize, selectedColor);
+    addToCart(product, quantity, getFinalSize(), selectedColor);
     navigate('/checkout');
   };
 
@@ -453,7 +461,14 @@ const ProductDetail = () => {
                     <span className="text-xs font-bold uppercase tracking-wider text-neutral-800">
                       Size: <strong className="text-primary font-semibold">{selectedSize}</strong>
                     </span>
-                    <span className="text-xs text-accent-700 font-medium">Standard Fit</span>
+                    {product.gender === 'kids' ? (
+                      <span className="text-xs text-amber-700 font-bold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        <span>🧒</span>
+                        <span>Kids Age Sizing (Years)</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-accent-700 font-medium">Standard Fit</span>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2.5">
                     {allSizes.map((size) => {
@@ -505,6 +520,31 @@ const ProductDetail = () => {
                       );
                     })}
                   </div>
+
+                  {/* Custom Manual Measurement / Child Age Input for Kids */}
+                  {product.gender === 'kids' && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2 mt-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5 uppercase tracking-wider">
+                          <span>🧒</span>
+                          <span>Child's Age / Custom Measurements</span>
+                        </label>
+                        <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                          Custom Fit for Kids
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                        Need a custom fit or specific child age? Type your child's age or measurements below (e.g. <em>Age: 2.5 yrs, Height: 95cm</em>):
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="e.g. Age: 2.5 Years, Height: 95cm (Optional custom note)"
+                        value={customChildSize}
+                        onChange={(e) => setCustomChildSize(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-amber-300 bg-white text-xs text-neutral-900 placeholder:text-neutral-400 focus:ring-2 focus:ring-amber-500 font-medium"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
