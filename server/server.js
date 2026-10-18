@@ -131,17 +131,81 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/cart', require('./routes/cart'));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+const mongoose = require('mongoose');
+
+// Helper to format uptime into human-readable duration
+function getFormattedUptime(seconds) {
+  const d = Math.floor(seconds / (3600 * 24));
+  const h = Math.floor((seconds % (3600 * 24)) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+// Enterprise Health Check Handler
+const healthCheckHandler = (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const isDbConnected = dbState === 1;
+
+  const dbStateNames = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
+  const uptimeSeconds = Math.floor(process.uptime());
+  const mem = process.memoryUsage();
+
+  const healthData = {
+    status: isDbConnected ? 'ok' : 'degraded',
+    service: 'Friends Collections API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    uptime: {
+      seconds: uptimeSeconds,
+      formatted: getFormattedUptime(uptimeSeconds)
+    },
+    database: {
+      status: dbStateNames[dbState] || 'unknown',
+      connected: isDbConnected,
+      host: mongoose.connection.host || 'Atlas Cluster'
+    },
+    system: {
+      memoryHeapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      memoryHeapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      memoryRssMB: Math.round(mem.rss / 1024 / 1024),
+      nodeVersion: process.version
+    }
+  };
+
+  // Return 503 if database connection is down, otherwise 200 OK
+  const statusCode = isDbConnected ? 200 : 503;
+  res.status(statusCode).json(healthData);
+};
+
+// Health Check Routes (compatible with AWS, Render, Docker, Kubernetes, and uptime monitors)
+app.get('/health', healthCheckHandler);
+app.get('/healthz', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
+app.get('/api/healthz', healthCheckHandler);
 
 // Serve static client build if present (for full-stack deployment on Render)
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
 if (require('fs').existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath, { maxAge: '1d', etag: true }));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/health')
+    ) {
       return next();
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));
