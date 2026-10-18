@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   HiOutlineHome,
+  HiOutlineViewGrid,
   HiOutlineShoppingBag,
   HiOutlineTag,
   HiOutlineClipboardList,
@@ -81,7 +82,7 @@ const AdminLayout = () => {
     {
       title: 'OVERVIEW',
       items: [
-        { name: 'Dashboard', path: '/admin', icon: HiOutlineHome, exact: true },
+        { name: 'Dashboard', path: '/admin', icon: HiOutlineViewGrid, exact: true },
       ],
     },
     {
@@ -261,16 +262,16 @@ const AdminLayout = () => {
         }`}>
           <Link
             to="/"
-            target="_blank"
-            title="View Live Storefront"
+            title="Go to Customer Home Page"
             className={`flex items-center ${
               isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3.5'
-            } py-2.5 rounded-xl text-xs font-medium text-neutral-300 hover:bg-primary-900 hover:text-white transition-colors`}
+            } py-2.5 rounded-xl text-xs font-semibold text-neutral-300 hover:bg-primary-900 hover:text-white transition-colors group`}
           >
             <div className={`flex items-center ${isCollapsed ? 'lg:justify-center' : 'gap-3'} min-w-0`}>
-              <HiOutlineExternalLink className="w-5 h-5 shrink-0 text-accent-300" />
-              <span className={isCollapsed ? 'lg:hidden' : 'block'}>View Storefront</span>
+              <HiOutlineHome className="w-5 h-5 shrink-0 text-accent-400 group-hover:scale-110 transition-transform" />
+              <span className={isCollapsed ? 'lg:hidden' : 'block'}>Go to Home Page</span>
             </div>
+            {!isCollapsed && <HiOutlineExternalLink className="w-4 h-4 text-neutral-400" />}
           </Link>
           <button
             onClick={handleAdminLogout}
@@ -338,6 +339,16 @@ const AdminLayout = () => {
           </div>
 
           <div className="flex items-center gap-3 text-xs">
+            {/* Go to Home Page Button */}
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-neutral-200 bg-white hover:bg-accent-50 text-neutral-700 hover:text-primary font-bold text-xs transition-colors shadow-2xs group"
+              title="Return to Customer Storefront / Home Page"
+            >
+              <HiOutlineHome className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+              <span>Go to Home Page</span>
+            </Link>
+
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Database Connected</span>
