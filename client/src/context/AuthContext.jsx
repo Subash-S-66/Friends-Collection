@@ -42,6 +42,27 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const loginWithGoogle = async (credential) => {
+    const res = await API.post('/auth/google', { credential });
+    localStorage.setItem('fc_token', res.data.token);
+    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+    setUser(res.data.user);
+    return res.data;
+  };
+
+  const requestToken = async (email) => {
+    const res = await API.post('/auth/request-token', { email });
+    return res.data;
+  };
+
+  const verifyToken = async (email, token, name) => {
+    const res = await API.post('/auth/verify-token', { email, token, name });
+    localStorage.setItem('fc_token', res.data.token);
+    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+    setUser(res.data.user);
+    return res.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('fc_token');
     localStorage.removeItem('fc_user');
@@ -54,7 +75,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      register,
+      loginWithGoogle,
+      requestToken,
+      verifyToken,
+      logout,
+      updateUser,
+      isAdmin: user?.role === 'admin'
+    }}>
       {children}
     </AuthContext.Provider>
   );

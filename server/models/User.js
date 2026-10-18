@@ -13,14 +13,17 @@ const addressSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  phone: { type: String, required: true, unique: true, trim: true },
-  password: { type: String, required: true, minlength: 6 },
+  phone: { type: String, trim: true, sparse: true },
+  password: { type: String, minlength: 6 },
+  googleId: { type: String, sparse: true },
+  authProvider: { type: String, enum: ['local', 'google', 'token'], default: 'local' },
+  avatar: { type: String },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   savedAddresses: [addressSchema]
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

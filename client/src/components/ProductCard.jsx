@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom';
-import { HiOutlineShoppingBag, HiCheck } from 'react-icons/hi';
+import { HiOutlineShoppingBag, HiCheck, HiOutlineBell } from 'react-icons/hi';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
+import NotifyModal from './NotifyModal';
 import { formatPrice, getDiscount, getImageUrl } from '../utils/formatters';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
   const discount = getDiscount(product.price, product.salePrice);
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 3;
@@ -96,13 +98,27 @@ const ProductCard = ({ product }) => {
             )}
           </div>
 
-          {/* Out of Stock Banner */}
+          {/* Out of Stock Banner + Notify Me Quick Action */}
           {isOutOfStock ? (
-            <div className="absolute inset-x-0 bottom-2 sm:bottom-4 mx-2 sm:mx-3 bg-neutral-900/90 backdrop-blur-xs py-1 sm:py-2 px-2 sm:px-3 text-center rounded-lg sm:rounded-xl shadow-lg z-20 border border-neutral-700">
-              <span className="text-[9px] sm:text-[11px] font-bold tracking-wider text-white uppercase flex items-center justify-center gap-1 sm:gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                OUT OF STOCK
-              </span>
+            <div className="absolute inset-x-0 bottom-2 sm:bottom-3 mx-2 sm:mx-3 flex flex-col gap-1 z-20">
+              <div className="bg-neutral-900/90 backdrop-blur-xs py-1 px-2 text-center rounded-lg shadow-sm border border-neutral-700">
+                <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-white uppercase flex items-center justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                  OUT OF STOCK
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setNotifyOpen(true);
+                }}
+                className="hidden sm:flex w-full py-1.5 px-2.5 rounded-lg bg-accent hover:bg-accent-light text-white text-[11px] font-bold items-center justify-center gap-1.5 shadow-md transition-all transform hover:scale-[1.02]"
+              >
+                <HiOutlineBell className="w-3.5 h-3.5" />
+                <span>Notify Me</span>
+              </button>
             </div>
           ) : (
             /* Quick Add Overlay on desktop hover */
@@ -166,8 +182,21 @@ const ProductCard = ({ product }) => {
               )}
             </div>
 
-            {/* Mobile quick tap button */}
-            {!isOutOfStock && (
+            {/* Mobile quick action button */}
+            {isOutOfStock ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setNotifyOpen(true);
+                }}
+                className="sm:hidden p-1.5 rounded-full bg-accent text-white hover:bg-accent-light transition-colors shrink-0 shadow-xs"
+                title="Notify Me When Available"
+                aria-label="Notify me when available"
+              >
+                <HiOutlineBell className="w-3.5 h-3.5" />
+              </button>
+            ) : (
               <button
                 onClick={handleQuickAdd}
                 className="sm:hidden p-1.5 rounded-full bg-accent-100/80 text-primary hover:bg-primary hover:text-white transition-colors shrink-0"
@@ -179,6 +208,13 @@ const ProductCard = ({ product }) => {
           </div>
         </div>
       </Link>
+
+      {/* Notify Modal */}
+      <NotifyModal
+        isOpen={notifyOpen}
+        onClose={() => setNotifyOpen(false)}
+        product={product}
+      />
     </motion.div>
   );
 };

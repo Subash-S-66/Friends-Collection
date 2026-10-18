@@ -10,11 +10,13 @@ import {
   HiPlus,
   HiMinus,
   HiCheck,
-  HiOutlineShare
+  HiOutlineShare,
+  HiOutlineBell
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
+import NotifyModal from '../components/NotifyModal';
 import { useCart } from '../context/CartContext';
 import { formatPrice, getDiscount, getImageUrl } from '../utils/formatters';
 
@@ -34,6 +36,8 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+  const [isWaitlisted, setIsWaitlisted] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -72,6 +76,15 @@ const ProductDetail = () => {
     fetchProduct();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [slug]);
+
+  // Check if current customer is waitlisted for this variant
+  useEffect(() => {
+    if (product?._id) {
+      API.get(`/notifications/status?productId=${product._id}&color=${encodeURIComponent(selectedColor || '')}&size=${encodeURIComponent(selectedSize || '')}`)
+        .then((res) => setIsWaitlisted(Boolean(res.data?.subscribed)))
+        .catch(() => setIsWaitlisted(false));
+    }
+  }, [product?._id, selectedColor, selectedSize]);
 
   if (loading) {
     return (
@@ -440,39 +453,54 @@ const ProductDetail = () => {
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-3">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock}
-                  className={`w-full py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5 shadow-md transition-all ${
-                    isOutOfStock
-                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed uppercase tracking-wider'
-                      : added
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-primary hover:bg-primary-light text-white shadow-lg'
-                  }`}
-                >
-                  {isOutOfStock ? (
-                    'Out of Stock'
-                  ) : added ? (
-                    <>
-                      <HiCheck className="w-5 h-5" /> Added to Shopping Bag
-                    </>
-                  ) : (
-                    <>
-                      <HiOutlineShoppingBag className="w-5 h-5" /> Add to Shopping Bag
-                    </>
-                  )}
-                </motion.button>
+                {isOutOfStock ? (
+                  <div className="space-y-2.5">
+                    <div className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-neutral-100 text-neutral-500 uppercase tracking-wider text-center border border-neutral-200">
+                      Out of Stock in {selectedColor ? `${selectedColor} - ` : ''}{selectedSize || 'this option'}
+                    </div>
 
-                {!isOutOfStock && (
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleBuyNow}
-                    className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 bg-accent hover:bg-accent-light text-white shadow-md transition-all"
-                  >
-                    <HiOutlineLightningBolt className="w-5 h-5" /> Buy Now (No Login Needed)
-                  </motion.button>
+                    {/* Notify Me Button */}
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setNotifyModalOpen(true)}
+                      className="w-full py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5 bg-gradient-to-r from-accent to-accent-dark hover:from-accent-light hover:to-accent text-white shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5"
+                    >
+                      <HiOutlineBell className="w-5 h-5 text-amber-200 animate-pulse" />
+                      <span>
+                        {isWaitlisted ? "✓ On Waitlist (Manage Alert)" : "Notify Me When Available"}
+                      </span>
+                    </motion.button>
+                  </div>
+                ) : (
+                  <>
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleAddToCart}
+                      className={`w-full py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2.5 shadow-md transition-all ${
+                        added
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-primary hover:bg-primary-light text-white shadow-lg'
+                      }`}
+                    >
+                      {added ? (
+                        <>
+                          <HiCheck className="w-5 h-5" /> Added to Shopping Bag
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineShoppingBag className="w-5 h-5" /> Add to Shopping Bag
+                        </>
+                      )}
+                    </motion.button>
+
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleBuyNow}
+                      className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 bg-accent hover:bg-accent-light text-white shadow-md transition-all"
+                    >
+                      <HiOutlineLightningBolt className="w-5 h-5" /> Buy Now (No Login Needed)
+                    </motion.button>
+                  </>
                 )}
 
                 {/* WhatsApp Direct Inquire */}
@@ -593,6 +621,16 @@ const ProductDetail = () => {
           </div>
         </div>
       )}
+
+      {/* Back In Stock Notify Modal */}
+      <NotifyModal
+        isOpen={notifyModalOpen}
+        onClose={() => setNotifyModalOpen(false)}
+        product={product}
+        selectedColor={selectedColor}
+        selectedSize={selectedSize}
+        onSubscribed={() => setIsWaitlisted(true)}
+      />
     </motion.div>
   );
 };

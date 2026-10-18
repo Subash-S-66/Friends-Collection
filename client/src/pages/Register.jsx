@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLockClosed, HiArrowRight } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -81,6 +82,20 @@ const Register = () => {
               {errorMsg}
             </div>
           )}
+
+          {/* 1-Click Google Sign-Up */}
+          <div className="pt-1 pb-2 flex flex-col items-center">
+            <GoogleAuthButton onSuccess={() => navigate('/')} text="signup_with" />
+          </div>
+
+          <div className="relative text-center my-3">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-neutral-200" />
+            </div>
+            <span className="relative px-3 bg-white text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+              Or Register Manually
+            </span>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

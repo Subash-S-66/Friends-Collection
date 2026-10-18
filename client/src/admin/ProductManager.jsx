@@ -9,7 +9,8 @@ import {
   HiOutlineChevronDown,
   HiOutlineChevronUp,
   HiOutlineExclamationCircle,
-  HiOutlineCheckCircle
+  HiOutlineCheckCircle,
+  HiOutlineBell
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -246,6 +247,17 @@ const ProductManager = () => {
     }
   };
 
+  const handleNotifyWaitlist = async (productId, title) => {
+    if (!window.confirm(`Dispatch restock email alerts to all waitlisted customers for "${title}"?`)) return;
+    try {
+      const res = await API.post(`/notifications/admin/notify/${productId}`);
+      toast.success(res.data.message || 'Notification emails dispatched via Nodemailer!', { icon: '🔔' });
+    } catch (err) {
+      console.error('Notify error:', err);
+      toast.error(err.response?.data?.message || 'Failed to dispatch notifications');
+    }
+  };
+
   const safeProducts = Array.isArray(products) ? products : [];
   const filteredProducts = safeProducts.filter((p) => {
     const matchesSearch =
@@ -475,6 +487,13 @@ const ProductManager = () => {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleNotifyWaitlist(prod._id, prod.title)}
+                            className="p-2 rounded-lg text-accent-700 hover:text-accent-900 hover:bg-accent-50 transition-colors"
+                            title="Send restock alert email to waitlisted customers"
+                          >
+                            <HiOutlineBell className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => openEditModal(prod)}
                             className="p-2 rounded-lg text-neutral-600 hover:text-primary hover:bg-neutral-100 transition-colors"

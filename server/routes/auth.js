@@ -1,7 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { register, login, getMe, updateProfile, addAddress, deleteAddress } = require('../controllers/authController');
+const {
+  register,
+  login,
+  getMe,
+  updateProfile,
+  addAddress,
+  deleteAddress,
+  googleAuth,
+  requestVerificationToken,
+  verifyTokenAndLogin
+} = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 
@@ -16,6 +26,13 @@ router.post('/login', authLimiter, [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], login);
+
+// Google OAuth
+router.post('/google', authLimiter, googleAuth);
+
+// 6-Digit Email Token Verification (Manual login / sign up)
+router.post('/request-token', authLimiter, requestVerificationToken);
+router.post('/verify-token', authLimiter, verifyTokenAndLogin);
 
 router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfile);
