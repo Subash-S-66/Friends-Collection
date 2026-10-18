@@ -466,3 +466,101 @@ exports.sendBackInStockAlertEmail = async ({ to, name, product, variant }) => {
     return { success: false, error: error.message };
   }
 };
+
+// Render Full Campaign HTML
+const renderCampaignHtml = (campaign, recipientName = '') => {
+  const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
+  const ctaUrl = campaign.ctaUrl || `${clientUrl}/shop`;
+
+  const bannerHtml = campaign.bannerImage
+    ? `
+      <div style="margin: 0 0 24px; border-radius: 18px; overflow: hidden; border: 1px solid #EEDCD0; box-shadow: 0 4px 12px rgba(74, 14, 23, 0.08);">
+        <img src="${campaign.bannerImage}" alt="${campaign.title || 'Festival Sale'}" style="width: 100%; max-height: 280px; object-fit: cover; display: block;" />
+      </div>
+    `
+    : '';
+
+  const badgeHtml = campaign.badgeText
+    ? `
+      <div style="text-align: center; margin-bottom: 14px;">
+        <span style="background: linear-gradient(135deg, #FFF3CD 0%, #FFEBAA 100%); color: #856404; padding: 6px 18px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; border: 1px solid #FFE082; display: inline-block;">
+          ✦ ${campaign.badgeText} ✦
+        </span>
+      </div>
+    `
+    : '';
+
+  const headlineHtml = campaign.headline
+    ? `
+      <h2 style="font-family: Georgia, 'Playfair Display', serif; font-size: 24px; color: #4A0E17; margin: 0 0 16px; font-weight: 700; text-align: center; line-height: 1.3;">
+        ${campaign.headline}
+      </h2>
+    `
+    : '';
+
+  const couponHtml = campaign.couponCode
+    ? `
+      <div style="background: linear-gradient(180deg, #FDF9F5 0%, #F5EDE4 100%); border: 2px dashed #C88A65; border-radius: 16px; padding: 18px 24px; text-align: center; margin: 24px 0;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #8C5338; font-weight: 700; display: block; margin-bottom: 6px;">
+          Exclusive Festival Coupon Code
+        </span>
+        <span style="font-family: 'Courier New', Courier, monospace; font-size: 28px; letter-spacing: 6px; color: #4A0E17; font-weight: 900; background: #FFFFFF; padding: 6px 18px; border-radius: 10px; border: 1px solid #D4AF37; display: inline-block;">
+          ${campaign.couponCode}
+        </span>
+        <span style="font-size: 11px; color: #7A726E; display: block; margin-top: 8px;">
+          Apply this code at checkout to claim your festive savings!
+        </span>
+      </div>
+    `
+    : '';
+
+  const ctaBtnHtml = campaign.ctaText
+    ? `
+      <div style="text-align: center; margin: 28px 0 16px;">
+        <a href="${ctaUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
+          ${campaign.ctaText} →
+        </a>
+      </div>
+    `
+    : '';
+
+  const contentHtml = `
+    ${badgeHtml}
+    ${bannerHtml}
+    ${headlineHtml}
+    <div style="font-size: 14px; line-height: 1.7; color: #3E3835; margin: 0 0 20px;">
+      ${campaign.bodyHtml}
+    </div>
+    ${couponHtml}
+    ${ctaBtnHtml}
+  `;
+
+  return wrapInFriendsTheme({
+    title: campaign.subject || 'Special Festival Announcement - Friends Collections',
+    preheader: campaign.preheader || campaign.subject,
+    contentHtml
+  });
+};
+
+// 4. Send Marketing / Festival Campaign Email
+exports.sendCampaignEmail = async ({ to, name, campaign }) => {
+  try {
+    const mailClient = await getTransporter();
+    const html = renderCampaignHtml(campaign, name);
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: campaign.subject,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error(`❌ [Email Error] sendCampaignEmail to ${to}:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
+exports.renderCampaignHtml = renderCampaignHtml;

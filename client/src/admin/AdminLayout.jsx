@@ -9,7 +9,8 @@ import {
   HiOutlineLogout,
   HiOutlineExternalLink,
   HiOutlineMenu,
-  HiOutlineX
+  HiOutlineX,
+  HiOutlineMail
 } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +42,7 @@ const AdminLayout = () => {
     { name: 'Orders', path: '/admin/orders', icon: HiOutlineClipboardList },
     { name: 'Products', path: '/admin/products', icon: HiOutlineShoppingBag },
     { name: 'Categories', path: '/admin/categories', icon: HiOutlineTag },
+    { name: 'Festival Campaigns', path: '/admin/campaigns', icon: HiOutlineMail },
     { name: 'Hero Banners', path: '/admin/banners', icon: HiOutlinePhotograph },
     { name: 'Store Settings', path: '/admin/settings', icon: HiOutlineCog },
   ];

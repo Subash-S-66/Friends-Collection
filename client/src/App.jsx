@@ -33,6 +33,7 @@ import CategoryManager from './admin/CategoryManager';
 import OrderManager from './admin/OrderManager';
 import BannerManager from './admin/BannerManager';
 import SettingsManager from './admin/SettingsManager';
+import CampaignManager from './admin/CampaignManager';
 
 // Shell layout that conditionally hides storefront header/footer on admin routes
 const AppLayout = () => {
@@ -66,6 +67,7 @@ const AppLayout = () => {
             <Route path="orders" element={<OrderManager />} />
             <Route path="products" element={<ProductManager />} />
             <Route path="categories" element={<CategoryManager />} />
+            <Route path="campaigns" element={<CampaignManager />} />
             <Route path="banners" element={<BannerManager />} />
             <Route path="settings" element={<SettingsManager />} />
           </Route>

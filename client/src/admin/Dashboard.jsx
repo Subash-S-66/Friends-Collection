@@ -8,7 +8,8 @@ import {
   HiOutlinePlus,
   HiOutlineArrowRight,
   HiOutlinePhone,
-  HiOutlineRefresh
+  HiOutlineRefresh,
+  HiOutlineSparkles
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -78,6 +79,13 @@ const Dashboard = () => {
           >
             <HiOutlineRefresh className="w-5 h-5" />
           </button>
+          <Link
+            to="/admin/campaigns"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-accent-300 bg-white hover:bg-accent-50 text-accent-800 text-xs font-semibold shadow-xs transition-all"
+          >
+            <HiOutlineSparkles className="w-4 h-4 text-accent-600" />
+            <span>Festival Campaign</span>
+          </Link>
           <Link
             to="/admin/products?new=true"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-semibold shadow-md transition-all"

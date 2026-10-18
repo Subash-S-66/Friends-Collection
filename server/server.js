@@ -73,6 +73,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/banners', require('./routes/banners'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/campaigns', require('./routes/campaigns'));
 
 // Health check
 app.get('/api/health', (req, res) => {
