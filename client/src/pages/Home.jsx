@@ -51,12 +51,21 @@ const saveHomeCache = (data) => {
   }
 };
 
+const defaultHeroBanner = {
+  title: 'Style That Defines You',
+  subtitle:
+    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
+  image: '/fallback-banner.png',
+  ctaText: 'Explore Collection',
+  ctaLink: '/shop'
+};
+
 const Home = () => {
   const initialCache = getInitialHomeCache();
   const [categories, setCategories] = useState(() => initialCache?.categories || []);
   const [featured, setFeatured] = useState(() => initialCache?.featured || []);
   const [newArrivals, setNewArrivals] = useState(() => initialCache?.newArrivals || []);
-  const [banners, setBanners] = useState(() => initialCache?.banners || []);
+  const [banners, setBanners] = useState(() => (initialCache?.banners?.length ? initialCache.banners : [defaultHeroBanner]));
   const [settings, setSettings] = useState(() => initialCache?.settings || {});
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [loading, setLoading] = useState(() => !initialCache);
@@ -221,7 +230,7 @@ const Home = () => {
     return () => clearInterval(interval);
   }, [banners.length]);
 
-  const currentBanner = banners[activeBannerIdx] || null;
+  const currentBanner = banners[activeBannerIdx] || banners[0] || defaultHeroBanner;
   const storePhone = settings.storePhone || '+91 95007 57024';
   const whatsappNum = settings.whatsappNumber || '919500757024';
   const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
@@ -234,21 +243,19 @@ const Home = () => {
         {/* Subtle royal pattern/accents overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#C88A65_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
-        {/* Dynamic Background Image if Banner specifies an image */}
-        {currentBanner?.image && (
-          <div className="absolute inset-0 z-0">
-            <img
-              src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
-              alt={currentBanner.title || 'Friends Collections'}
-              onError={(e) => handleImageError(e, '/fallback-banner.png')}
-              fetchPriority="high"
-              loading="eager"
-              decoding="async"
-              className="w-full h-full object-cover opacity-25 filter blur-xs"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
-          </div>
-        )}
+        {/* Ambient Royal Showroom Background */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src={getImageUrl(currentBanner?.image, '/fallback-banner.png')}
+            alt={currentBanner?.title || 'Friends Collections'}
+            onError={(e) => handleImageError(e, '/fallback-banner.png')}
+            fetchPriority="high"
+            loading="eager"
+            decoding="async"
+            className="w-full h-full object-cover opacity-25 filter blur-xs"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
+        </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
@@ -307,26 +314,15 @@ const Home = () => {
             {/* Right Column: Branded Visual Showcase */}
             <div className="lg:col-span-5 flex justify-center">
               <div className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group hover:border-accent-300/70 transition-all duration-500">
-                {currentBanner?.image ? (
-                  <img
-                    src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
-                    alt={currentBanner.title || 'Friends Collections'}
-                    onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                    fetchPriority="high"
-                    loading="eager"
-                    decoding="async"
-                    className="w-full h-full object-cover rounded-2xl shadow-inner group-hover:scale-102 transition-transform duration-700 ease-out"
-                  />
-                ) : (
-                  <img
-                    src="/logo.png"
-                    alt="Friends Collections"
-                    fetchPriority="high"
-                    loading="eager"
-                    decoding="async"
-                    className="w-full h-full object-contain bg-white rounded-2xl p-6 shadow-inner"
-                  />
-                )}
+                <img
+                  src={getImageUrl(currentBanner?.image, '/fallback-banner.png')}
+                  alt={currentBanner?.title || 'Friends Collections'}
+                  onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                  fetchPriority="high"
+                  loading="eager"
+                  decoding="async"
+                  className="w-full h-full object-cover rounded-2xl shadow-inner group-hover:scale-102 transition-transform duration-700 ease-out"
+                />
                 {/* Subtle luxury inner glow */}
                 <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20 pointer-events-none" />
               </div>
