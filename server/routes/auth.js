@@ -10,7 +10,11 @@ const {
   deleteAddress,
   googleAuth,
   requestVerificationToken,
-  verifyTokenAndLogin
+  verifyTokenAndLogin,
+  forgotPasswordRequest,
+  forgotPasswordVerify,
+  verifyEmailToken,
+  resendVerification
 } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
@@ -33,6 +37,14 @@ router.post('/google', authLimiter, googleAuth);
 // 6-Digit Email Token Verification (Manual login / sign up)
 router.post('/request-token', authLimiter, requestVerificationToken);
 router.post('/verify-token', authLimiter, verifyTokenAndLogin);
+
+// Account Registration Token Verification
+router.post('/verify-email-token', authLimiter, verifyEmailToken);
+router.post('/resend-verification', authLimiter, resendVerification);
+
+// Forgot Password OTP Flow
+router.post('/forgot-password-request', authLimiter, forgotPasswordRequest);
+router.post('/forgot-password-verify', authLimiter, forgotPasswordVerify);
 
 router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfile);

@@ -47,14 +47,20 @@ const Register = () => {
     setSubmitting(true);
 
     try {
-      await register({
+      const res = await register({
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: cleanPhone,
         password: formData.password,
       });
-      toast.success('🎉 Account registered successfully!');
-      navigate('/');
+
+      if (res?.requireVerification) {
+        toast.success(res.message || 'Verification token dispatched to your email!', { icon: '📬' });
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email.trim())}`);
+      } else {
+        toast.success('🎉 Account registered successfully!');
+        navigate('/');
+      }
     } catch (err) {
       console.error('Registration error:', err);
       const msg = err.response?.data?.message || 'Failed to create account. Please try again.';

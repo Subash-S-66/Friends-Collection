@@ -332,6 +332,115 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
   }
 };
 
+// 1b. Send Forgot Password OTP Email
+exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
+  try {
+    const mailClient = await getTransporter();
+    const greeting = name ? `Dear ${name},` : 'Hello,';
+
+    const contentHtml = `
+      <h2 class="content-title">Password Reset Code</h2>
+      <p class="content-text" style="text-align: center;">
+        ${greeting}<br>
+        We received a request to reset the password for your Friends Collections account. Use the 6-digit OTP code below to verify your identity and set a new password.
+      </p>
+
+      <div class="token-box">
+        <div class="token-label">Password Reset OTP</div>
+        <div class="token-digits">${token}</div>
+        <div class="token-expires">Valid for the next 10 minutes</div>
+      </div>
+
+      <p class="content-text" style="font-size: 13px; color: #7A726E; text-align: center;">
+        Once verified, your new password will be activated and you will be securely logged into your boutique account.
+      </p>
+
+      <p class="content-text" style="font-size: 12px; color: #9E9590; text-align: center; border-top: 1px solid #EEDCD0; padding-top: 14px; margin-top: 20px;">
+        If you did not request this password reset, please disregard this email or notify us immediately at 
+        <a href="mailto:friends.collection06@gmail.com" style="color: #4A0E17; font-weight: 600;">friends.collection06@gmail.com</a>.
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `${token} is your Friends Collections password reset code`,
+      preheader: `Your 6-digit password reset OTP is ${token}. Valid for 10 minutes.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: `🔑 ${token} is your Friends Collections Password Reset Code`,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    if (info?.messageId && !info.messageId.startsWith('stub-') && nodemailer.getTestMessageUrl) {
+      console.log('📬 [Password Reset OTP Sent] Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendForgotPasswordOtpEmail:', error);
+    throw error;
+  }
+};
+
+// 1c. Send Account Registration Verification Email (Token + Link)
+exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) => {
+  try {
+    const mailClient = await getTransporter();
+    const greeting = name ? `Dear ${name},` : 'Welcome,';
+
+    const contentHtml = `
+      <h2 class="content-title">Verify Your Friends Collections Account ✨</h2>
+      <p class="content-text" style="text-align: center;">
+        ${greeting}<br>
+        Thank you for joining Friends Collections! To secure your account and start exploring our royal silk sarees, designer kurtis, and festive collections, please verify your email address.
+      </p>
+
+      <div class="token-box">
+        <div class="token-label">Your 6-Digit Verification Code</div>
+        <div class="token-digits">${token}</div>
+        <div class="token-expires">Valid for the next 10 minutes</div>
+      </div>
+
+      <div style="text-align: center; margin: 26px 0 16px;">
+        <a href="${verifyUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
+          ✦ Verify Account & Enter Boutique ✦
+        </a>
+      </div>
+
+      <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 20px;">
+        You can tap the button above to verify instantly, or enter the 6-digit code on the registration page.
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `Verify your Friends Collections account (${token})`,
+      preheader: `Welcome to Friends Collections! Verify your email using code ${token} or tap the link.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: `✨ Verify your Friends Collections Account (${token})`,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    if (info?.messageId && !info.messageId.startsWith('stub-') && nodemailer.getTestMessageUrl) {
+      console.log('📬 [Account Verification Sent] Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendAccountVerificationEmail:', error);
+    throw error;
+  }
+};
+
 // 2. Send Back In Stock Subscription Confirmation
 exports.sendBackInStockSubscriptionEmail = async ({ to, name, product, variant }) => {
   try {

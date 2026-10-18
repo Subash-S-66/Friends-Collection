@@ -2,13 +2,17 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const VerificationToken = require('../models/VerificationToken');
-const { sendVerificationTokenEmail } = require('../utils/emailService');
+const {
+  sendVerificationTokenEmail,
+  sendForgotPasswordOtpEmail,
+  sendAccountVerificationEmail
+} = require('../utils/emailService');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
 };
 
-// @desc    Register user
+// @desc    Register user - sends 6-digit verification code & verification link
 // @route   POST /api/auth/register
 exports.register = async (req, res, next) => {
   try {
@@ -18,18 +22,66 @@ exports.register = async (req, res, next) => {
     }
 
     const { name, email, phone, password } = req.body;
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone ? phone.trim().replace(/\D/g, '') : undefined;
 
-    const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+    const existingUser = await User.findOne({
+      $or: [
+        { email: cleanEmail },
+        ...(cleanPhone ? [{ phone: cleanPhone }] : [])
+      ]
+    });
+
     if (existingUser) {
-      return res.status(400).json({
-        message: existingUser.email === email ? 'Email already registered' : 'Phone number already registered'
+      if (existingUser.isVerified !== false) {
+        return res.status(400).json({
+          message: existingUser.email === cleanEmail ? 'Email already registered. Please sign in.' : 'Phone number already registered'
+        });
+      } else {
+        // User created earlier but unverified: update details and resend code
+        existingUser.name = name.trim();
+        existingUser.password = password;
+        if (cleanPhone) existingUser.phone = cleanPhone;
+        await existingUser.save();
+      }
+    } else {
+      await User.create({
+        name: name.trim(),
+        email: cleanEmail,
+        phone: cleanPhone,
+        password,
+        isVerified: false
       });
     }
 
-    const user = await User.create({ name, email, phone, password });
-    const token = generateToken(user._id);
+    // Generate 6-digit verification token
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    res.status(201).json({ token, user });
+    await VerificationToken.deleteMany({ email: cleanEmail, type: { $in: ['register', 'verify-email'] } });
+    await VerificationToken.create({
+      email: cleanEmail,
+      token,
+      type: 'verify-email',
+      expiresAt
+    });
+
+    const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
+    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+
+    await sendAccountVerificationEmail({
+      to: cleanEmail,
+      token,
+      verifyUrl,
+      name: name.trim()
+    });
+
+    res.status(200).json({
+      requireVerification: true,
+      message: `A 6-digit verification token and direct activation link have been sent to ${cleanEmail}`,
+      email: cleanEmail,
+      name: name.trim()
+    });
   } catch (error) {
     next(error);
   }
@@ -45,10 +97,20 @@ exports.login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Check if user is explicitly unverified (local registration pending token confirmation)
+    if (user.isVerified === false) {
+      return res.status(403).json({
+        message: 'Please verify your email address to log in.',
+        requireVerification: true,
+        email: user.email
+      });
     }
 
     const token = generateToken(user._id);
@@ -167,6 +229,7 @@ exports.googleAuth = async (req, res, next) => {
     if (user) {
       if (!user.googleId) user.googleId = googleId;
       if (!user.avatar && picture) user.avatar = picture;
+      user.isVerified = true;
       await user.save();
     } else {
       user = await User.create({
@@ -175,7 +238,8 @@ exports.googleAuth = async (req, res, next) => {
         googleId,
         avatar: picture || '',
         authProvider: 'google',
-        role: 'user'
+        role: 'user',
+        isVerified: true
       });
     }
 
@@ -260,13 +324,209 @@ exports.verifyTokenAndLogin = async (req, res, next) => {
         name: name ? name.trim() : cleanEmail.split('@')[0],
         email: cleanEmail,
         authProvider: 'token',
-        role: 'user'
+        role: 'user',
+        isVerified: true
       });
+    } else {
+      user.isVerified = true;
+      await user.save();
     }
 
     const jwtToken = generateToken(user._id);
     res.json({
       message: 'Authentication successful',
+      token: jwtToken,
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify email verification token (via link or 6-digit code)
+// @route   POST /api/auth/verify-email-token
+exports.verifyEmailToken = async (req, res, next) => {
+  try {
+    const { email, token } = req.body;
+    if (!email || !token) {
+      return res.status(400).json({ message: 'Email and verification code are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanToken = token.trim();
+
+    const record = await VerificationToken.findOne({
+      email: cleanEmail,
+      token: cleanToken,
+      type: { $in: ['verify-email', 'register'] },
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new code.' });
+    }
+
+    record.used = true;
+    await record.save();
+
+    let user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    const jwtToken = generateToken(user._id);
+    res.json({
+      success: true,
+      message: 'Account verified successfully!',
+      token: jwtToken,
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Resend registration email verification token
+// @route   POST /api/auth/resend-verification
+exports.resendVerification = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'Account not found with this email' });
+    }
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'This account is already verified. Please sign in.' });
+    }
+
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await VerificationToken.deleteMany({ email: cleanEmail, type: { $in: ['verify-email', 'register'] } });
+    await VerificationToken.create({
+      email: cleanEmail,
+      token,
+      type: 'verify-email',
+      expiresAt
+    });
+
+    const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
+    const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+
+    await sendAccountVerificationEmail({
+      to: cleanEmail,
+      token,
+      verifyUrl,
+      name: user.name
+    });
+
+    res.json({
+      success: true,
+      message: `A fresh 6-digit verification code has been sent to ${cleanEmail}`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Request forgot password OTP
+// @route   POST /api/auth/forgot-password-request
+exports.forgotPasswordRequest = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: 'No registered account found with this email address' });
+    }
+
+    // Generate 6-digit OTP
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await VerificationToken.deleteMany({ email: cleanEmail, type: 'forgot-password' });
+    await VerificationToken.create({
+      email: cleanEmail,
+      token,
+      type: 'forgot-password',
+      expiresAt
+    });
+
+    await sendForgotPasswordOtpEmail({
+      to: cleanEmail,
+      token,
+      name: user.name
+    });
+
+    res.json({
+      success: true,
+      message: `A 6-digit password reset code has been sent to ${cleanEmail}`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify forgot password OTP and set new password, automatically logging in
+// @route   POST /api/auth/forgot-password-verify
+exports.forgotPasswordVerify = async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP code, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanToken = token.trim();
+
+    const record = await VerificationToken.findOne({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'forgot-password',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!record) {
+      return res.status(400).json({ message: 'Invalid or expired password reset OTP code' });
+    }
+
+    record.used = true;
+    await record.save();
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+
+    // Update password (pre-save hook will hash it with bcrypt)
+    user.password = newPassword;
+    user.isVerified = true;
+    await user.save();
+
+    // Directly log the user in!
+    const jwtToken = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You are now logged in.',
       token: jwtToken,
       user
     });

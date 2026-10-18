@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   authProvider: { type: String, enum: ['local', 'google', 'token'], default: 'local' },
   avatar: { type: String },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  isVerified: { type: Boolean, default: false },
   savedAddresses: [addressSchema]
 }, { timestamps: true });
 

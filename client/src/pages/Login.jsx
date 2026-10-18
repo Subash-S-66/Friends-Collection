@@ -55,9 +55,13 @@ const Login = () => {
       handlePostAuthRedirect(data.user);
     } catch (err) {
       console.error('Login error:', err);
+      const isUnverified = err.response?.data?.requireVerification;
       const msg = err.response?.data?.message || 'Invalid email or password. Please try again.';
       setErrorMsg(msg);
       toast.error(msg);
+      if (isUnverified) {
+        navigate(`/verify-email?email=${encodeURIComponent(err.response?.data?.email || email)}`);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -312,6 +316,12 @@ const Login = () => {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-xs font-bold text-neutral-700">Password</label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-semibold text-primary hover:text-primary-light transition-colors hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
                 <div className="relative">
                   <HiOutlineLockClosed className="w-5 h-5 text-neutral-400 absolute left-3.5 top-3.5" />

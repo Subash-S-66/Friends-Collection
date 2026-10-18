@@ -36,9 +36,11 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const res = await API.post('/auth/register', data);
-    localStorage.setItem('fc_token', res.data.token);
-    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
     return res.data;
   };
 
@@ -63,6 +65,36 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const forgotPasswordRequest = async (email) => {
+    const res = await API.post('/auth/forgot-password-request', { email });
+    return res.data;
+  };
+
+  const forgotPasswordVerify = async ({ email, token, newPassword }) => {
+    const res = await API.post('/auth/forgot-password-verify', { email, token, newPassword });
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
+    return res.data;
+  };
+
+  const verifyEmailToken = async ({ email, token }) => {
+    const res = await API.post('/auth/verify-email-token', { email, token });
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
+    return res.data;
+  };
+
+  const resendVerification = async (email) => {
+    const res = await API.post('/auth/resend-verification', { email });
+    return res.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('fc_token');
     localStorage.removeItem('fc_user');
@@ -83,6 +115,10 @@ export const AuthProvider = ({ children }) => {
       loginWithGoogle,
       requestToken,
       verifyToken,
+      forgotPasswordRequest,
+      forgotPasswordVerify,
+      verifyEmailToken,
+      resendVerification,
       logout,
       updateUser,
       isAdmin: user?.role === 'admin'

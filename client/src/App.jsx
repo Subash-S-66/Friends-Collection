@@ -21,6 +21,8 @@ import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Account from './pages/Account';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -56,6 +58,8 @@ const AppLayout = () => {
           <Route path="/order-success/:orderId" element={<OrderConfirmation />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/account/orders" element={<Account />} />
           <Route path="/about" element={<About />} />
