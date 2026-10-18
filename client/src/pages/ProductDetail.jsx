@@ -88,6 +88,31 @@ const ProductDetail = () => {
     }
   }, [product?._id, selectedColor, selectedSize]);
 
+  // Safe variant stock derivation before early returns
+  const hasVariants = Boolean(product?.variants && product.variants.length > 0);
+  const currentVariant = hasVariants
+    ? product.variants.find(
+        (v) =>
+          (!selectedColor || !v.color || v.color.trim().toLowerCase() === (selectedColor || '').trim().toLowerCase()) &&
+          (!selectedSize || !v.size || v.size.trim().toLowerCase() === (selectedSize || '').trim().toLowerCase())
+      )
+    : null;
+
+  const currentStock = currentVariant !== null && currentVariant !== undefined
+    ? currentVariant.stock
+    : (hasVariants ? 0 : (product?.stock ?? 0));
+
+  const isOutOfStock = currentStock <= 0;
+
+  // Clamp quantity to available variant stock (ALWAYS called unconditionally on every render)
+  useEffect(() => {
+    if (currentStock > 0 && quantity > currentStock) {
+      setQuantity(currentStock);
+    } else if (quantity < 1 && currentStock > 0) {
+      setQuantity(1);
+    }
+  }, [currentStock, quantity]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-cream py-8 sm:py-12 animate-pulse">
@@ -160,22 +185,6 @@ const ProductDetail = () => {
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
 
-  // Variant matching with normalized string matching
-  const hasVariants = product.variants && product.variants.length > 0;
-  const currentVariant = hasVariants
-    ? product.variants.find(
-        (v) =>
-          (!selectedColor || !v.color || v.color.trim().toLowerCase() === selectedColor.trim().toLowerCase()) &&
-          (!selectedSize || !v.size || v.size.trim().toLowerCase() === selectedSize.trim().toLowerCase())
-      )
-    : null;
-
-  const currentStock = currentVariant !== null && currentVariant !== undefined
-    ? currentVariant.stock
-    : (hasVariants ? 0 : product.stock);
-
-  const isOutOfStock = currentStock <= 0;
-
   // Distinct colors and sizes for chips
   const allColors = hasVariants
     ? Array.from(new Set(product.variants.map((v) => v.color).filter(Boolean)))
@@ -184,15 +193,6 @@ const ProductDetail = () => {
   const allSizes = hasVariants
     ? Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean)))
     : product.sizes || [];
-
-  // Clamp quantity to available variant stock
-  useEffect(() => {
-    if (currentStock > 0 && quantity > currentStock) {
-      setQuantity(currentStock);
-    } else if (quantity < 1 && currentStock > 0) {
-      setQuantity(1);
-    }
-  }, [currentStock, quantity]);
 
   const handleAddToCart = () => {
     if (isOutOfStock || isProcessing || added) return;
