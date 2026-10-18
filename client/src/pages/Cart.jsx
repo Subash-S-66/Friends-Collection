@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   HiOutlineShoppingBag,
@@ -6,11 +6,13 @@ import {
   HiPlus,
   HiMinus,
   HiArrowRight,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlineBell
 } from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import NotifyModal from '../components/NotifyModal';
 
 const Cart = () => {
   const {
@@ -26,6 +28,10 @@ const Cart = () => {
     refreshCartStock
   } = useCart();
   const { confirm } = useConfirm();
+  const [notifyModalState, setNotifyModalState] = useState({
+    isOpen: false,
+    item: null
+  });
 
   const handleRemoveWithConfirm = async (index, item) => {
     const ok = await confirm({
@@ -193,16 +199,27 @@ const Cart = () => {
                       )}
                     </div>
 
-                    {/* Quantity or Remove */}
+                    {/* Quantity or Out of Stock Actions */}
                     <div className="flex items-center gap-6">
                       {isSoldOut ? (
-                        <button
-                          onClick={() => handleRemoveWithConfirm(index, item)}
-                          className="px-3 py-1.5 rounded-xl border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <HiOutlineTrash className="w-4 h-4" />
-                          <span>Remove</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleRemoveWithConfirm(index, item)}
+                            className="px-3 py-1.5 rounded-xl border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Remove unavailable item"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                            <span>Remove</span>
+                          </button>
+                          <button
+                            onClick={() => setNotifyModalState({ isOpen: true, item })}
+                            className="px-3 py-1.5 rounded-xl bg-accent-100 hover:bg-accent-200 border border-accent-300 text-xs font-bold text-accent-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Notify me when restocked"
+                          >
+                            <HiOutlineBell className="w-4 h-4 text-accent-700" />
+                            <span>Notify Me</span>
+                          </button>
+                        </div>
                       ) : (
                         <div className="flex items-center border border-neutral-300 rounded-xl overflow-hidden bg-neutral-50">
                           <button
@@ -316,6 +333,16 @@ const Cart = () => {
           </div>
         </div>
       </div>
+      {/* Notify Me Modal for Waitlisting Out of Stock Items */}
+      {notifyModalState.isOpen && notifyModalState.item && (
+        <NotifyModal
+          isOpen={notifyModalState.isOpen}
+          onClose={() => setNotifyModalState({ isOpen: false, item: null })}
+          product={notifyModalState.item}
+          selectedColor={notifyModalState.item.color || ''}
+          selectedSize={notifyModalState.item.size || ''}
+        />
+      )}
     </div>
   );
 };

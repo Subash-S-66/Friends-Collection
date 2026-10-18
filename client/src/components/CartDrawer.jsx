@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   HiOutlineX,
   HiPlus,
@@ -6,13 +6,15 @@ import {
   HiOutlineShoppingBag,
   HiArrowRight,
   HiOutlineExclamationCircle,
-  HiOutlineTrash
+  HiOutlineTrash,
+  HiOutlineBell
 } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import NotifyModal from './NotifyModal';
 
 const CartDrawer = () => {
   const {
@@ -29,6 +31,10 @@ const CartDrawer = () => {
     refreshCartStock
   } = useCart();
   const { confirm } = useConfirm();
+  const [notifyModalState, setNotifyModalState] = useState({
+    isOpen: false,
+    item: null
+  });
 
   const handleRemoveWithConfirm = async (index, item) => {
     const ok = await confirm({
@@ -50,6 +56,7 @@ const CartDrawer = () => {
 
 
   return (
+    <>
     <AnimatePresence>
       {isCartOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
@@ -237,16 +244,28 @@ const CartDrawer = () => {
                             )}
                           </div>
 
-                          {/* Quantity Selector or Remove Notice */}
+                          {/* Quantity Selector or Out of Stock Actions */}
                           <div className="flex items-center justify-between mt-2">
                             {isSoldOut ? (
-                              <button
-                                onClick={() => handleRemoveWithConfirm(index, item)}
-                                className="text-[11px] font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
-                              >
-                                <HiOutlineTrash className="w-3.5 h-3.5" />
-                                <span>Remove item</span>
-                              </button>
+                              <div className="flex items-center gap-2 mt-1">
+                                <button
+                                  onClick={() => handleRemoveWithConfirm(index, item)}
+                                  className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+                                  title="Remove item from bag"
+                                >
+                                  <HiOutlineTrash className="w-3.5 h-3.5" />
+                                  <span>Remove</span>
+                                </button>
+                                <span className="text-neutral-300">•</span>
+                                <button
+                                  onClick={() => setNotifyModalState({ isOpen: true, item })}
+                                  className="text-[11px] font-bold text-accent-700 hover:text-accent-900 hover:underline flex items-center gap-1 cursor-pointer"
+                                  title="Notify me when restocked"
+                                >
+                                  <HiOutlineBell className="w-3.5 h-3.5" />
+                                  <span>Notify Me</span>
+                                </button>
+                              </div>
                             ) : (
                               <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50">
                                 <button
@@ -339,6 +358,16 @@ const CartDrawer = () => {
         </div>
       )}
     </AnimatePresence>
+    {notifyModalState.isOpen && notifyModalState.item && (
+      <NotifyModal
+        isOpen={notifyModalState.isOpen}
+        onClose={() => setNotifyModalState({ isOpen: false, item: null })}
+        product={notifyModalState.item}
+        selectedColor={notifyModalState.item.color || ''}
+        selectedSize={notifyModalState.item.size || ''}
+      />
+    )}
+    </>
   );
 };
 

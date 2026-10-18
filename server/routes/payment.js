@@ -11,6 +11,7 @@ const StockReservation = require('../models/StockReservation');
 const { optionalAuth } = require('../middleware/auth');
 const { orderLimiter } = require('../middleware/rateLimiter');
 const { getEffectiveAvailableStock } = require('../controllers/orderController');
+const { deductOrderStockAtomically, rollbackStockDeduction } = require('../utils/inventoryManager');
 
 // Helper to get Razorpay instance safely
 function getRazorpayInstance() {
@@ -292,56 +293,61 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
       });
     }
 
-    // 7. Atomically deduct stock from Product inventory
-    for (const item of draft.items) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.stock = Math.max(0, product.stock - item.quantity);
-        if (product.variants && product.variants.length > 0) {
-          const vIndex = product.variants.findIndex(
-            (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
-          );
-          if (vIndex >= 0) {
-            product.variants[vIndex].stock = Math.max(0, product.variants[vIndex].stock - item.quantity);
-          }
-        }
-        await product.save();
-      }
+    // 7. Atomically deduct stock from Product inventory with optimistic concurrency control (OCC)
+    const deduction = await deductOrderStockAtomically(draft.items);
+    if (!deduction.success) {
+      console.warn(`[STOCK RACE CONDITION] Payment ${razorpay_payment_id} succeeded, but stock deduction failed: ${deduction.error}`);
+      draft.status = 'failed';
+      draft.failureReason = deduction.error;
+      await draft.save();
+
+      return res.status(409).json({
+        success: false,
+        isOutOfStock: true,
+        message: deduction.error || 'This product was just purchased by another shopper and is now out of stock. If payment was debited, Razorpay will refund it automatically.',
+        failedItem: deduction.failedItem
+      });
     }
 
     // 8. Place official confirmed Order in Database
-    const order = await Order.create({
-      items: draft.items,
-      customer: draft.customer,
-      user: draft.user,
-      totalAmount: draft.totalAmount,
-      shippingCharge: draft.shippingCharge,
-      status: 'confirmed',
-      paymentStatus: 'paid',
-      paidAt: new Date(),
-      paymentMethod: 'razorpay',
-      paymentDetails: {
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-        razorpaySignature: razorpay_signature
-      },
-      tracking: {
-        statusHistory: [
-          {
-            status: 'yet_to_move',
-            message: 'Order received and payment verified via Razorpay.',
-            location: 'Jamalia Boutique, Chennai',
-            timestamp: new Date()
-          },
-          {
-            status: 'confirmed',
-            message: `Online payment of ₹${(draft.grandTotalPaise / 100).toLocaleString('en-IN')} verified (Payment ID: ${razorpay_payment_id}). Order confirmed automatically.`,
-            location: 'Razorpay Gateway',
-            timestamp: new Date()
-          }
-        ]
-      }
-    });
+    let order;
+    try {
+      order = await Order.create({
+        items: draft.items,
+        customer: draft.customer,
+        user: draft.user,
+        totalAmount: draft.totalAmount,
+        shippingCharge: draft.shippingCharge,
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        paidAt: new Date(),
+        paymentMethod: 'razorpay',
+        paymentDetails: {
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          razorpaySignature: razorpay_signature
+        },
+        tracking: {
+          statusHistory: [
+            {
+              status: 'yet_to_move',
+              message: 'Order received and payment verified via Razorpay.',
+              location: 'Jamalia Boutique, Chennai',
+              timestamp: new Date()
+            },
+            {
+              status: 'confirmed',
+              message: `Online payment of ₹${(draft.grandTotalPaise / 100).toLocaleString('en-IN')} verified (Payment ID: ${razorpay_payment_id}). Order confirmed automatically.`,
+              location: 'Razorpay Gateway',
+              timestamp: new Date()
+            }
+          ]
+        }
+      });
+    } catch (orderErr) {
+      await rollbackStockDeduction(deduction.deductedItems).catch(() => {});
+      throw orderErr;
+    }
 
     // 8.5 Immediately wipe user's cart in database so items never resurrect
     const cartUserId = order.user || draft.user || (req.user ? req.user._id : null);
@@ -491,75 +497,73 @@ router.post('/webhook', async (req, res) => {
           const draft = await PaymentDraft.findOne({ razorpayOrderId, status: 'pending' });
           if (draft) {
             // Deduct stock
-            for (const item of draft.items) {
-              const product = await Product.findById(item.product);
-              if (product) {
-                product.stock = Math.max(0, product.stock - item.quantity);
-                if (product.variants && product.variants.length > 0) {
-                  const vIndex = product.variants.findIndex(
-                    (v) => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
-                  );
-                  if (vIndex >= 0) {
-                    product.variants[vIndex].stock = Math.max(0, product.variants[vIndex].stock - item.quantity);
-                  }
-                }
-                await product.save();
-              }
-            }
-
-            // Create confirmed order
-            const webhookOrder = await Order.create({
-              items: draft.items,
-              customer: draft.customer,
-              user: draft.user,
-              totalAmount: draft.totalAmount,
-              shippingCharge: draft.shippingCharge,
-              status: 'confirmed',
-              paymentStatus: 'paid',
-              paidAt: new Date(),
-              paymentMethod: 'razorpay',
-              paymentDetails: {
-                razorpayOrderId,
-                razorpayPaymentId,
-                razorpaySignature: 'webhook_verified'
-              },
-              tracking: {
-                statusHistory: [
-                  {
-                    status: 'yet_to_move',
-                    message: 'Order received and payment verified via Razorpay Webhook.',
-                    location: 'Jamalia Boutique, Chennai',
-                    timestamp: new Date()
+            // Atomically deduct stock with OCC
+            const deduction = await deductOrderStockAtomically(draft.items);
+            if (deduction.success) {
+              try {
+                // Create confirmed order
+                const webhookOrder = await Order.create({
+                  items: draft.items,
+                  customer: draft.customer,
+                  user: draft.user,
+                  totalAmount: draft.totalAmount,
+                  shippingCharge: draft.shippingCharge,
+                  status: 'confirmed',
+                  paymentStatus: 'paid',
+                  paidAt: new Date(),
+                  paymentMethod: 'razorpay',
+                  paymentDetails: {
+                    razorpayOrderId,
+                    razorpayPaymentId,
+                    razorpaySignature: 'webhook_verified'
                   },
-                  {
-                    status: 'confirmed',
-                    message: `Payment confirmed via Razorpay Webhook (Payment ID: ${razorpayPaymentId}). Order confirmed automatically.`,
-                    location: 'Razorpay Webhook',
-                    timestamp: new Date()
+                  tracking: {
+                    statusHistory: [
+                      {
+                        status: 'yet_to_move',
+                        message: 'Order received and payment verified via Razorpay Webhook.',
+                        location: 'Jamalia Boutique, Chennai',
+                        timestamp: new Date()
+                      },
+                      {
+                        status: 'confirmed',
+                        message: `Payment confirmed via Razorpay Webhook (Payment ID: ${razorpayPaymentId}). Order confirmed automatically.`,
+                        location: 'Razorpay Webhook',
+                        timestamp: new Date()
+                      }
+                    ]
                   }
-                ]
+                });
+
+                if (draft.sessionId) {
+                  await StockReservation.updateMany(
+                    { sessionId: draft.sessionId, status: 'active' },
+                    { status: 'released' }
+                  );
+                }
+
+                if (draft.user) {
+                  await User.findByIdAndUpdate(draft.user, { $set: { cart: [] } }).catch(() => {});
+                }
+
+                draft.status = 'completed';
+                await draft.save();
+
+                // Dispatch confirmation email with PDF invoice
+                try {
+                  const { sendOrderConfirmationEmail } = require('../utils/emailService');
+                  sendOrderConfirmationEmail({ order: webhookOrder }).catch(() => {});
+                } catch (wMailErr) {}
+              } catch (orderErr) {
+                await rollbackStockDeduction(deduction.deductedItems).catch(() => {});
+                throw orderErr;
               }
-            });
-
-            if (draft.sessionId) {
-              await StockReservation.updateMany(
-                { sessionId: draft.sessionId, status: 'active' },
-                { status: 'released' }
-              );
+            } else {
+              console.error(`[WEBHOOK STOCK COLLISION] Stock exhausted for draft ${draft.razorpayOrderId}: ${deduction.error}`);
+              draft.status = 'failed';
+              draft.failureReason = deduction.error;
+              await draft.save();
             }
-
-            if (draft.user) {
-              await User.findByIdAndUpdate(draft.user, { $set: { cart: [] } }).catch(() => {});
-            }
-
-            draft.status = 'completed';
-            await draft.save();
-
-            // Dispatch confirmation email with PDF invoice
-            try {
-              const { sendOrderConfirmationEmail } = require('../utils/emailService');
-              sendOrderConfirmationEmail({ order: webhookOrder }).catch(() => {});
-            } catch (wMailErr) {}
           }
         }
       }

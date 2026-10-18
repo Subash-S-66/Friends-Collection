@@ -3,9 +3,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const StockReservation = require('../models/StockReservation');
 const User = require('../models/User');
-
-// Helper to normalize strings for robust variant size/color matching
-const norm = (s) => (s || '').toString().trim().toLowerCase();
+const { deductOrderStockAtomically, rollbackStockDeduction, norm } = require('../utils/inventoryManager');
 
 function getCourierTrackingUrl(courier, trackingNumber) {
   if (!trackingNumber) return '';
@@ -85,6 +83,7 @@ exports.getReservationStatus = async (req, res, next) => {
 // @desc    Place order (guest or logged-in)
 // @route   POST /api/orders
 exports.placeOrder = async (req, res, next) => {
+  let deductionResult = null;
   try {
     const { items, customer, shippingCharge = 0, sessionId } = req.body;
 
@@ -159,45 +158,42 @@ exports.placeOrder = async (req, res, next) => {
         quantity: item.quantity,
         image: (product.images && product.images[0]) || ''
       });
-
-      // Decrease stock by item.quantity (e.g. -1 for 1 item, -2 for 2 items)
-      product.stock = Math.max(0, product.stock - item.quantity);
-      if (product.variants && product.variants.length > 0) {
-        const itemSize = norm(item.size);
-        const itemColor = norm(item.color);
-        const vIndex = product.variants.findIndex(
-          (v) =>
-            (!itemSize || !v.size || norm(v.size) === itemSize || itemSize.startsWith(norm(v.size))) &&
-            (!itemColor || !v.color || norm(v.color) === itemColor)
-        );
-        if (vIndex >= 0) {
-          product.variants[vIndex].stock = Math.max(0, product.variants[vIndex].stock - item.quantity);
-        }
-      }
-      await product.save();
     }
 
-      // Attempt to link to user account if logged in or by matching phone/email
-      let orderUserId = req.user ? req.user._id : null;
-      if (!orderUserId) {
-        try {
-          const cleanPhone = customer.phone ? customer.phone.replace(/\s/g, '').replace(/^\+91/, '') : '';
-          const cleanEmail = customer.email ? customer.email.toLowerCase().trim() : '';
-          if (cleanPhone || cleanEmail) {
-            const matchUser = await User.findOne({
-              $or: [
-                ...(cleanPhone ? [{ phone: cleanPhone }, { phone: `+91${cleanPhone}` }] : []),
-                ...(cleanEmail ? [{ email: cleanEmail }] : [])
-              ]
-            });
-            if (matchUser) orderUserId = matchUser._id;
-          }
-        } catch (linkErr) {
-          console.error('Error linking user on order create:', linkErr);
-        }
-      }
+    // Atomically deduct inventory with optimistic concurrency control (OCC).
+    // Eliminates race conditions so 2 shoppers cannot purchase the final stock concurrently (Amazon & Flipkart style).
+    deductionResult = await deductOrderStockAtomically(items);
+    if (!deductionResult.success) {
+      return res.status(409).json({
+        message: deductionResult.error,
+        isOutOfStock: true,
+        failedItem: deductionResult.failedItem
+      });
+    }
 
-      const order = await Order.create({
+    // Attempt to link to user account if logged in or by matching phone/email
+    let orderUserId = req.user ? req.user._id : null;
+    if (!orderUserId) {
+      try {
+        const cleanPhone = customer.phone ? customer.phone.replace(/\s/g, '').replace(/^\+91/, '') : '';
+        const cleanEmail = customer.email ? customer.email.toLowerCase().trim() : '';
+        if (cleanPhone || cleanEmail) {
+          const matchUser = await User.findOne({
+            $or: [
+              ...(cleanPhone ? [{ phone: cleanPhone }, { phone: `+91${cleanPhone}` }] : []),
+              ...(cleanEmail ? [{ email: cleanEmail }] : [])
+            ]
+          });
+          if (matchUser) orderUserId = matchUser._id;
+        }
+      } catch (linkErr) {
+        console.error('Error linking user on order create:', linkErr);
+      }
+    }
+
+    let order;
+    try {
+      order = await Order.create({
         items: orderItems,
         customer,
         user: orderUserId,
@@ -216,6 +212,10 @@ exports.placeOrder = async (req, res, next) => {
           }]
         }
       });
+    } catch (createErr) {
+      await rollbackStockDeduction(deductionResult.deductedItems).catch(() => {});
+      throw createErr;
+    }
 
     // Auto-save address to user profile if user is logged in and opted to save
     if (req.user && req.body.saveAddress) {
@@ -294,6 +294,9 @@ exports.placeOrder = async (req, res, next) => {
 
     res.status(201).json(order);
   } catch (error) {
+    if (deductionResult?.success && deductionResult?.deductedItems) {
+      await rollbackStockDeduction(deductionResult.deductedItems).catch(() => {});
+    }
     next(error);
   }
 };

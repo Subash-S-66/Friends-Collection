@@ -67,7 +67,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
     setLoading(true);
     try {
       const res = await API.post('/notifications/subscribe', {
-        productId: product._id,
+        productId: product._id || product.product || product.id,
         color: selectedColor || '',
         size: selectedSize || '',
         email: targetEmail,
@@ -99,7 +99,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
       setLoading(true);
       try {
         const res = await API.post('/notifications/subscribe', {
-          productId: product._id,
+          productId: product._id || product.product || product.id,
           color: selectedColor || '',
           size: selectedSize || '',
           email: googleUser.email,
@@ -167,7 +167,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
         <div className="my-4 p-3 rounded-2xl bg-cream border border-accent-200/60 flex items-center gap-3">
           <div className="w-14 h-16 rounded-xl overflow-hidden bg-neutral-200 shrink-0">
             <img
-              src={getImageUrl(product.images?.[0])}
+              src={getImageUrl(product.images?.[0] || product.image)}
               alt={product.title}
               onError={handleImageError}
               className="w-full h-full object-cover"

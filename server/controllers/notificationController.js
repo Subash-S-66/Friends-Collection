@@ -142,9 +142,8 @@ exports.notifyWaitlistedCustomers = async (productId, color = '', size = '') => 
           product,
           variant: sub.variant
         });
-        sub.notified = true;
-        sub.notifiedAt = new Date();
-        await sub.save();
+        // Clear request completely after notifying once so it never re-sends even if stock cycles
+        await NotificationSubscription.findByIdAndDelete(sub._id);
         successCount++;
       } catch (err) {
         console.error(`Failed to send alert to ${sub.email}:`, err.message);
