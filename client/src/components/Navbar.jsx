@@ -343,98 +343,164 @@ const Navbar = () => {
           >
             <div className="bg-white border-b-2 border-accent-200 shadow-2xl transition-all">
               <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Mega Menu Top Strip */}
-                <div className="flex items-center justify-between pb-4 mb-6 border-b border-neutral-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-accent-700">
-                      {activeMegaMenu === 'women'
-                        ? "Women's Fashion & Ethnic Studio"
-                        : activeMegaMenu === 'men'
-                        ? "Men's Sartorial & Traditional Studio"
-                        : "Kids' Festive & Playful Studio"}
-                    </span>
-                  </div>
-                  <Link
-                    to={`/shop?gender=${activeMegaMenu}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent-700 transition-colors group"
-                  >
-                    <span>View All {activeMegaMenu === 'women' ? "Women's" : activeMegaMenu === 'men' ? "Men's" : "Kids'"} Collection</span>
-                    <HiOutlineArrowNarrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
+                {/* Mega Menu Content */}
+                {(() => {
+                  const currentGenderCats =
+                    activeMegaMenu === 'women'
+                      ? womenCategories
+                      : activeMegaMenu === 'men'
+                      ? menCategories
+                      : kidsCategories;
 
-                {/* Columns Grid: Categories & Their Varieties/Types */}
-                <div className="grid grid-cols-5 xl:grid-cols-6 gap-6 items-start">
-                  {(activeMegaMenu === 'women' ? womenCategories : activeMegaMenu === 'men' ? menCategories : kidsCategories).map((cat) => (
-                    <div key={cat._id || cat.slug} className="space-y-3">
-                      {/* Column Header: Category */}
-                      <Link
-                        to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
-                        className="group flex items-center justify-between text-sm font-bold text-neutral-900 hover:text-primary transition-colors pb-1 border-b-2 border-transparent hover:border-accent-400"
-                      >
-                        <span className="font-serif tracking-tight">{cat.name}</span>
-                        <HiOutlineChevronRight className="w-3.5 h-3.5 text-neutral-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                      </Link>
+                  // Adaptive Responsive:
+                  // On lg (1024px-1279px): show max 4 category columns
+                  // On xl (1280px+): show max 5 category columns + 1 spotlight card
+                  const displayedCats = currentGenderCats.slice(0, 5);
 
-                      {/* Subcategory Types List */}
-                      <ul className="space-y-1.5">
-                        {cat.subcategories && cat.subcategories.length > 0 ? (
-                          cat.subcategories.map((sub) => (
-                            <li key={sub._id || sub.slug}>
-                              <Link
-                                to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}&subcategory=${sub.slug}`}
-                                className="group flex items-center text-xs font-medium text-neutral-600 hover:text-primary hover:translate-x-1 transition-all py-1"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-accent-300 opacity-0 group-hover:opacity-100 mr-1.5 transition-opacity" />
-                                <span>{sub.name}</span>
-                              </Link>
-                            </li>
-                          ))
-                        ) : (
-                          <li>
-                            <Link
-                              to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
-                              className="text-xs font-medium text-neutral-400 hover:text-primary py-1 block"
-                            >
-                              Explore {cat.name}
-                            </Link>
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  ))}
-
-                  {/* Mega Menu Spotlight Card (Like Flipkart Fashion Promotions) */}
-                  <div className="col-span-1 hidden xl:block">
-                    <div className="bg-gradient-to-br from-cream to-accent-100/70 p-4 rounded-2xl border border-accent-200 shadow-xs relative overflow-hidden">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
-                        <HiOutlineSparkles className="w-3.5 h-3.5 text-accent-600" />
-                        <span>Curated Spotlight</span>
+                  return (
+                    <>
+                      {/* Mega Menu Top Strip */}
+                      <div className="flex items-center justify-between pb-4 mb-6 border-b border-neutral-100">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-accent-700">
+                            {activeMegaMenu === 'women'
+                              ? "Women's Fashion & Ethnic Studio"
+                              : activeMegaMenu === 'men'
+                              ? "Men's Sartorial & Traditional Studio"
+                              : "Kids' Festive & Playful Studio"}
+                          </span>
+                        </div>
+                        <Link
+                          to={`/shop?gender=${activeMegaMenu}`}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent-700 transition-colors group"
+                        >
+                          <span>
+                            View Entire {activeMegaMenu === 'women' ? "Women's" : activeMegaMenu === 'men' ? "Men's" : "Kids'"} Collection
+                            {currentGenderCats.length > 0 && ` (${currentGenderCats.length} Categories)`}
+                          </span>
+                          <HiOutlineArrowNarrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </Link>
                       </div>
-                      <h4 className="font-serif font-bold text-sm text-neutral-900 leading-snug mb-1">
-                        {activeMegaMenu === 'women'
-                          ? 'Pure Kanchipuram & Banarasi Silks'
-                          : activeMegaMenu === 'men'
-                          ? 'Handwoven Linens & Festive Raw Silks'
-                          : 'Adorable Ethnic Pattu & Festive Sets'}
-                      </h4>
-                      <p className="text-[11px] text-neutral-600 leading-relaxed mb-3">
-                        {activeMegaMenu === 'women'
-                          ? 'Authentic zari craftsmanship from royal weavers of Tamil Nadu.'
-                          : activeMegaMenu === 'men'
-                          ? 'Structured breathable comfort tailored for weddings & celebrations.'
-                          : 'Skin-friendly fabrics tailored for tender comfort and vibrant celebrations.'}
-                      </p>
-                      <Link
-                        to={`/shop?gender=${activeMegaMenu}&tag=trending`}
-                        className="inline-flex items-center justify-center w-full py-2 px-3 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-light transition-all shadow-xs"
-                      >
-                        Explore Trending
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+
+                      {/* Columns Grid: Categories & Their Varieties/Types */}
+                      <div className="grid grid-cols-4 xl:grid-cols-6 gap-6 items-start">
+                        {displayedCats.map((cat, idx) => {
+                          const visibleSubs = (cat.subcategories || []).slice(0, 4);
+                          const remainingSubs = (cat.subcategories || []).length - visibleSubs.length;
+
+                          return (
+                            <div
+                              key={cat._id || cat.slug}
+                              className={`space-y-3 ${idx === 4 ? 'hidden xl:block' : ''}`}
+                            >
+                              {/* Column Header: Category */}
+                              <Link
+                                to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
+                                className="group flex items-center justify-between text-sm font-bold text-neutral-900 hover:text-primary transition-colors pb-1 border-b-2 border-transparent hover:border-accent-400"
+                              >
+                                <span className="font-serif tracking-tight truncate">{cat.name}</span>
+                                <HiOutlineChevronRight className="w-3.5 h-3.5 text-neutral-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                              </Link>
+
+                              {/* Subcategory Types List (Capped at 4 for a clean, non-cluttered layout) */}
+                              <ul className="space-y-1.5">
+                                {visibleSubs.length > 0 ? (
+                                  <>
+                                    {visibleSubs.map((sub) => (
+                                      <li key={sub._id || sub.slug}>
+                                        <Link
+                                          to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}&subcategory=${sub.slug}`}
+                                          className="group flex items-center text-xs font-medium text-neutral-600 hover:text-primary hover:translate-x-1 transition-all py-1 truncate"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-accent-300 opacity-0 group-hover:opacity-100 mr-1.5 transition-opacity shrink-0" />
+                                          <span className="truncate">{sub.name}</span>
+                                        </Link>
+                                      </li>
+                                    ))}
+                                    {remainingSubs > 0 ? (
+                                      <li>
+                                        <Link
+                                          to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
+                                          className="inline-flex items-center gap-1 text-[11px] font-bold text-accent-700 hover:text-primary pt-0.5 hover:underline"
+                                        >
+                                          <span>+ {remainingSubs} more types</span>
+                                          <HiOutlineArrowNarrowRight className="w-3 h-3" />
+                                        </Link>
+                                      </li>
+                                    ) : (
+                                      <li>
+                                        <Link
+                                          to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
+                                          className="text-[11px] font-semibold text-neutral-400 hover:text-primary pt-0.5 block hover:underline"
+                                        >
+                                          View all {cat.name} →
+                                        </Link>
+                                      </li>
+                                    )}
+                                  </>
+                                ) : (
+                                  <li>
+                                    <Link
+                                      to={`/shop?gender=${activeMegaMenu}&category=${cat.slug}`}
+                                      className="text-xs font-medium text-neutral-400 hover:text-primary py-1 block"
+                                    >
+                                      Explore {cat.name}
+                                    </Link>
+                                  </li>
+                                )}
+                              </ul>
+                            </div>
+                          );
+                        })}
+
+                        {/* Mega Menu Spotlight Card (Promotional highlight on xl) */}
+                        <div className="col-span-1 hidden xl:block">
+                          <div className="bg-gradient-to-br from-cream to-accent-100/70 p-4 rounded-2xl border border-accent-200 shadow-xs relative overflow-hidden">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
+                              <HiOutlineSparkles className="w-3.5 h-3.5 text-accent-600" />
+                              <span>Curated Spotlight</span>
+                            </div>
+                            <h4 className="font-serif font-bold text-sm text-neutral-900 leading-snug mb-1">
+                              {activeMegaMenu === 'women'
+                                ? 'Pure Kanchipuram & Banarasi Silks'
+                                : activeMegaMenu === 'men'
+                                ? 'Handwoven Linens & Festive Raw Silks'
+                                : 'Adorable Ethnic Pattu & Festive Sets'}
+                            </h4>
+                            <p className="text-[11px] text-neutral-600 leading-relaxed mb-3">
+                              {activeMegaMenu === 'women'
+                                ? 'Authentic zari craftsmanship from royal weavers of Tamil Nadu.'
+                                : activeMegaMenu === 'men'
+                                ? 'Structured breathable comfort tailored for weddings & celebrations.'
+                                : 'Skin-friendly fabrics tailored for tender comfort and vibrant celebrations.'}
+                            </p>
+                            <Link
+                              to={`/shop?gender=${activeMegaMenu}&tag=trending`}
+                              className="inline-flex items-center justify-center w-full py-2 px-3 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-light transition-all shadow-xs"
+                            >
+                              Explore Trending
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Banner */}
+                      <div className="mt-6 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+                        <span className="hidden sm:inline">
+                          ✨ Discover 100% authentic designer handlooms & ready-to-wear collections
+                        </span>
+                        <Link
+                          to={`/shop?gender=${activeMegaMenu}`}
+                          className="font-bold text-primary hover:text-accent-700 ml-auto flex items-center gap-1 hover:underline"
+                        >
+                          <span>Explore Full {activeMegaMenu === 'women' ? "Women's" : activeMegaMenu === 'men' ? "Men's" : "Kids'"} Catalog</span>
+                          <HiOutlineArrowNarrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
