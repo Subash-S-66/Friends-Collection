@@ -70,12 +70,24 @@ exports.register = async (req, res, next) => {
     const redirectParam = req.body.redirect ? `&redirect=${encodeURIComponent(req.body.redirect)}` : '';
     const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}${redirectParam}`;
 
-    await sendAccountVerificationEmail({
-      to: cleanEmail,
-      token,
-      verifyUrl,
-      name: name.trim()
-    });
+    try {
+      await sendAccountVerificationEmail({
+        to: cleanEmail,
+        token,
+        verifyUrl,
+        name: name.trim()
+      });
+    } catch (mailError) {
+      console.error('Mail dispatch warning during registration:', mailError.message);
+      return res.status(200).json({
+        requireVerification: true,
+        mailDeliveryWarning: true,
+        message: `Account created! However, our mail dispatch server had a temporary issue sending to ${cleanEmail}. Please check your spam folder, enter your code below, or contact us on WhatsApp (+91 95007 57024).`,
+        email: cleanEmail,
+        name: name.trim(),
+        debugCode: process.env.NODE_ENV === 'development' ? token : undefined
+      });
+    }
 
     res.status(200).json({
       requireVerification: true,
@@ -442,12 +454,20 @@ exports.resendVerification = async (req, res, next) => {
     const redirectParam = req.body.redirect ? `&redirect=${encodeURIComponent(req.body.redirect)}` : '';
     const verifyUrl = `${clientUrl}/verify-email?token=${token}&email=${encodeURIComponent(cleanEmail)}${redirectParam}`;
 
-    await sendAccountVerificationEmail({
-      to: cleanEmail,
-      token,
-      verifyUrl,
-      name: user.name
-    });
+    try {
+      await sendAccountVerificationEmail({
+        to: cleanEmail,
+        token,
+        verifyUrl,
+        name: user.name
+      });
+    } catch (mailError) {
+      console.error('Mail dispatch error during resend:', mailError.message);
+      return res.status(502).json({
+        isMailError: true,
+        message: `Unable to dispatch email to ${cleanEmail} right now. Please check your spam folder or contact us directly on WhatsApp (+91 95007 57024) for instant assistance.`
+      });
+    }
 
     res.json({
       success: true,
@@ -486,11 +506,19 @@ exports.forgotPasswordRequest = async (req, res, next) => {
       expiresAt
     });
 
-    await sendForgotPasswordOtpEmail({
-      to: cleanEmail,
-      token,
-      name: user.name
-    });
+    try {
+      await sendForgotPasswordOtpEmail({
+        to: cleanEmail,
+        token,
+        name: user.name
+      });
+    } catch (mailError) {
+      console.error('Mail dispatch error during forgot password:', mailError.message);
+      return res.status(502).json({
+        isMailError: true,
+        message: `Could not send password reset OTP to ${cleanEmail} due to a temporary mail server issue. Please connect with our team on WhatsApp (+91 95007 57024) for immediate recovery.`
+      });
+    }
 
     res.json({
       success: true,

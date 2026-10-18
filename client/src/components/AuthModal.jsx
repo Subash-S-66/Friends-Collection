@@ -17,6 +17,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import GoogleAuthButton from './GoogleAuthButton';
 
 const AuthModal = () => {
@@ -37,6 +38,7 @@ const AuthModal = () => {
     user
   } = useAuth();
 
+  const { showMailErrorAlert, showRateLimitAlert } = useAlert();
   const navigate = useNavigate();
 
   // Mode: 'login' | 'register' | 'forgot' | 'verify-email'
@@ -139,7 +141,11 @@ const AuthModal = () => {
       toast.success(res.message || '6-digit code sent to your email!', { icon: '📬' });
       setTokenStep('verify');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to dispatch code');
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(err.response?.data?.message, loginEmail.trim().toLowerCase());
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to dispatch code');
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -197,9 +203,17 @@ const AuthModal = () => {
 
       setVerifyEmail(regEmail.trim().toLowerCase());
       switchAuthMode('verify-email');
-      toast.success('Account created! Verification token sent to your email.', { icon: '📬' });
+      if (res?.mailDeliveryWarning) {
+        showMailErrorAlert(res.message, regEmail.trim().toLowerCase());
+      } else {
+        toast.success('Account created! Verification token sent to your email.', { icon: '📬' });
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(err.response?.data?.message, regEmail.trim().toLowerCase());
+      } else {
+        toast.error(err.response?.data?.message || 'Registration failed');
+      }
     } finally {
       setRegLoading(false);
     }
@@ -269,7 +283,11 @@ const AuthModal = () => {
         });
       }, 1000);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resend verification code');
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(err.response?.data?.message, verifyEmail);
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to resend verification code');
+      }
     } finally {
       setVerifyLoading(false);
     }
@@ -288,7 +306,11 @@ const AuthModal = () => {
       toast.success(res.message || 'Password reset OTP dispatched!', { icon: '📬' });
       setForgotStep('verify');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send reset code');
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(err.response?.data?.message, forgotEmail.trim().toLowerCase());
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to send reset code');
+      }
     } finally {
       setForgotLoading(false);
     }

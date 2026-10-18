@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineUser, HiOutlineMail, HiOutlinePhone, HiOutlineLockClosed, HiArrowRight } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const Register = () => {
@@ -17,6 +18,7 @@ const Register = () => {
   const [errorMsg, setErrorMsg] = useState('');
 
   const { register } = useAuth();
+  const { showMailErrorAlert } = useAlert();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -55,7 +57,11 @@ const Register = () => {
       });
 
       if (res?.requireVerification) {
-        toast.success(res.message || 'Verification token dispatched to your email!', { icon: '📬' });
+        if (res.mailDeliveryWarning) {
+          showMailErrorAlert(res.message, formData.email.trim());
+        } else {
+          toast.success(res.message || 'Verification token dispatched to your email!', { icon: '📬' });
+        }
         const redirectParam = new URLSearchParams(window.location.search).get('redirect');
         navigate(`/verify-email?email=${encodeURIComponent(formData.email.trim())}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`);
       } else {
@@ -67,7 +73,11 @@ const Register = () => {
       console.error('Registration error:', err);
       const msg = err.response?.data?.message || 'Failed to create account. Please try again.';
       setErrorMsg(msg);
-      toast.error(msg);
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(msg, formData.email.trim());
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }

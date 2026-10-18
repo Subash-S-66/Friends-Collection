@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: Email, 2: OTP + New Password, 3: Success Animation
@@ -26,6 +27,7 @@ const ForgotPassword = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const { forgotPasswordRequest, forgotPasswordVerify } = useAuth();
+  const { showMailErrorAlert } = useAlert();
   const navigate = useNavigate();
 
   // Step 1: Dispatch OTP to email
@@ -47,7 +49,11 @@ const ForgotPassword = () => {
       console.error('Forgot password request error:', err);
       const msg = err.response?.data?.message || 'Failed to dispatch reset code. Please check your email address.';
       setErrorMsg(msg);
-      toast.error(msg);
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(msg, email);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -113,7 +119,11 @@ const ForgotPassword = () => {
     } catch (err) {
       const msg = err.response?.data?.message || 'Could not resend code. Try again later.';
       setErrorMsg(msg);
-      toast.error(msg);
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(msg, email);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }

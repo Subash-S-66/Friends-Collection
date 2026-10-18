@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
@@ -29,6 +30,7 @@ const VerifyEmail = () => {
   const [verifiedUser, setVerifiedUser] = useState(null);
 
   const { verifyEmailToken, resendVerification } = useAuth();
+  const { showMailErrorAlert } = useAlert();
   const navigate = useNavigate();
   const autoVerifiedRef = useRef(false);
 
@@ -124,7 +126,11 @@ const VerifyEmail = () => {
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend code';
       setErrorMsg(msg);
-      toast.error(msg);
+      if (err.response?.data?.isMailError) {
+        showMailErrorAlert(msg, email);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
