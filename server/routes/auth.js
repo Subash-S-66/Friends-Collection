@@ -27,7 +27,7 @@ router.post('/register', authLimiter, [
 ], register);
 
 router.post('/login', authLimiter, [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email').trim().notEmpty().withMessage('Valid email or username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], login);
 

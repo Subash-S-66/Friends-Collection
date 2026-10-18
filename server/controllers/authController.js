@@ -97,15 +97,34 @@ exports.login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
-    const cleanEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: cleanEmail });
+    const loginIdentifier = (email || '').trim().toLowerCase();
 
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    // Check if input matches configured admin username or 'admin'
+    const adminUsernames = [
+      (process.env.ADMIN_USERNAME || 'admin').toLowerCase(),
+      'admin'
+    ];
+    const isAdminUsernameLogin = adminUsernames.includes(loginIdentifier);
+
+    let user;
+    if (isAdminUsernameLogin) {
+      const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+      user = await User.findOne({
+        $or: [
+          ...(adminEmail ? [{ email: adminEmail }] : []),
+          { role: 'admin' }
+        ]
+      });
+    } else {
+      user = await User.findOne({ email: loginIdentifier });
     }
 
-    // Check if user is explicitly unverified (local registration pending token confirmation)
-    if (user.isVerified === false) {
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({ message: 'Invalid email/username or password' });
+    }
+
+    // Check if user is explicitly unverified (local registration pending token confirmation; admins are always verified)
+    if (user.role !== 'admin' && user.isVerified === false) {
       return res.status(403).json({
         message: 'Please verify your email address to log in.',
         requireVerification: true,

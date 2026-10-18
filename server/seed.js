@@ -21,7 +21,8 @@ const seed = async () => {
         email: process.env.ADMIN_EMAIL,
         phone: process.env.BUSINESS_PHONE || '9500757024',
         password: process.env.ADMIN_PASSWORD,
-        role: 'admin'
+        role: 'admin',
+        isVerified: true
       });
       console.log('✅ Admin user created');
     } else {
