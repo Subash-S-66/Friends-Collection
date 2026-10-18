@@ -10,7 +10,8 @@ import {
   HiOutlineExternalLink,
   HiOutlineMenu,
   HiOutlineX,
-  HiOutlineMail
+  HiOutlineMail,
+  HiOutlineDocumentText
 } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -68,6 +69,7 @@ const AdminLayout = () => {
       title: 'STORE CONFIGURATION',
       items: [
         { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, shipping & copy' },
+        { name: 'Universal Tax Invoice', path: '/admin/settings?tab=invoice', icon: HiOutlineDocumentText, badge: 'Unified', desc: 'Customize invoice layout & details' },
       ],
     },
   ];
@@ -118,9 +120,13 @@ const AdminLayout = () => {
               </span>
               <div className="space-y-1">
                 {section.items.map((item) => {
-                  const isActive = item.exact
-                    ? location.pathname === item.path
-                    : location.pathname.startsWith(item.path);
+                  const [itemPath, itemQuery] = item.path.split('?');
+                  const currentQuery = location.search.replace(/^\?/, '');
+                  const isActive = itemQuery
+                    ? location.pathname === itemPath && currentQuery === itemQuery
+                    : item.exact
+                    ? location.pathname === itemPath && !currentQuery
+                    : location.pathname.startsWith(itemPath) && (!currentQuery || itemPath !== '/admin/settings');
                   const Icon = item.icon;
                   return (
                     <Link
