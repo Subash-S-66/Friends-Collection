@@ -1,10 +1,33 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineShoppingBag, HiOutlineTrash, HiPlus, HiMinus, HiArrowRight } from 'react-icons/hi';
+import {
+  HiOutlineShoppingBag,
+  HiOutlineTrash,
+  HiPlus,
+  HiMinus,
+  HiArrowRight,
+  HiOutlineExclamationCircle
+} from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const Cart = () => {
-  const { items, updateQuantity, removeItem, clearCart, totalItems, subtotal } = useCart();
+  const {
+    items,
+    availableItems,
+    outOfStockCount,
+    hasOutOfStockItems,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    totalItems,
+    subtotal,
+    refreshCartStock
+  } = useCart();
+
+  useEffect(() => {
+    refreshCartStock();
+  }, [refreshCartStock]);
 
   const freeShippingThreshold = 999;
   const isFreeShipping = subtotal >= freeShippingThreshold;
@@ -18,7 +41,9 @@ const Cart = () => {
           <div className="w-24 h-24 rounded-full bg-accent-100 text-accent-700 flex items-center justify-center mx-auto mb-6 shadow-inner">
             <HiOutlineShoppingBag className="w-12 h-12" />
           </div>
-          <h1 className="font-serif text-3xl font-bold text-neutral-900 mb-2">Your Shopping Bag is Empty</h1>
+          <h1 className="font-serif text-3xl font-bold text-neutral-900 mb-2">
+            Your Shopping Bag is Empty
+          </h1>
           <p className="text-sm text-neutral-600 mb-8 leading-relaxed">
             Looks like you haven&apos;t added any beautiful dresses yet. Explore our latest arrivals and seasonal trends!
           </p>
@@ -40,7 +65,9 @@ const Cart = () => {
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-accent-200/60">
           <div>
             <h1 className="font-serif text-3xl font-bold text-neutral-900">Your Shopping Bag</h1>
-            <p className="text-xs text-neutral-500 mt-0.5">{totalItems} {totalItems === 1 ? 'item' : 'items'} selected</p>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {totalItems} {totalItems === 1 ? 'available item' : 'available items'} in your bag
+            </p>
           </div>
           <button
             onClick={clearCart}
@@ -50,79 +77,147 @@ const Cart = () => {
           </button>
         </div>
 
+        {/* Amazon/Flipkart Alert if items are Out of Stock */}
+        {hasOutOfStockItems && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-xs text-amber-950">
+            <HiOutlineExclamationCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-sm block">
+                {outOfStockCount} {outOfStockCount === 1 ? 'item is' : 'items are'} currently out of stock
+              </span>
+              <p className="text-amber-800 mt-0.5">
+                These items are unavailable and have been automatically excluded from your order summary below.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Items List */}
           <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-6">
             <div className="divide-y divide-neutral-100">
-              {items.map((item, index) => (
-                <div key={`${item.product}-${item.size}-${index}`} className="py-6 first:pt-0 last:pb-0 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                  <img
-                    src={getImageUrl(item.image)}
-                    alt={item.title}
-                    onError={(e) => handleImageError(e, '/fallback-product.png')}
-                    className="w-24 h-32 object-cover object-top rounded-2xl border border-accent-100 bg-neutral-50 shrink-0"
-                  />
+              {items.map((item, index) => {
+                const isSoldOut =
+                  (item.stock !== undefined && item.stock <= 0) || item.isOutOfStock;
 
-                  <div className="flex-1 space-y-2">
-                    <Link
-                      to={`/product/${item.slug}`}
-                      className="font-serif text-lg font-bold text-neutral-900 hover:text-primary transition-colors block leading-tight"
-                    >
-                      {item.title}
-                    </Link>
-
-                    {(item.size || item.color) && (
-                      <p className="text-xs text-neutral-500">
-                        {item.size && <span className="font-semibold text-neutral-700">Size: {item.size}</span>}
-                        {item.size && item.color && ' • '}
-                        {item.color && <span>Color: {item.color}</span>}
-                      </p>
-                    )}
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-base font-bold text-primary">{formatPrice(item.price)}</span>
-                      {item.originalPrice && item.originalPrice > item.price && (
-                        <span className="text-xs text-neutral-400 line-through">
-                          {formatPrice(item.originalPrice)}
+                return (
+                  <div
+                    key={`${item.product}-${item.size}-${item.color}-${index}`}
+                    className={`py-6 first:pt-0 last:pb-0 flex flex-col sm:flex-row gap-5 items-start sm:items-center rounded-2xl p-3 transition-colors ${
+                      isSoldOut ? 'bg-red-50/50 border border-red-200' : ''
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={getImageUrl(item.image)}
+                        alt={item.title}
+                        onError={(e) => handleImageError(e, '/fallback-product.png')}
+                        className={`w-24 h-32 object-cover object-top rounded-2xl border border-accent-100 bg-neutral-50 ${
+                          isSoldOut ? 'grayscale-[40%] opacity-70' : ''
+                        }`}
+                      />
+                      {isSoldOut && (
+                        <span className="absolute bottom-1.5 left-1.5 right-1.5 bg-red-600 text-white text-[9px] font-black uppercase text-center rounded py-0.5 tracking-wider shadow-xs">
+                          Out of Stock
                         </span>
                       )}
                     </div>
-                  </div>
 
-                  {/* Quantity */}
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center border border-neutral-300 rounded-xl overflow-hidden bg-neutral-50">
-                      <button
-                        onClick={() => updateQuantity(index, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className="p-2 text-neutral-600 hover:bg-neutral-200 disabled:opacity-30"
+                    <div className="flex-1 space-y-2">
+                      <Link
+                        to={`/product/${item.slug}`}
+                        className={`font-serif text-lg font-bold hover:text-primary transition-colors block leading-tight ${
+                          isSoldOut ? 'text-neutral-500 line-through' : 'text-neutral-900'
+                        }`}
                       >
-                        <HiMinus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-3.5 text-xs font-bold text-neutral-900">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(index, item.quantity + 1)}
-                        disabled={item.stock && item.quantity >= item.stock}
-                        className="p-2 text-neutral-600 hover:bg-neutral-200 disabled:opacity-30"
-                      >
-                        <HiPlus className="w-3.5 h-3.5" />
-                      </button>
+                        {item.title}
+                      </Link>
+
+                      {(item.size || item.color) && (
+                        <p className="text-xs text-neutral-500">
+                          {item.size && (
+                            <span className="font-semibold text-neutral-700">Size: {item.size}</span>
+                          )}
+                          {item.size && item.color && ' • '}
+                          {item.color && <span>Color: {item.color}</span>}
+                        </p>
+                      )}
+
+                      {isSoldOut ? (
+                        <div className="text-xs">
+                          <span className="font-bold text-red-600 block">Currently Unavailable</span>
+                          <span className="text-[11px] text-neutral-400">
+                            Excluded from order total
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-base font-bold text-primary">
+                            {formatPrice(item.price)}
+                          </span>
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <span className="text-xs text-neutral-400 line-through">
+                              {formatPrice(item.originalPrice)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <span className="font-serif text-base font-bold text-neutral-900 min-w-20 text-right">
-                      {formatPrice(item.price * item.quantity)}
-                    </span>
+                    {/* Quantity or Remove */}
+                    <div className="flex items-center gap-6">
+                      {isSoldOut ? (
+                        <button
+                          onClick={() => removeItem(index)}
+                          className="px-3 py-1.5 rounded-xl border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+                        >
+                          <HiOutlineTrash className="w-4 h-4" />
+                          <span>Remove</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center border border-neutral-300 rounded-xl overflow-hidden bg-neutral-50">
+                          <button
+                            onClick={() => updateQuantity(index, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                            className="p-2 text-neutral-600 hover:bg-neutral-200 disabled:opacity-30"
+                          >
+                            <HiMinus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="px-3.5 text-xs font-bold text-neutral-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(index, item.quantity + 1)}
+                            disabled={item.stock && item.quantity >= item.stock}
+                            className="p-2 text-neutral-600 hover:bg-neutral-200 disabled:opacity-30"
+                          >
+                            <HiPlus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
 
-                    <button
-                      onClick={() => removeItem(index)}
-                      className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors"
-                      aria-label="Remove item"
-                    >
-                      <HiOutlineTrash className="w-5 h-5" />
-                    </button>
+                      <span
+                        className={`font-serif text-base font-bold min-w-20 text-right ${
+                          isSoldOut ? 'text-neutral-400 line-through' : 'text-neutral-900'
+                        }`}
+                      >
+                        {formatPrice(item.price * item.quantity)}
+                      </span>
+
+                      {!isSoldOut && (
+                        <button
+                          onClick={() => removeItem(index)}
+                          className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors"
+                          aria-label="Remove item"
+                          title="Remove item"
+                        >
+                          <HiOutlineTrash className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
@@ -141,7 +236,7 @@ const Cart = () => {
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between text-neutral-600">
-                <span>Subtotal ({totalItems} items)</span>
+                <span>Subtotal ({totalItems} in-stock {totalItems === 1 ? 'item' : 'items'})</span>
                 <span className="font-semibold text-neutral-900">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-neutral-600">
@@ -154,7 +249,7 @@ const Cart = () => {
                   )}
                 </span>
               </div>
-              {!isFreeShipping && (
+              {!isFreeShipping && subtotal > 0 && (
                 <p className="text-xs text-accent-700 bg-accent-50 p-2.5 rounded-xl border border-accent-200">
                   Add ₹{freeShippingThreshold - subtotal} more to qualify for <strong>FREE Delivery</strong>!
                 </p>
@@ -166,13 +261,25 @@ const Cart = () => {
             </div>
 
             <div className="space-y-3">
-              <Link
-                to="/checkout"
-                className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all transform hover:-translate-y-0.5"
-              >
-                <span>Proceed to Checkout</span>
-                <HiArrowRight className="w-4 h-4" />
-              </Link>
+              {availableItems.length === 0 ? (
+                <button
+                  disabled
+                  className="w-full py-4 px-6 rounded-2xl bg-neutral-300 text-neutral-500 font-bold text-sm cursor-not-allowed text-center"
+                >
+                  All items are out of stock
+                </button>
+              ) : (
+                <Link
+                  to="/checkout"
+                  className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all transform hover:-translate-y-0.5"
+                >
+                  <span>
+                    Proceed to Checkout ({availableItems.length}{' '}
+                    {availableItems.length === 1 ? 'item' : 'items'})
+                  </span>
+                  <HiArrowRight className="w-4 h-4" />
+                </Link>
+              )}
               <p className="text-[11px] text-neutral-400 text-center">
                 Guest checkout supported. Phone number is mandatory for delivery confirmation.
               </p>

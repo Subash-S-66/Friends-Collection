@@ -18,7 +18,7 @@ import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters'
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
+  const { items, availableItems, outOfStockCount, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
   const { user, updateUser } = useAuth();
 
   const [threshold, setThreshold] = useState(999);
@@ -55,12 +55,12 @@ const Checkout = () => {
   });
 
   const requestHold = async () => {
-    if (!items || items.length === 0) return;
+    if (!availableItems || availableItems.length === 0) return;
     setHoldState((prev) => ({ ...prev, loading: true, conflict: false }));
     try {
       const res = await API.post('/orders/reserve', {
         sessionId,
-        items: items.map((it) => ({
+        items: availableItems.map((it) => ({
           product: it.product,
           quantity: it.quantity,
           size: it.size || '',
@@ -93,10 +93,10 @@ const Checkout = () => {
   };
 
   useEffect(() => {
-    if (items.length > 0) {
+    if (availableItems.length > 0) {
       requestHold();
     }
-  }, [items.length]);
+  }, [availableItems.length]);
 
   // Live countdown timer for 10-minute hold
   useEffect(() => {
@@ -138,7 +138,7 @@ const Checkout = () => {
 
   // Pre-fill form from user account or saved guest address
   useEffect(() => {
-    if (items.length === 0) {
+    if (availableItems.length === 0) {
       navigate('/cart');
       return;
     }
@@ -276,7 +276,7 @@ const Checkout = () => {
 
       const orderPayload = {
         sessionId,
-        items: items.map((item) => ({
+        items: availableItems.map((item) => ({
           product: item.product,
           quantity: item.quantity,
           size: item.size || '',
@@ -718,13 +718,28 @@ const Checkout = () => {
             <h2 className="font-serif text-xl font-bold text-neutral-900 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <span>Order Summary</span>
               <span className="text-xs font-semibold text-accent-700 font-sans">
-                {items.length} {items.length === 1 ? 'Design' : 'Designs'}
+                {availableItems.length} {availableItems.length === 1 ? 'Design' : 'Designs'}
               </span>
             </h2>
 
+            {/* Out of Stock Notice */}
+            {outOfStockCount > 0 && (
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 flex items-start gap-2.5">
+                <HiOutlineExclamationCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">
+                    {outOfStockCount} {outOfStockCount === 1 ? 'item' : 'items'} out of stock
+                  </span>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    Excluded from your order and total. Only in-stock items are processed.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Items list preview */}
             <div className="max-h-64 overflow-y-auto divide-y divide-neutral-100 pr-1 space-y-3">
-              {items.map((item, idx) => (
+              {availableItems.map((item, idx) => (
                 <div key={idx} className="pt-3 first:pt-0 flex items-center gap-3.5">
                   <img
                     src={getImageUrl(item.image)}

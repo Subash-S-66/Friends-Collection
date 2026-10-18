@@ -21,14 +21,22 @@ const ProductCard = ({ product }) => {
     if (isAdding || added || isOutOfStock) return;
     setIsAdding(true);
 
-    // Pick first available variant or size
+    // Pick first available in-stock variant or size
     let defaultSize = '';
     let defaultColor = '';
     if (product.variants && product.variants.length > 0) {
-      const inStock = product.variants.find((v) => v.stock > 0) || product.variants[0];
+      const inStock = product.variants.find((v) => v.stock > 0);
+      if (!inStock) {
+        setNotifyOpen(true);
+        return;
+      }
       defaultSize = inStock.size || '';
       defaultColor = inStock.color || '';
     } else {
+      if (product.stock <= 0) {
+        setNotifyOpen(true);
+        return;
+      }
       defaultSize = product.sizes?.[0] || '';
       defaultColor = product.colors?.[0] || '';
     }
@@ -84,24 +92,22 @@ const ProductCard = ({ product }) => {
     >
       <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
         {/* Image Container with 3:4 Aspect Ratio Guard */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden bg-cream-dark">
+        <div className={`relative aspect-[3/4] w-full overflow-hidden bg-cream-dark ${isOutOfStock ? 'grayscale-[35%]' : ''}`}>
           <img
             src={getImageUrl(primaryImage, '/fallback-product-1.png')}
             alt={product.title}
             onError={(e) => handleImageError(e, '/fallback-product-1.png')}
             className={`w-full h-full object-cover object-top ${
-              hasHoverImage ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
-            } ${isOutOfStock ? 'grayscale-[35%] opacity-85' : ''}`}
+              hasHoverImage && !isOutOfStock ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
+            } ${isOutOfStock ? 'opacity-80' : ''}`}
             loading="lazy"
           />
-          {hasHoverImage && (
+          {hasHoverImage && !isOutOfStock && (
             <img
               src={getImageUrl(hoverImage, '/fallback-product-2.png')}
               alt={`${product.title} hover view`}
               onError={(e) => handleImageError(e, '/fallback-product-2.png')}
-              className={`absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 ${
-                isOutOfStock ? 'grayscale-[35%] opacity-85' : ''
-              }`}
+              className="absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 bg-white"
               loading="lazy"
             />
           )}

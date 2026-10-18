@@ -12,6 +12,19 @@ const addressSchema = new mongoose.Schema({
   isDefault: { type: Boolean, default: false }
 });
 
+const cartItemSchema = new mongoose.Schema({
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  title: { type: String, default: '' },
+  price: { type: Number, default: 0 },
+  originalPrice: { type: Number, default: 0 },
+  size: { type: String, default: '' },
+  color: { type: String, default: '' },
+  quantity: { type: Number, default: 1, min: 1 },
+  image: { type: String, default: '' },
+  slug: { type: String, default: '' },
+  stock: { type: Number, default: 99 }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -23,7 +36,8 @@ const userSchema = new mongoose.Schema({
   avatar: { type: String },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   isVerified: { type: Boolean, default: false },
-  savedAddresses: [addressSchema]
+  savedAddresses: [addressSchema],
+  cart: [cartItemSchema]
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {

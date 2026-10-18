@@ -123,6 +123,7 @@ app.use('/api/banners', require('./routes/banners'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/cart', require('./routes/cart'));
 
 // Health check
 app.get('/api/health', (req, res) => {
