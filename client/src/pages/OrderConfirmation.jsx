@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
-import { HiCheckCircle, HiOutlineShoppingBag, HiOutlineLocationMarker, HiOutlinePhone, HiArrowRight } from 'react-icons/hi';
+import { HiCheckCircle, HiOutlineShoppingBag, HiOutlineLocationMarker, HiOutlinePhone, HiArrowRight, HiOutlineDownload } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import InvoiceView from '../components/InvoiceView';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
   const location = useLocation();
   const [order, setOrder] = useState(location.state?.order || null);
   const [loading, setLoading] = useState(!order);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   useEffect(() => {
     if (!order && orderId) {
@@ -134,6 +136,17 @@ const OrderConfirmation = () => {
 
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            {order && (
+              <button
+                type="button"
+                onClick={() => setShowInvoice(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 font-bold text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
+              >
+                <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                <span>Download Tax Invoice</span>
+              </button>
+            )}
+
             <a
               href={`https://wa.me/919500757024?text=${whatsappMessage}`}
               target="_blank"
@@ -153,6 +166,15 @@ const OrderConfirmation = () => {
             </Link>
           </div>
         </div>
+
+        {/* Tax Invoice Modal */}
+        {order && (
+          <InvoiceView
+            order={order}
+            isOpen={showInvoice}
+            onClose={() => setShowInvoice(false)}
+          />
+        )}
       </div>
     </div>
   );

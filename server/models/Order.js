@@ -30,9 +30,16 @@ const orderSchema = new mongoose.Schema({
   shippingCharge: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
-    default: 'pending'
+    enum: ['pending', 'yet_to_move', 'confirmed', 'shipped', 'delivered', 'cancelled'],
+    default: 'yet_to_move'
   },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'payment_pending', 'paid', 'failed', 'refunded'],
+    default: 'payment_pending'
+  },
+  paidAt: { type: Date },
+  paymentNotes: { type: String, default: '' },
   notes: { type: String, default: '' },
   paymentMethod: { type: String, default: 'cod' },
   tracking: {
@@ -66,5 +73,6 @@ orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ 'customer.phone': 1 });
 orderSchema.index({ 'customer.email': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ paymentStatus: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

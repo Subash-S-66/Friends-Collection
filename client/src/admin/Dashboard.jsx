@@ -385,12 +385,12 @@ const Dashboard = () => {
                     <td className="py-4 px-6 font-bold text-neutral-900">
                       {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 space-y-1.5">
                       <select
-                        value={order.status}
+                        value={order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move')}
                         onChange={(e) => handleQuickStatusChange(order._id, e.target.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border focus:outline-none ${
-                          order.status === 'pending'
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer block ${
+                          order.status === 'pending' || order.status === 'yet_to_move'
                             ? 'bg-amber-50 text-amber-800 border-amber-300'
                             : order.status === 'confirmed'
                             ? 'bg-blue-50 text-blue-800 border-blue-300'
@@ -401,12 +401,21 @@ const Dashboard = () => {
                             : 'bg-red-50 text-red-800 border-red-300'
                         }`}
                       >
-                        <option value="pending">Pending</option>
+                        <option value="yet_to_move">Yet to Move</option>
                         <option value="confirmed">Confirmed</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          order.paymentStatus === 'paid'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}
+                      >
+                        {order.paymentStatus === 'paid' ? 'Paid' : 'Payment Pending'}
+                      </span>
                     </td>
                     <td className="py-4 px-6 text-neutral-500 whitespace-nowrap">
                       {new Date(order.createdAt).toLocaleDateString('en-IN', {

@@ -10,12 +10,16 @@ import {
   HiOutlineTruck,
   HiOutlineExternalLink,
   HiOutlineClipboardCopy,
-  HiOutlineCheckCircle
+  HiOutlineCheckCircle,
+  HiOutlinePrinter,
+  HiOutlineClock,
+  HiOutlineDownload
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import InvoiceView from '../components/InvoiceView';
 
 const COURIER_OPTIONS = [
   { value: 'Delhivery', label: 'Delhivery' },
@@ -34,6 +38,7 @@ const OrderManager = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,19 +46,25 @@ const OrderManager = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Tracking form states
-  const [modalStatus, setModalStatus] = useState('pending');
+  // Tracking & Status form states
+  const [modalStatus, setModalStatus] = useState('yet_to_move');
+  const [modalPaymentStatus, setModalPaymentStatus] = useState('payment_pending');
+  const [modalPaymentNotes, setModalPaymentNotes] = useState('');
   const [trackingCourier, setTrackingCourier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [trackingMessage, setTrackingMessage] = useState('');
 
+  // Invoice state
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedStatus !== 'all') params.append('status', selectedStatus);
+      if (selectedPaymentStatus !== 'all') params.append('paymentStatus', selectedPaymentStatus);
       if (searchTerm) params.append('search', searchTerm);
       params.append('page', page);
       params.append('limit', '15');
@@ -71,7 +82,7 @@ const OrderManager = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [selectedStatus, page]);
+  }, [selectedStatus, selectedPaymentStatus, page]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -81,7 +92,9 @@ const OrderManager = () => {
 
   const openOrderModal = (order) => {
     setSelectedOrder(order);
-    setModalStatus(order.status || 'pending');
+    setModalStatus(order.status || 'yet_to_move');
+    setModalPaymentStatus(order.paymentStatus || 'payment_pending');
+    setModalPaymentNotes(order.paymentNotes || '');
     setAdminNotes(order.notes || '');
     setTrackingCourier(order.tracking?.courier || '');
     setTrackingNumber(order.tracking?.trackingNumber || '');
@@ -95,7 +108,7 @@ const OrderManager = () => {
     setUpdatingStatus(true);
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { status: newStatus });
-      toast.success(`Order marked as ${newStatus}`);
+      toast.success(`Fulfillment status updated to ${newStatus.replace('_', ' ')}`);
       if (selectedOrder && selectedOrder._id === orderId) {
         setSelectedOrder(res.data);
       }
@@ -107,12 +120,31 @@ const OrderManager = () => {
     }
   };
 
+  const handleQuickPaymentUpdate = async (orderId, newPaymentStatus) => {
+    if (updatingStatus) return;
+    setUpdatingStatus(true);
+    try {
+      const res = await API.put(`/orders/admin/${orderId}/status`, { paymentStatus: newPaymentStatus });
+      toast.success(`Payment status marked as ${newPaymentStatus.replace('_', ' ')}`);
+      if (selectedOrder && selectedOrder._id === orderId) {
+        setSelectedOrder(res.data);
+      }
+      fetchOrders();
+    } catch {
+      toast.error('Failed to update payment status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleSaveTrackingAndStatus = async () => {
     if (!selectedOrder || updatingStatus) return;
     setUpdatingStatus(true);
     try {
       const payload = {
         status: modalStatus,
+        paymentStatus: modalPaymentStatus,
+        paymentNotes: modalPaymentNotes,
         notes: adminNotes,
         tracking: {
           courier: trackingCourier,
@@ -124,12 +156,12 @@ const OrderManager = () => {
       };
 
       const res = await API.put(`/orders/admin/${selectedOrder._id}/status`, payload);
-      toast.success('Tracking & Order status updated successfully!');
+      toast.success('Order status, payment & tracking saved successfully!');
       setSelectedOrder(res.data);
       fetchOrders();
     } catch (err) {
-      console.error('Failed to update tracking & status:', err);
-      toast.error(err.response?.data?.message || 'Failed to update tracking');
+      console.error('Failed to update order details:', err);
+      toast.error(err.response?.data?.message || 'Failed to update order details');
     } finally {
       setUpdatingStatus(false);
     }
@@ -143,17 +175,18 @@ const OrderManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-neutral-900">Order Management</h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Track customer orders, assign courier waybills, and update live shipment tracking
+            Update fulfillment (Yet to Move, Shipped, Delivered), manage payment statuses (Payment Pending, Paid), and generate invoices
           </p>
         </div>
 
         <button
           onClick={fetchOrders}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:text-primary transition-colors shadow-xs"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:text-primary transition-colors shadow-xs cursor-pointer"
         >
           <HiOutlineRefresh className="w-4 h-4" />
           <span>Refresh Orders</span>
@@ -161,91 +194,122 @@ const OrderManager = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-neutral-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Status Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto scrollbar-none pb-1 md:pb-0">
-          {[
-            { id: 'all', label: 'All Orders' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'confirmed', label: 'Confirmed' },
-            { id: 'shipped', label: 'Dispatched' },
-            { id: 'delivered', label: 'Delivered' },
-            { id: 'cancelled', label: 'Cancelled' },
-          ].map((st) => (
-            <button
-              key={st.id}
-              onClick={() => {
-                setSelectedStatus(st.id);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                selectedStatus === st.id
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-              }`}
-            >
-              {st.label}
-            </button>
-          ))}
-        </div>
+      <div className="bg-white rounded-3xl p-5 border border-accent-100 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Search Input */}
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
+            <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by Order ID, Name, Phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50/50"
+            />
+          </form>
 
-        {/* Search input */}
-        <form onSubmit={handleSearchSubmit} className="relative w-full md:w-72">
-          <HiOutlineSearch className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search phone, name, or Order ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50"
-          />
-        </form>
+          {/* Status Dropdowns */}
+          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+            
+            {/* Fulfillment Status Filter */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-neutral-500 font-semibold">Fulfillment:</span>
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-1.5 rounded-xl border border-neutral-300 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All Fulfillment</option>
+                <option value="pending">Yet to Move</option>
+                <option value="confirmed">Confirmed / Packed</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            {/* Payment Status Filter */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-neutral-500 font-semibold">Payment:</span>
+              <select
+                value={selectedPaymentStatus}
+                onChange={(e) => {
+                  setSelectedPaymentStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-1.5 rounded-xl border border-neutral-300 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All Payments</option>
+                <option value="payment_pending">Payment Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-3xl border border-neutral-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-3xl border border-accent-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-50 text-neutral-600 uppercase font-semibold border-b border-neutral-200">
+            <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-bold uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3.5 px-6">Order ID & Date</th>
                 <th className="py-3.5 px-6">Customer & Phone</th>
-                <th className="py-3.5 px-6">Tracking / Waybill</th>
-                <th className="py-3.5 px-6">Items & Size</th>
-                <th className="py-3.5 px-6">Total Amount</th>
-                <th className="py-3.5 px-6">Status</th>
+                <th className="py-3.5 px-6">Logistics / Courier</th>
+                <th className="py-3.5 px-6">Garments</th>
+                <th className="py-3.5 px-6">Total</th>
+                <th className="py-3.5 px-6">Payment Status</th>
+                <th className="py-3.5 px-6">Fulfillment Status</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 text-neutral-700">
+            <tbody className="divide-y divide-neutral-100">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-neutral-400">
+                  <td colSpan="8" className="py-12 text-center">
                     <div className="w-8 h-8 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
+                    <span className="text-xs text-neutral-400 mt-2 block">Loading customer orders...</span>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-neutral-400">
+                  <td colSpan="8" className="py-12 text-center text-neutral-400">
                     No matching orders found.
                   </td>
                 </tr>
               ) : (
                 orders.map((order) => {
                   const hasTracking = Boolean(order.tracking?.trackingNumber);
+                  const isPaid = order.paymentStatus === 'paid';
+                  const isYetToMove = order.status === 'yet_to_move' || order.status === 'pending';
+
                   return (
-                    <tr key={order._id} className="hover:bg-neutral-50/80 transition-colors">
-                      <td className="py-4 px-6">
-                        <span className="font-mono font-bold text-neutral-900 block">{order.orderId}</span>
+                    <tr key={order._id} className="hover:bg-cream-light/40 transition-colors">
+                      {/* Order ID & Date */}
+                      <td className="py-4 px-6 font-medium">
+                        <span className="font-mono font-bold text-neutral-900 block text-xs">{order.orderId}</span>
                         <span className="text-[11px] text-neutral-400">
-                          {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                          {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
                         </span>
                       </td>
+
+                      {/* Customer Info */}
                       <td className="py-4 px-6">
-                        <p className="font-bold text-neutral-900">{order.customer?.name}</p>
+                        <span className="font-bold text-neutral-900 block">{order.customer?.name}</span>
                         <a
                           href={`tel:+91${order.customer?.phone}`}
-                          className="text-neutral-500 hover:text-primary flex items-center gap-1 mt-0.5"
+                          className="text-neutral-500 hover:text-primary flex items-center gap-1 font-mono text-[11px]"
                         >
                           <HiOutlinePhone className="w-3.5 h-3.5 text-accent-700" />
                           +91 {order.customer?.phone}
@@ -253,7 +317,7 @@ const OrderManager = () => {
                         {order.customer?.secondaryPhone && (
                           <a
                             href={`tel:+91${order.customer.secondaryPhone}`}
-                            className="text-neutral-500 hover:text-primary flex items-center gap-1 mt-0.5 text-[11px]"
+                            className="text-neutral-500 hover:text-primary flex items-center gap-1 mt-0.5 text-[11px] font-mono"
                             title="Alternate / 2nd number"
                           >
                             <span className="text-accent-700 font-bold text-[10px]">2nd:</span>
@@ -261,6 +325,8 @@ const OrderManager = () => {
                           </a>
                         )}
                       </td>
+
+                      {/* Courier & Tracking */}
                       <td className="py-4 px-6">
                         {hasTracking ? (
                           <div className="space-y-0.5">
@@ -275,15 +341,17 @@ const OrderManager = () => {
                         ) : (
                           <button
                             onClick={() => openOrderModal(order)}
-                            className="text-[11px] text-accent-700 hover:underline flex items-center gap-1 font-semibold"
+                            className="text-[11px] text-accent-700 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                           >
                             <HiOutlineTruck className="w-3.5 h-3.5" />
                             + Add Tracking
                           </button>
                         )}
                       </td>
+
+                      {/* Garments Preview */}
                       <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {order.items?.map((item, idx) => (
                             <div key={idx} className="relative group/thumb">
                               <img
@@ -299,15 +367,39 @@ const OrderManager = () => {
                           ))}
                         </div>
                       </td>
+
+                      {/* Total */}
                       <td className="py-4 px-6 font-bold text-neutral-900">
                         {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
                       </td>
+
+                      {/* Payment Status Dropdown */}
                       <td className="py-4 px-6">
                         <select
-                          value={order.status}
+                          value={order.paymentStatus || 'payment_pending'}
+                          onChange={(e) => handleQuickPaymentUpdate(order._id, e.target.value)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                            isPaid
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : order.paymentStatus === 'failed'
+                              ? 'bg-red-50 text-red-800 border-red-300'
+                              : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}
+                        >
+                          <option value="payment_pending">Payment Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="failed">Failed</option>
+                          <option value="refunded">Refunded</option>
+                        </select>
+                      </td>
+
+                      {/* Fulfillment Status Dropdown */}
+                      <td className="py-4 px-6">
+                        <select
+                          value={order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move')}
                           onChange={(e) => handleQuickStatusUpdate(order._id, e.target.value)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border focus:outline-none ${
-                            order.status === 'pending'
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                            isYetToMove
                               ? 'bg-amber-50 text-amber-800 border-amber-300'
                               : order.status === 'confirmed'
                               ? 'bg-blue-50 text-blue-800 border-blue-300'
@@ -318,21 +410,34 @@ const OrderManager = () => {
                               : 'bg-red-50 text-red-800 border-red-300'
                           }`}
                         >
-                          <option value="pending">Pending</option>
+                          <option value="yet_to_move">Yet to Move</option>
                           <option value="confirmed">Confirmed</option>
                           <option value="shipped">Shipped</option>
                           <option value="delivered">Delivered</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </td>
+
+                      {/* Actions */}
                       <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => openOrderModal(order)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold transition-colors"
-                        >
-                          <HiOutlineEye className="w-4 h-4" />
-                          <span>Details</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setInvoiceOrder(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 font-bold text-[11px] transition-colors cursor-pointer"
+                            title="Print Tax Invoice"
+                          >
+                            <HiOutlinePrinter className="w-3.5 h-3.5" />
+                            <span>Invoice</span>
+                          </button>
+
+                          <button
+                            onClick={() => openOrderModal(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold transition-colors cursor-pointer text-[11px]"
+                          >
+                            <HiOutlineEye className="w-3.5 h-3.5" />
+                            <span>Details</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -348,7 +453,7 @@ const OrderManager = () => {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 rounded-lg border border-neutral-200 disabled:opacity-40"
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 disabled:opacity-40 cursor-pointer"
             >
               Previous
             </button>
@@ -356,7 +461,7 @@ const OrderManager = () => {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-neutral-200 disabled:opacity-40"
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 disabled:opacity-40 cursor-pointer"
             >
               Next
             </button>
@@ -364,10 +469,10 @@ const OrderManager = () => {
         )}
       </div>
 
-      {/* Order Details & Tracking Modal */}
+      {/* Order Details & Tracking Edit Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-accent-100">
             <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
               <div>
                 <span className="text-xs uppercase font-bold text-accent-700 tracking-wider">
@@ -376,13 +481,13 @@ const OrderManager = () => {
                 <div className="flex items-center gap-3 mt-0.5">
                   <h3 className="font-serif text-2xl font-bold text-neutral-900">{selectedOrder.orderId}</h3>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-neutral-100 text-neutral-700 border">
-                    {modalStatus}
+                    {modalStatus.replace('_', ' ')}
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors"
+                className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
               >
                 <HiOutlineX className="w-6 h-6" />
               </button>
@@ -420,9 +525,61 @@ const OrderManager = () => {
                   {selectedOrder.customer?.address?.city}, {selectedOrder.customer?.address?.state} -{' '}
                   <span className="font-bold">{selectedOrder.customer?.address?.pincode}</span>
                 </p>
-                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                  Cash on Delivery
+                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
+                  {selectedOrder.paymentMethod || 'COD'}
                 </span>
+              </div>
+            </div>
+
+            {/* Dual Status Settings (Payment & Fulfillment) */}
+            <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-4">
+              <strong className="text-xs uppercase font-bold text-neutral-700 block">Status Controls:</strong>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Fulfillment Status */}
+                <div>
+                  <label className="block font-bold text-neutral-800 mb-1">Fulfillment Status</label>
+                  <select
+                    value={modalStatus}
+                    onChange={(e) => setModalStatus(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                  >
+                    <option value="yet_to_move">Yet to Move</option>
+                    <option value="confirmed">Confirmed / Packed</option>
+                    <option value="shipped">Shipped / In Transit</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                {/* Payment Status */}
+                <div>
+                  <label className="block font-bold text-neutral-800 mb-1">Payment Status</label>
+                  <select
+                    value={modalPaymentStatus}
+                    onChange={(e) => setModalPaymentStatus(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                  >
+                    <option value="payment_pending">Payment Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Payment Notes */}
+              <div>
+                <label className="block font-bold text-neutral-700 mb-1 text-xs">
+                  Payment Reference / Notes <span className="font-normal text-neutral-400">(e.g. Paid via GPay / Collected in cash)</span>
+                </label>
+                <input
+                  type="text"
+                  value={modalPaymentNotes}
+                  onChange={(e) => setModalPaymentNotes(e.target.value)}
+                  placeholder="e.g. Cash collected on delivery by courier driver"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                />
               </div>
             </div>
 
@@ -482,7 +639,7 @@ const OrderManager = () => {
                       <button
                         type="button"
                         onClick={() => copyToClipboard(trackingNumber)}
-                        className="p-2 border border-neutral-300 bg-white hover:bg-neutral-100 rounded-xl text-neutral-600"
+                        className="p-2 border border-neutral-300 bg-white hover:bg-neutral-100 rounded-xl text-neutral-600 cursor-pointer"
                         title="Copy Tracking #"
                       >
                         <HiOutlineClipboardCopy className="w-4 h-4" />
@@ -521,7 +678,7 @@ const OrderManager = () => {
                         href={trackingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 border border-neutral-300 bg-white hover:bg-neutral-100 rounded-xl text-neutral-600"
+                        className="p-2 border border-neutral-300 bg-white hover:bg-neutral-100 rounded-xl text-neutral-600 cursor-pointer"
                         title="Open Tracking URL"
                       >
                         <HiOutlineExternalLink className="w-4 h-4" />
@@ -572,7 +729,7 @@ const OrderManager = () => {
 
             {/* Ordered Items */}
             <div className="space-y-3">
-              <strong className="text-xs uppercase font-bold text-neutral-500 block">Ordered Items:</strong>
+              <strong className="text-xs uppercase font-bold text-neutral-500 block">Ordered Garments:</strong>
               <div className="divide-y divide-neutral-100 border border-neutral-200 rounded-2xl p-4 bg-white">
                 {selectedOrder.items?.map((item, idx) => (
                   <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
@@ -598,44 +755,26 @@ const OrderManager = () => {
               </div>
             </div>
 
-            {/* Status & Save Actions */}
-            <div className="space-y-4 pt-2 border-t border-neutral-100">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-                <div>
-                  <span className="font-bold text-neutral-800 block text-xs">Fulfillment Status:</span>
-                  <span className="text-[11px] text-neutral-500">Select the order lifecycle status</span>
-                </div>
-                <select
-                  value={modalStatus}
-                  onChange={(e) => setModalStatus(e.target.value)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="shipped">Shipped / Dispatched</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
+            {/* Admin Notes */}
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">Internal Admin Notes</label>
+              <textarea
+                rows={2}
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="e.g. Customer requested evening delivery; verified address on call"
+                className="w-full p-3 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Internal Admin Notes</label>
-                <textarea
-                  rows={2}
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="e.g. Customer requested evening delivery; verified address on call"
-                  className="w-full p-3 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Action Buttons */}
+            <div className="pt-2 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   disabled={updatingStatus}
                   onClick={handleSaveTrackingAndStatus}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {updatingStatus ? (
                     <>
@@ -650,35 +789,53 @@ const OrderManager = () => {
                   )}
                 </button>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  {/* WhatsApp Notification with Live Tracking Link */}
-                  <a
-                    href={`https://wa.me/91${selectedOrder.customer?.phone}?text=${encodeURIComponent(
-                      `Dear ${selectedOrder.customer?.name},\n\nYour Friends Collections order #${selectedOrder.orderId} status is: ${modalStatus.toUpperCase()}.\n` +
-                      (trackingNumber ? `\n📦 Courier: ${trackingCourier || 'Direct Dispatch'}\nAWB / Tracking #: ${trackingNumber}\n` : '') +
-                      (estimatedDelivery ? `📅 Estimated Delivery: ${estimatedDelivery}\n` : '') +
-                      `\nYou can track your parcel live anytime here:\n${window.location.origin}/track?orderId=${selectedOrder.orderId}\n\nThank you for choosing Friends Collections!`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-xs"
-                  >
-                    <FaWhatsapp className="w-4 h-4" />
-                    <span>WhatsApp Tracking Alert</span>
-                  </a>
+                <button
+                  type="button"
+                  onClick={() => setInvoiceOrder(selectedOrder)}
+                  className="px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <HiOutlinePrinter className="w-4 h-4 text-accent-700" />
+                  <span>Invoice</span>
+                </button>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedOrder(null)}
-                    className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 text-xs font-semibold hover:bg-neutral-50"
-                  >
-                    Close
-                  </button>
-                </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {/* WhatsApp Notification with Live Tracking Link */}
+                <a
+                  href={`https://wa.me/91${selectedOrder.customer?.phone}?text=${encodeURIComponent(
+                    `Dear ${selectedOrder.customer?.name},\n\nYour Friends Collections order #${selectedOrder.orderId} status: ${modalStatus.replace('_', ' ').toUpperCase()} (Payment: ${modalPaymentStatus.replace('_', ' ').toUpperCase()}).\n` +
+                    (trackingNumber ? `\n📦 Courier: ${trackingCourier || 'Direct Dispatch'}\nAWB / Tracking #: ${trackingNumber}\n` : '') +
+                    (estimatedDelivery ? `📅 Estimated Delivery: ${estimatedDelivery}\n` : '') +
+                    `\nYou can track your parcel live anytime here:\n${window.location.origin}/track?orderId=${selectedOrder.orderId}\n\nThank you for choosing Friends Collections!`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-xs"
+                >
+                  <FaWhatsapp className="w-4 h-4" />
+                  <span>WhatsApp Alert</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrder(null)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tax Invoice Modal for Admin Printing */}
+      {invoiceOrder && (
+        <InvoiceView
+          order={invoiceOrder}
+          isOpen={Boolean(invoiceOrder)}
+          onClose={() => setInvoiceOrder(null)}
+        />
       )}
     </div>
   );

@@ -625,17 +625,9 @@ const CategoryManager = () => {
                           </div>
                         </td>
 
-                        {/* Action Buttons (Add Item, Add Sub, Edit, Delete) */}
+                        {/* Action Buttons (Add Sub, Edit, Delete) */}
                         <td className="py-3 px-4 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
-                            <Link
-                              to={`/admin/products?new=true&category=${cat._id}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-colors"
-                              title={`Add new dress item directly to "${cat.name}"`}
-                            >
-                              <HiOutlinePlus className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Add Item</span>
-                            </Link>
                             <Link
                               to={`/admin/products?category=${cat._id}`}
                               className="p-1.5 text-neutral-500 hover:text-primary hover:bg-neutral-100 rounded-lg transition-colors"
@@ -693,13 +685,6 @@ const CategoryManager = () => {
 
                               <div className="flex items-center gap-2">
                                 <Link
-                                  to={`/admin/products?new=true&category=${cat._id}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-all"
-                                >
-                                  <HiOutlinePlus className="w-3.5 h-3.5" />
-                                  <span>+ Add Item to {cat.name}</span>
-                                </Link>
-                                <Link
                                   to={`/admin/products?category=${cat._id}`}
                                   className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:text-primary transition-colors px-2.5 py-1.5"
                                 >
@@ -712,7 +697,7 @@ const CategoryManager = () => {
                             {catItems.length === 0 ? (
                               <div className="py-8 text-center text-xs text-neutral-400 bg-white rounded-2xl border border-neutral-200 shadow-2xs space-y-2">
                                 <p className="font-semibold text-neutral-700">No dresses added under &ldquo;{cat.name}&rdquo; yet.</p>
-                                <p className="text-[11px] text-neutral-400">Click &ldquo;+ Add Item to {cat.name}&rdquo; above to create the first dress item!</p>
+                                <p className="text-[11px] text-neutral-400">Manage garments and designs in the Product Catalog.</p>
                               </div>
                             ) : (
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -954,13 +939,6 @@ const CategoryManager = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <Link
-                              to={`/admin/products?new=true&category=${parent._id}`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-colors"
-                            >
-                              <HiOutlinePlus className="w-3.5 h-3.5" />
-                              <span>+ Add Item to {parent.name}</span>
-                            </Link>
-                            <Link
                               to={`/admin/products?category=${parent._id}`}
                               className="text-xs font-bold text-accent hover:text-primary transition-colors flex items-center gap-1"
                             >
@@ -972,7 +950,7 @@ const CategoryManager = () => {
 
                         {parentProducts.length === 0 ? (
                           <div className="py-4 text-center text-xs text-neutral-400 bg-white rounded-2xl border border-neutral-200">
-                            No items added in {parent.name} yet. Click &ldquo;+ Add Item to {parent.name}&rdquo; above to create one!
+                            No items added in {parent.name} yet.
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">

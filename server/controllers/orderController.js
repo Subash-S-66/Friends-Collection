@@ -274,9 +274,13 @@ exports.placeOrder = async (req, res, next) => {
         user: orderUserId,
         totalAmount,
         shippingCharge: Number(shippingCharge),
+        status: 'yet_to_move',
+        paymentStatus: req.body.paymentStatus || 'payment_pending',
+        paymentMethod: req.body.paymentMethod || 'cod',
+        paymentNotes: req.body.paymentNotes || '',
         tracking: {
           statusHistory: [{
-            status: 'pending',
+            status: 'yet_to_move',
             message: 'Order placed & awaiting dispatch confirmation from Jamalia store',
             location: 'Jamalia Boutique, Chennai',
             timestamp: new Date()
@@ -421,16 +425,55 @@ exports.trackOrder = async (req, res, next) => {
   }
 };
 
+// @desc    Get all orders by customer phone number (lookup for mobile users / guest orders)
+// @route   GET /api/orders/by-phone/:phone
+exports.getOrdersByPhone = async (req, res, next) => {
+  try {
+    const rawPhone = (req.params.phone || req.query.phone || '').trim();
+    const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
+    }
+
+    const phoneRegex = new RegExp(`${cleanPhone}$`);
+    const orders = await Order.find({
+      $or: [
+        { 'customer.phone': { $regex: phoneRegex } },
+        { 'customer.secondaryPhone': { $regex: phoneRegex } }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // === ADMIN ===
 
 // @desc    Get all orders (admin)
 // @route   GET /api/orders/admin/all
 exports.adminGetOrders = async (req, res, next) => {
   try {
-    const { status, page = 1, limit = 20, search, startDate, endDate } = req.query;
+    const { status, paymentStatus, page = 1, limit = 20, search, startDate, endDate } = req.query;
     const query = {};
 
-    if (status && status !== 'all') query.status = status;
+    if (status && status !== 'all') {
+      if (status === 'pending' || status === 'yet_to_move') {
+        query.status = { $in: ['pending', 'yet_to_move'] };
+      } else {
+        query.status = status;
+      }
+    }
+
+    if (paymentStatus && paymentStatus !== 'all') {
+      if (paymentStatus === 'pending' || paymentStatus === 'payment_pending') {
+        query.paymentStatus = { $in: ['pending', 'payment_pending'] };
+      } else {
+        query.paymentStatus = paymentStatus;
+      }
+    }
 
     if (search) {
       query.$or = [
@@ -475,13 +518,20 @@ exports.adminGetOrder = async (req, res, next) => {
 // @route   PUT /api/orders/admin/:id/status
 exports.updateOrderStatus = async (req, res, next) => {
   try {
-    const { status, notes, tracking } = req.body;
+    const { status, paymentStatus, paymentNotes, notes, tracking } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     const prevStatus = order.status;
     if (status) order.status = status;
+    if (paymentStatus) {
+      order.paymentStatus = paymentStatus;
+      if (paymentStatus === 'paid' && !order.paidAt) {
+        order.paidAt = new Date();
+      }
+    }
+    if (paymentNotes !== undefined) order.paymentNotes = paymentNotes;
     if (notes !== undefined) order.notes = notes;
 
     // Handle tracking info
@@ -555,7 +605,7 @@ exports.getOrderStats = async (req, res, next) => {
     const monthAgo = new Date(today);
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    const [todayOrders, weekOrders, monthOrders, totalOrders, revenueResult, pendingOrders, statusCounts] = await Promise.all([
+    const [todayOrders, weekOrders, monthOrders, totalOrders, revenueResult, pendingOrders, statusCounts, paymentCounts] = await Promise.all([
       Order.countDocuments({ createdAt: { $gte: today } }),
       Order.countDocuments({ createdAt: { $gte: weekAgo } }),
       Order.countDocuments({ createdAt: { $gte: monthAgo } }),
@@ -564,15 +614,20 @@ exports.getOrderStats = async (req, res, next) => {
         { $match: { status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),
-      Order.countDocuments({ status: 'pending' }),
+      Order.countDocuments({ status: { $in: ['pending', 'yet_to_move'] } }),
       Order.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      Order.aggregate([
+        { $group: { _id: '$paymentStatus', count: { $sum: 1 } } }
       ])
     ]);
 
     const totalRevenue = revenueResult[0]?.total || 0;
     const statusMap = {};
     statusCounts.forEach(s => { statusMap[s._id] = s.count; });
+    const paymentMap = {};
+    paymentCounts.forEach(p => { paymentMap[p._id || 'pending'] = p.count; });
 
     res.json({
       todayOrders,
@@ -581,7 +636,8 @@ exports.getOrderStats = async (req, res, next) => {
       totalOrders,
       totalRevenue,
       pendingOrders,
-      statusBreakdown: statusMap
+      statusBreakdown: statusMap,
+      paymentBreakdown: paymentMap
     });
   } catch (error) {
     next(error);

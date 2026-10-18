@@ -4,6 +4,7 @@ const {
   placeOrder,
   getMyOrders,
   trackOrder,
+  getOrdersByPhone,
   adminGetOrders,
   adminGetOrder,
   updateOrderStatus,
@@ -22,6 +23,7 @@ router.post('/release-hold', optionalAuth, releaseCheckoutStock);
 router.get('/reservation/:sessionId', optionalAuth, getReservationStatus);
 router.post('/', orderLimiter, optionalAuth, placeOrder);
 router.get('/track/:orderId', trackOrder);
+router.get('/by-phone/:phone', getOrdersByPhone);
 
 // Logged-in user
 router.get('/my', auth, getMyOrders);

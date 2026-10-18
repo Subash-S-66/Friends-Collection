@@ -30,6 +30,7 @@ import Account from './pages/Account';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import OrderTracking from './pages/OrderTracking';
+import InvoicePage from './pages/InvoicePage';
 
 // Admin Dashboard Components
 import AdminLayout from './admin/AdminLayout';
@@ -71,6 +72,8 @@ const AppLayout = () => {
           <Route path="/track" element={<OrderTracking />} />
           <Route path="/track-order" element={<OrderTracking />} />
           <Route path="/track/:orderId" element={<OrderTracking />} />
+          <Route path="/invoice/:orderId" element={<InvoicePage />} />
+          <Route path="/order/invoice/:orderId" element={<InvoicePage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
 

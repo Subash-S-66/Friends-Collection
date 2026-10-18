@@ -11,25 +11,44 @@ import {
   HiOutlinePhone,
   HiOutlineClipboardCopy,
   HiOutlineExternalLink,
-  HiOutlineSearch
+  HiOutlineSearch,
+  HiOutlineDownload,
+  HiOutlineEye,
+  HiOutlineX,
+  HiOutlinePrinter,
+  HiOutlineShieldCheck
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import InvoiceView from '../components/InvoiceView';
 
 const Account = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'address'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'phone_lookup' | 'address'
   const [orders, setOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Search by order ID
   const [lookupOrderId, setLookupOrderId] = useState('');
   const [lookingUp, setLookingUp] = useState(false);
 
+  // Phone lookup states (available for guest and logged-in users)
+  const [lookupPhone, setLookupPhone] = useState('');
+  const [lookingUpPhone, setLookingUpPhone] = useState(false);
+  const [phoneOrders, setPhoneOrders] = useState([]);
+  const [hasSearchedPhone, setHasSearchedPhone] = useState(false);
+
+  // Modal states
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [detailOrder, setDetailOrder] = useState(null);
+
   const fetchOrders = () => {
+    if (!user) return;
     setLoadingOrders(true);
     API.get('/orders/my')
       .then((res) => setOrders(Array.isArray(res.data) ? res.data : []))
@@ -38,19 +57,21 @@ const Account = () => {
   };
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
+    if (user) {
+      fetchOrders();
+    } else {
+      // Default to phone lookup if not logged in
+      setActiveTab('phone_lookup');
     }
-    fetchOrders();
-  }, [user, navigate]);
+  }, [user]);
 
   const handleLogout = () => {
     logout();
     toast.success('Signed out successfully.');
-    navigate('/');
+    setActiveTab('phone_lookup');
   };
 
+  // Lookup order by Order ID
   const handleLookupOrder = async (e) => {
     e.preventDefault();
     if (!lookupOrderId.trim()) return;
@@ -59,10 +80,18 @@ const Account = () => {
       const res = await API.get(`/orders/track/${encodeURIComponent(lookupOrderId.trim())}`);
       const foundOrder = res.data;
       if (foundOrder) {
-        setOrders((prev) => {
-          const exists = prev.some((o) => o.orderId === foundOrder.orderId);
-          return exists ? prev : [foundOrder, ...prev];
-        });
+        if (user) {
+          setOrders((prev) => {
+            const exists = prev.some((o) => o.orderId === foundOrder.orderId);
+            return exists ? prev : [foundOrder, ...prev];
+          });
+        } else {
+          setPhoneOrders((prev) => {
+            const exists = prev.some((o) => o.orderId === foundOrder.orderId);
+            return exists ? prev : [foundOrder, ...prev];
+          });
+        }
+        setDetailOrder(foundOrder);
         toast.success(`Found order #${foundOrder.orderId}!`, { icon: '📦' });
         setLookupOrderId('');
       }
@@ -73,110 +102,415 @@ const Account = () => {
     }
   };
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Tracking number copied!');
+  // Lookup all orders by Mobile Phone Number
+  const handlePhoneLookup = async (e) => {
+    e?.preventDefault();
+    const clean = lookupPhone.replace(/\D/g, '').slice(-10);
+    if (!clean || clean.length < 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    setLookingUpPhone(true);
+    try {
+      const res = await API.get(`/orders/by-phone/${clean}`);
+      const found = Array.isArray(res.data) ? res.data : [];
+      setPhoneOrders(found);
+      setHasSearchedPhone(true);
+      if (found.length === 0) {
+        toast('No orders found for this mobile number', { icon: 'ℹ️' });
+      } else {
+        toast.success(`Found ${found.length} order${found.length > 1 ? 's' : ''}!`);
+      }
+    } catch (err) {
+      console.error('Phone lookup error:', err);
+      toast.error(err.response?.data?.message || 'Failed to search orders by phone');
+    } finally {
+      setLookingUpPhone(false);
+    }
   };
 
-  const getStatusBadge = (status) => {
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const getFulfillmentBadge = (status) => {
     switch (status) {
+      case 'yet_to_move':
       case 'pending':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Order Placed</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            Yet to Move
+          </span>
+        );
       case 'confirmed':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">Confirmed</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            Confirmed
+          </span>
+        );
       case 'shipped':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">Dispatched</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200">
+            <HiOutlineTruck className="w-3.5 h-3.5 text-purple-600" />
+            Shipped
+          </span>
+        );
       case 'delivered':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Delivered</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <HiCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+            Delivered
+          </span>
+        );
       case 'cancelled':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">Cancelled</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-800 border border-red-200">
+            Cancelled
+          </span>
+        );
       default:
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-neutral-100 text-neutral-800">{status}</span>;
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-neutral-100 text-neutral-800">
+            {status}
+          </span>
+        );
     }
+  };
+
+  const getPaymentBadge = (status) => {
+    if (status === 'paid') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <HiCheckCircle className="w-3 h-3 text-emerald-600" />
+          Paid
+        </span>
+      );
+    }
+    if (status === 'failed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-800 border border-red-200">
+          Payment Failed
+        </span>
+      );
+    }
+    if (status === 'refunded') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-300">
+          Refunded
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+        <HiOutlineClock className="w-3 h-3 text-amber-700" />
+        Payment Pending (COD)
+      </span>
+    );
+  };
+
+  // Render an individual Order Card
+  const renderOrderCard = (order) => {
+    const totalWithShipping = (order.totalAmount || 0) + (order.shippingCharge || 0);
+    const whatsappMsg = encodeURIComponent(
+      `Hi Friends Collections! I am checking regarding my Order #${order.orderId}.`
+    );
+
+    return (
+      <div
+        key={order._id}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-5 transition-all hover:shadow-md hover:border-accent-200"
+      >
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-neutral-100 gap-3">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="font-mono font-bold text-base text-neutral-900">{order.orderId}</span>
+              {getFulfillmentBadge(order.status)}
+              {getPaymentBadge(order.paymentStatus)}
+            </div>
+            <p className="text-xs text-neutral-500 mt-1">
+              Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+
+          <div className="flex items-center sm:text-right justify-between sm:justify-end gap-4">
+            <div>
+              <span className="text-xs text-neutral-500 block">Total Amount</span>
+              <span className="font-serif text-lg font-bold text-primary">
+                {formatPrice(totalWithShipping)}
+              </span>
+              <span className="block text-[10px] text-neutral-400 font-medium uppercase">
+                {order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD')}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setInvoiceOrder(order)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Download or Print Tax Invoice"
+            >
+              <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+              <span>Invoice</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Courier & Tracking Bar */}
+        <div className="p-4 rounded-2xl bg-cream-light/80 border border-accent-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
+                <HiOutlineTruck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-neutral-500 block">Logistics & Courier</span>
+                <span className="text-xs font-bold text-neutral-900">
+                  {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch (Jamalia Boutique)'}
+                </span>
+              </div>
+            </div>
+
+            {order.tracking?.estimatedDelivery && (
+              <div className="text-xs font-semibold text-primary">
+                Expected: <strong className="text-neutral-900">{order.tracking.estimatedDelivery}</strong>
+              </div>
+            )}
+          </div>
+
+          {order.tracking?.trackingNumber ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-accent-200/50">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-neutral-500">AWB / Waybill:</span>
+                <span className="font-mono font-bold text-neutral-900 bg-white px-2 py-0.5 rounded border border-accent-200">
+                  {order.tracking.trackingNumber}
+                </span>
+                <button
+                  onClick={() => handleCopy(order.tracking.trackingNumber)}
+                  className="text-primary hover:text-accent p-1 cursor-pointer"
+                  title="Copy Tracking Number"
+                >
+                  <HiOutlineClipboardCopy className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {order.tracking?.trackingUrl && (
+                  <a
+                    href={order.tracking.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-light text-white text-[11px] font-bold shadow-2xs"
+                  >
+                    <span>Courier Site</span>
+                    <HiOutlineExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+                <Link
+                  to={`/track?orderId=${order.orderId}`}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold"
+                >
+                  <span>Full Timeline</span>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between pt-2 border-t border-accent-200/50 text-xs text-neutral-500">
+              <span>Packaging & quality inspection underway at showroom</span>
+              <Link
+                to={`/track?orderId=${order.orderId}`}
+                className="text-primary font-bold hover:underline text-[11px]"
+              >
+                Track Live Progress →
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Items Preview */}
+        <div className="divide-y divide-neutral-100">
+          {order.items?.map((item, idx) => (
+            <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-center gap-4">
+              <img
+                src={getImageUrl(item.image)}
+                alt={item.title}
+                onError={handleImageError}
+                className="w-14 h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50"
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-neutral-900 truncate">{item.title}</h4>
+                <p className="text-xs text-neutral-500">
+                  Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                </p>
+              </div>
+              <span className="text-xs font-bold text-neutral-800">
+                {formatPrice(item.price * item.quantity)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Actions: Address, View Details, WhatsApp */}
+        <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-neutral-600">
+          <div className="flex items-center gap-2">
+            <HiOutlineLocationMarker className="w-4 h-4 text-accent-700 shrink-0" />
+            <span className="truncate max-w-sm">
+              Deliver to: {order.customer?.name}, {order.customer?.address?.city} ({order.customer?.address?.pincode})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setDetailOrder(order)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold transition-colors cursor-pointer"
+            >
+              <HiOutlineEye className="w-4 h-4" />
+              <span>Order Details</span>
+            </button>
+
+            <a
+              href={`https://wa.me/919500757024?text=${whatsappMsg}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold hover:bg-emerald-100 transition-colors"
+            >
+              <FaWhatsapp className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen bg-cream py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Profile Header Card */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4 text-center sm:text-left">
-            <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-serif text-2xl font-bold shadow-inner">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+        
+        {/* Profile or Guest Header */}
+        {user ? (
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-serif text-2xl font-bold shadow-inner">
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div>
+                <h1 className="font-serif text-2xl font-bold text-neutral-900">{user?.name}</h1>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {user?.email} {user?.phone ? `• +91 ${user.phone}` : ''}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-serif text-2xl font-bold text-neutral-900">{user?.name}</h1>
-              <p className="text-xs text-neutral-500 mt-0.5">{user?.email} • +91 {user?.phone}</p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/track"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 text-xs font-semibold hover:bg-accent-100 transition-colors border border-accent-200"
-            >
-              <HiOutlineTruck className="w-4 h-4" />
-              <span>Track Any Order</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-red-600 transition-colors"
-            >
-              <HiOutlineLogout className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Controls */}
-        <div className="flex items-center justify-between border-b border-accent-200/60 pb-3 mb-8 gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative ${
-                activeTab === 'orders' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
-              }`}
-            >
-              My Orders ({orders.length})
-              {activeTab === 'orders' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('address')}
-              className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative ${
-                activeTab === 'address' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
-              }`}
-            >
-              Saved Address
-              {activeTab === 'address' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
-              )}
-            </button>
-          </div>
-
-          {activeTab === 'orders' && (
-            <form onSubmit={handleLookupOrder} className="flex items-center gap-2 w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="Find by Order ID (FC-...)"
-                value={lookupOrderId}
-                onChange={(e) => setLookupOrderId(e.target.value)}
-                className="px-3.5 py-1.5 text-xs font-mono rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-56"
-              />
-              <button
-                type="submit"
-                disabled={lookingUp}
-                className="px-3.5 py-1.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-light transition-all disabled:opacity-50 whitespace-nowrap"
+            <div className="flex items-center gap-3">
+              <Link
+                to="/track"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 text-xs font-semibold hover:bg-accent-100 transition-colors border border-accent-200"
               >
-                {lookingUp ? 'Searching...' : 'Find Order'}
+                <HiOutlineTruck className="w-4 h-4" />
+                <span>Track Live Order</span>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-red-600 transition-colors cursor-pointer"
+              >
+                <HiOutlineLogout className="w-4 h-4" />
+                <span>Sign Out</span>
               </button>
-            </form>
-          )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 text-white rounded-3xl p-6 sm:p-8 shadow-card mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="space-y-1 text-center sm:text-left">
+              <span className="text-xs uppercase tracking-widest text-accent-300 font-bold block">
+                Order Tracking & Customer Portal
+              </span>
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold">
+                View Previous Orders & Download Invoices
+              </h1>
+              <p className="text-xs text-white/70 max-w-lg">
+                Enter your mobile number to view all orders placed with Friends Collections, monitor live courier status, and print tax invoices.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Link
+                to="/login"
+                className="px-5 py-2.5 rounded-xl bg-accent text-primary-950 text-xs font-bold hover:bg-accent-light transition-all shadow-md"
+              >
+                Sign In to Account
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Controls & Fast Search Bars */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-accent-200/60 pb-3 mb-8 gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {user && (
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
+                  activeTab === 'orders' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
+                }`}
+              >
+                My Account Orders ({orders.length})
+                {activeTab === 'orders' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={() => setActiveTab('phone_lookup')}
+              className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
+                activeTab === 'phone_lookup' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              Lookup by Mobile Number {phoneOrders.length > 0 ? `(${phoneOrders.length})` : ''}
+              {activeTab === 'phone_lookup' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+              )}
+            </button>
+
+            {user && (
+              <button
+                onClick={() => setActiveTab('address')}
+                className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
+                  activeTab === 'address' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
+                }`}
+              >
+                Saved Address
+                {activeTab === 'address' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Quick Search By Order ID */}
+          <form onSubmit={handleLookupOrder} className="flex items-center gap-2 w-full lg:w-auto">
+            <input
+              type="text"
+              placeholder="Find by Order ID (FC-...)"
+              value={lookupOrderId}
+              onChange={(e) => setLookupOrderId(e.target.value)}
+              className="px-3.5 py-2 text-xs font-mono rounded-xl border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-56"
+            />
+            <button
+              type="submit"
+              disabled={lookingUp}
+              className="px-3.5 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-light transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer shadow-xs"
+            >
+              {lookingUp ? 'Searching...' : 'Find Order'}
+            </button>
+          </form>
         </div>
 
-        {/* Orders Tab */}
-        {activeTab === 'orders' && (
+        {/* Tab 1: Logged-in User Orders */}
+        {activeTab === 'orders' && user && (
           <div className="space-y-6">
             {loadingOrders ? (
               <div className="p-12 text-center">
@@ -187,9 +521,9 @@ const Account = () => {
                 <div className="w-16 h-16 rounded-full bg-accent-100 text-accent-700 flex items-center justify-center mx-auto">
                   <HiOutlineShoppingBag className="w-8 h-8" />
                 </div>
-                <h3 className="font-serif text-xl font-bold text-neutral-900">No Orders Yet</h3>
+                <h3 className="font-serif text-xl font-bold text-neutral-900">No Orders in Account</h3>
                 <p className="text-sm text-neutral-500">
-                  When you order dresses from Friends Collections, you can track them here in real time.
+                  If you ordered without logging in, click <strong>"Lookup by Mobile Number"</strong> above to find your orders!
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                   <Link
@@ -198,171 +532,108 @@ const Account = () => {
                   >
                     Start Shopping
                   </Link>
-                  <Link
-                    to="/track"
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50"
+                  <button
+                    onClick={() => setActiveTab('phone_lookup')}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50 cursor-pointer"
                   >
-                    Track Guest Order
-                  </Link>
+                    Search by Mobile Number
+                  </button>
                 </div>
               </div>
             ) : (
-              orders.map((order) => {
-                const totalWithShipping = order.totalAmount + (order.shippingCharge || 0);
-                const whatsappMsg = encodeURIComponent(
-                  `Hi Friends Collections! I would like to inquire regarding my Order #${order.orderId}.`
-                );
-                const hasTracking = Boolean(order.tracking?.trackingNumber || order.tracking?.courier);
-
-                return (
-                  <div
-                    key={order._id}
-                    className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-5"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-neutral-100 gap-3">
-                      <div>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="font-mono font-bold text-sm text-neutral-900">{order.orderId}</span>
-                          {getStatusBadge(order.status)}
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">
-                          Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      </div>
-
-                      <div className="text-left sm:text-right">
-                        <span className="text-xs text-neutral-500 block">Total Amount</span>
-                        <span className="font-serif text-lg font-bold text-primary">
-                          {formatPrice(totalWithShipping)}
-                        </span>
-                        <span className="block text-[10px] text-neutral-400 font-medium">Cash on Delivery</span>
-                      </div>
-                    </div>
-
-                    {/* Shipment & Courier Live Tracking Card */}
-                    <div className="p-4 rounded-2xl bg-cream-light/80 border border-accent-200/80 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
-                            <HiOutlineTruck className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-neutral-500 block">Logistics & Tracking</span>
-                            <span className="text-xs font-bold text-neutral-900">
-                              {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch (Jamalia)'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {order.tracking?.estimatedDelivery && (
-                          <div className="text-xs font-semibold text-primary">
-                            Expected: <strong className="text-neutral-900">{order.tracking.estimatedDelivery}</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      {order.tracking?.trackingNumber ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-accent-200/50">
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-neutral-500">AWB / Waybill:</span>
-                            <span className="font-mono font-bold text-neutral-900 bg-white px-2 py-0.5 rounded border border-accent-200">
-                              {order.tracking.trackingNumber}
-                            </span>
-                            <button
-                              onClick={() => handleCopy(order.tracking.trackingNumber)}
-                              className="text-primary hover:text-accent p-1"
-                              title="Copy"
-                            >
-                              <HiOutlineClipboardCopy className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {order.tracking?.trackingUrl && (
-                              <a
-                                href={order.tracking.trackingUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-light text-white text-[11px] font-bold shadow-2xs"
-                              >
-                                <span>Courier Site</span>
-                                <HiOutlineExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                            <Link
-                              to={`/track?orderId=${order.orderId}`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold"
-                            >
-                              <span>Full Timeline</span>
-                            </Link>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between pt-2 border-t border-accent-200/50 text-xs text-neutral-500">
-                          <span>Packaging & Quality Inspection in progress at showroom</span>
-                          <Link
-                            to={`/track?orderId=${order.orderId}`}
-                            className="text-primary font-bold hover:underline text-[11px]"
-                          >
-                            Track Live Progress →
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Items */}
-                    <div className="divide-y divide-neutral-100">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-center gap-4">
-                          <img
-                            src={getImageUrl(item.image)}
-                            alt={item.title}
-                            onError={handleImageError}
-                            className="w-14 h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-neutral-900 truncate">{item.title}</h4>
-                            <p className="text-xs text-neutral-500">
-                              Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
-                            </p>
-                          </div>
-                          <span className="text-xs font-bold text-neutral-800">
-                            {formatPrice(item.price * item.quantity)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Delivery Address & Actions */}
-                    <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-neutral-600">
-                      <div className="flex items-center gap-2">
-                        <HiOutlineLocationMarker className="w-4 h-4 text-accent-700 shrink-0" />
-                        <span>
-                          Delivering to: {order.customer?.name}, {order.customer?.address?.street}, {order.customer?.address?.city}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <a
-                          href={`https://wa.me/919500757024?text=${whatsappMsg}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold hover:bg-emerald-100 transition-colors"
-                        >
-                          <FaWhatsapp className="w-4 h-4" />
-                          <span>Support on WhatsApp</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              orders.map(renderOrderCard)
             )}
           </div>
         )}
 
-        {/* Address Tab */}
-        {activeTab === 'address' && (
+        {/* Tab 2: Lookup by Mobile Phone Number */}
+        {activeTab === 'phone_lookup' && (
+          <div className="space-y-8">
+            {/* Search Input Box */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm max-w-2xl mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <span className="text-xs uppercase tracking-widest text-accent-700 font-bold">Mobile Order Lookup</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
+                  Enter Your Mobile Number
+                </h2>
+                <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                  We will search all past orders associated with this phone number and provide full order status and instant invoice downloads.
+                </p>
+              </div>
+
+              <form onSubmit={handlePhoneLookup} className="space-y-4 pt-2">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="text-sm font-bold text-neutral-400">🇮🇳 +91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={lookupPhone}
+                    onChange={(e) => setLookupPhone(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 10-digit mobile number"
+                    className="w-full pl-20 pr-4 py-3 rounded-2xl border border-neutral-300 font-mono text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={lookingUpPhone || lookupPhone.length < 10}
+                  className="w-full py-3 bg-primary hover:bg-primary-light text-white text-sm font-bold rounded-2xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {lookingUpPhone ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Searching Orders...</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineSearch className="w-5 h-5" />
+                      <span>Show All Previous Orders</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Phone Orders Results */}
+            {hasSearchedPhone && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-accent-100 pb-2">
+                  <h3 className="font-serif text-lg font-bold text-neutral-900">
+                    Orders Linked to +91 {lookupPhone} ({phoneOrders.length})
+                  </h3>
+                  <span className="text-xs text-neutral-500">
+                    {phoneOrders.length > 0 ? 'Click Invoice to print or save as PDF' : ''}
+                  </span>
+                </div>
+
+                {phoneOrders.length === 0 ? (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-accent-100 shadow-sm max-w-md mx-auto space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-accent-100 text-accent-700 flex items-center justify-center mx-auto">
+                      <HiOutlineShoppingBag className="w-8 h-8" />
+                    </div>
+                    <h3 className="font-serif text-xl font-bold text-neutral-900">No Orders Found</h3>
+                    <p className="text-sm text-neutral-500">
+                      No orders have been placed using the mobile number <strong>+91 {lookupPhone}</strong> yet.
+                    </p>
+                    <Link
+                      to="/shop"
+                      className="inline-block px-6 py-2.5 rounded-full bg-primary text-white text-xs font-semibold shadow-md hover:bg-primary-light"
+                    >
+                      Browse Boutique Collection
+                    </Link>
+                  </div>
+                ) : (
+                  phoneOrders.map(renderOrderCard)
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Saved Address */}
+        {activeTab === 'address' && user && (
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm max-w-2xl space-y-4">
             <h3 className="font-serif text-lg font-bold text-neutral-900">Your Default Address</h3>
             {user?.savedAddresses && user.savedAddresses.length > 0 ? (
@@ -382,6 +653,164 @@ const Account = () => {
               </p>
             )}
           </div>
+        )}
+
+        {/* Full Order Details Modal */}
+        {detailOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-accent-100">
+              <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
+                <div>
+                  <span className="text-xs uppercase font-bold text-accent-700 tracking-wider">
+                    Order Summary & Tracking
+                  </span>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <h3 className="font-serif text-2xl font-bold text-neutral-900">{detailOrder.orderId}</h3>
+                    {getFulfillmentBadge(detailOrder.status)}
+                    {getPaymentBadge(detailOrder.paymentStatus)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDetailOrder(null)}
+                  className="p-2 text-neutral-400 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+                >
+                  <HiOutlineX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Customer & Address Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-cream-light/60 border border-accent-100 text-xs">
+                <div>
+                  <strong className="block text-neutral-900 font-bold mb-1">Customer Info:</strong>
+                  <p className="font-semibold text-neutral-800">{detailOrder.customer?.name}</p>
+                  <p className="flex items-center gap-1 mt-1 text-neutral-600 font-mono">
+                    <HiOutlinePhone className="w-3.5 h-3.5 text-accent-700" />
+                    +91 {detailOrder.customer?.phone}
+                  </p>
+                  {detailOrder.customer?.secondaryPhone && (
+                    <p className="flex items-center gap-1 mt-0.5 text-neutral-600 font-mono text-[11px]">
+                      <span className="text-accent-700 font-bold">2nd:</span> +91 {detailOrder.customer.secondaryPhone}
+                    </p>
+                  )}
+                  {detailOrder.customer?.email && (
+                    <p className="text-neutral-500 mt-1">{detailOrder.customer.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <strong className="block text-neutral-900 font-bold mb-1">Delivery Destination:</strong>
+                  <p className="text-neutral-700 font-medium">{detailOrder.customer?.address?.street}</p>
+                  <p className="text-neutral-700">
+                    {detailOrder.customer?.address?.city}, {detailOrder.customer?.address?.state} -{' '}
+                    <span className="font-bold">{detailOrder.customer?.address?.pincode}</span>
+                  </p>
+                  <div className="mt-2 text-[11px] font-semibold text-neutral-600">
+                    Payment Method: <span className="uppercase font-bold text-primary">{detailOrder.paymentMethod || 'COD'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Shipment Details */}
+              <div className="p-4 rounded-2xl bg-neutral-50 border border-accent-200/80 space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HiOutlineTruck className="w-4 h-4 text-primary" />
+                    <span className="font-bold text-neutral-900">
+                      {detailOrder.tracking?.courier ? `Courier: ${detailOrder.tracking.courier}` : 'Direct Store Dispatch'}
+                    </span>
+                  </div>
+                  {detailOrder.tracking?.trackingNumber && (
+                    <span className="font-mono bg-white px-2 py-0.5 rounded border border-neutral-300 font-bold">
+                      AWB: {detailOrder.tracking.trackingNumber}
+                    </span>
+                  )}
+                </div>
+
+                {detailOrder.tracking?.statusHistory?.length > 0 && (
+                  <div className="pt-2 border-t border-neutral-200 space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider block">
+                      Milestones
+                    </span>
+                    {detailOrder.tracking.statusHistory.slice().reverse().map((h, i) => (
+                      <div key={i} className="flex items-center justify-between text-[11px] text-neutral-700">
+                        <span className="font-medium">• {h.message}</span>
+                        <span className="text-neutral-400 text-[10px]">
+                          {new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-3">
+                <strong className="text-xs uppercase font-bold text-neutral-500 block">Ordered Garments:</strong>
+                <div className="divide-y divide-neutral-100 border border-neutral-200 rounded-2xl p-4 bg-white">
+                  {detailOrder.items?.map((item, idx) => (
+                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={getImageUrl(item.image)}
+                          alt={item.title}
+                          onError={handleImageError}
+                          className="w-12 h-14 object-cover object-top rounded-lg border border-neutral-200"
+                        />
+                        <div>
+                          <h4 className="font-bold text-neutral-900">{item.title}</h4>
+                          <p className="text-neutral-500">
+                            Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-neutral-900">
+                        {formatPrice(item.price * item.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceOrder(detailOrder);
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-light transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <HiOutlinePrinter className="w-4 h-4" />
+                  <span>Download / Print Invoice</span>
+                </button>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <Link
+                    to={`/track?orderId=${detailOrder.orderId}`}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50"
+                  >
+                    Live Tracking Page
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setDetailOrder(null)}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tax Invoice Modal */}
+        {invoiceOrder && (
+          <InvoiceView
+            order={invoiceOrder}
+            isOpen={Boolean(invoiceOrder)}
+            onClose={() => setInvoiceOrder(null)}
+          />
         )}
       </div>
     </div>

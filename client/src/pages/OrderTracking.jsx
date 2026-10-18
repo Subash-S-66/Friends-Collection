@@ -10,12 +10,15 @@ import {
   HiOutlineClipboardCopy,
   HiOutlineExternalLink,
   HiOutlineShoppingBag,
-  HiArrowRight
+  HiArrowRight,
+  HiOutlineDownload,
+  HiOutlinePrinter
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import InvoiceView from '../components/InvoiceView';
 
 const OrderTracking = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,6 +31,7 @@ const OrderTracking = () => {
   const [order, setOrder] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const fetchTracking = async (id, phone) => {
     if (!id || !id.trim()) {
@@ -205,9 +209,23 @@ const OrderTracking = () => {
                       ? 'bg-blue-100 text-blue-800'
                       : order.status === 'cancelled'
                       ? 'bg-red-100 text-red-800'
-                      : 'bg-amber-100 text-amber-800'
+                      : 'bg-amber-100 text-amber-900'
                   }`}>
-                    {order.status === 'shipped' ? 'Dispatched' : order.status}
+                    {order.status === 'shipped'
+                      ? 'Dispatched'
+                      : order.status === 'yet_to_move' || order.status === 'pending'
+                      ? 'Yet to Move'
+                      : order.status}
+                  </span>
+
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      order.paymentStatus === 'paid'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-900'
+                    }`}
+                  >
+                    {order.paymentStatus === 'paid' ? 'Paid' : 'Payment Pending'}
                   </span>
                 </div>
                 <p className="text-xs text-neutral-500">
@@ -221,14 +239,25 @@ const OrderTracking = () => {
                 </p>
               </div>
 
-              <div className="text-left sm:text-right">
-                <span className="text-xs text-neutral-500 block">Total Amount</span>
-                <span className="font-serif text-2xl font-bold text-primary">
-                  {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
-                </span>
-                <span className="block text-[11px] text-neutral-400 font-medium mt-0.5">
-                  Payment: Cash on Delivery (COD)
-                </span>
+              <div className="flex flex-col sm:items-end justify-between gap-3">
+                <div className="text-left sm:text-right">
+                  <span className="text-xs text-neutral-500 block">Total Amount</span>
+                  <span className="font-serif text-2xl font-bold text-primary">
+                    {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
+                  </span>
+                  <span className="block text-[11px] text-neutral-400 font-medium mt-0.5 uppercase">
+                    Payment: {order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : (order.paymentMethod || 'COD')}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowInvoice(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                >
+                  <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                  <span>Download Tax Invoice</span>
+                </button>
               </div>
             </div>
 
@@ -468,6 +497,15 @@ const OrderTracking = () => {
               </Link>
             </div>
           </div>
+        )}
+
+        {/* Tax Invoice Modal */}
+        {order && (
+          <InvoiceView
+            order={order}
+            isOpen={showInvoice}
+            onClose={() => setShowInvoice(false)}
+          />
         )}
       </div>
     </div>
