@@ -20,6 +20,7 @@ server/uploads/*
 !server/uploads/.gitkeep
 !server/uploads/logo.png
 !server/uploads/card.png
+!server/uploads/banner.jpg
 file_*.png
 
 # Logs

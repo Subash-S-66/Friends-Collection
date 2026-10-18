@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import GoogleAuthButton from './GoogleAuthButton';
 
 const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, onSubscribed }) => {
@@ -156,6 +156,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
             <img
               src={getImageUrl(product.images?.[0])}
               alt={product.title}
+              onError={handleImageError}
               className="w-full h-full object-cover"
             />
           </div>

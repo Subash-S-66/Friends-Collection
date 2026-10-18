@@ -16,7 +16,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { getImageUrl } from '../utils/formatters';
+import { getImageUrl, handleImageError } from '../utils/formatters';
 
 const CategoryManager = () => {
   const [categories, setCategories] = useState([]);
@@ -475,6 +475,7 @@ const CategoryManager = () => {
                             <img
                               src={getImageUrl(cat.image)}
                               alt={cat.name}
+                              onError={(e) => handleImageError(e, '/fallback-product.png')}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -643,6 +644,7 @@ const CategoryManager = () => {
                         <img
                           src={getImageUrl(parent.image)}
                           alt={parent.name}
+                          onError={(e) => handleImageError(e, '/fallback-product.png')}
                           className="w-full h-full object-cover object-top"
                         />
                       </div>

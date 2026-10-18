@@ -62,8 +62,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Compression
 app.use(compression());
 
-// Serve uploaded files
+// Serve uploaded files with automatic fallback for missing or unresolvable images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', (req, res) => {
+  const isBanner = req.path && req.path.toLowerCase().includes('banner');
+  const fallbackFile = isBanner ? 'banner.jpg' : 'card.png';
+  res.sendFile(path.join(__dirname, 'uploads', fallbackFile));
+});
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));

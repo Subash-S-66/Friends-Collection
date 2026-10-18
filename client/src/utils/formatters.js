@@ -7,8 +7,9 @@ export const getDiscount = (price, salePrice) => {
   return Math.round(((price - salePrice) / price) * 100);
 };
 
-export const getImageUrl = (path) => {
-  if (!path) return '/logo.png';
+export const getImageUrl = (path, fallback = '/fallback-product.png') => {
+  if (!path) return fallback;
+  if (path === '/uploads/card.png' || path === '/card.png') return fallback;
   if (path.startsWith('http')) return path;
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -18,6 +19,13 @@ export const getImageUrl = (path) => {
   }
 
   return path;
+};
+
+export const handleImageError = (e, fallback = '/fallback-product.png') => {
+  if (e?.currentTarget) {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = fallback;
+  }
 };
 
 export const truncate = (str, len = 60) => {

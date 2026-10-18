@@ -2,7 +2,7 @@ import { HiOutlineX, HiPlus, HiMinus, HiOutlineShoppingBag, HiArrowRight } from 
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const CartDrawer = () => {
   const { items, updateQuantity, removeItem, totalItems, subtotal, isCartOpen, setIsCartOpen } = useCart();
@@ -107,6 +107,7 @@ const CartDrawer = () => {
                       <img
                         src={getImageUrl(item.image)}
                         alt={item.title}
+                        onError={(e) => handleImageError(e, '/fallback-product.png')}
                         className="w-20 h-24 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50 shrink-0"
                       />
 

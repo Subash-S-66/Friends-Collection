@@ -1,8 +1,33 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { HiOutlineLocationMarker, HiOutlinePhone, HiOutlineMail } from 'react-icons/hi';
 import { FaInstagram, FaWhatsapp } from 'react-icons/fa';
+import API from '../utils/api';
 
 const Footer = () => {
+  const [settings, setSettings] = useState({});
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    Promise.all([
+      API.get('/settings').catch(() => ({ data: {} })),
+      API.get('/categories').catch(() => ({ data: [] }))
+    ]).then(([settingsRes, catsRes]) => {
+      setSettings(settingsRes.data && typeof settingsRes.data === 'object' ? settingsRes.data : {});
+      const safeCats = Array.isArray(catsRes.data) ? catsRes.data.filter(c => !c.parent && c.isActive !== false) : [];
+      setCategories(safeCats.slice(0, 6));
+    }).catch(err => {
+      console.error('Footer load error:', err);
+    });
+  }, []);
+
+  const storePhone = settings.storePhone || '+91 95007 57024';
+  const whatsappNum = settings.whatsappNumber || '919500757024';
+  const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
+  const storeEmail = settings.storeEmail || 'friends.collection06@gmail.com';
+  const storeName = settings.storeName || 'Friends Collections';
+  const tagline = settings.tagline || 'Style That Defines You';
+
   return (
     <footer className="bg-primary-900 text-cream/90 pt-16 pb-8 border-t-4 border-accent-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -12,7 +37,7 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-3 group">
               <img
                 src="/logo.png"
-                alt="Friends Collections"
+                alt={storeName}
                 className="w-12 h-12 object-contain rounded-full bg-cream-light p-0.5 shadow-md"
               />
               <div className="flex flex-col">
@@ -25,7 +50,7 @@ const Footer = () => {
               </div>
             </Link>
             <p className="text-sm text-neutral-300 font-light leading-relaxed">
-              &ldquo;Style That Defines You&rdquo;. Chennai&apos;s premier destination for trending ethnic dresses, sarees, kurtis, and designer wear at honest prices.
+              &ldquo;{tagline}&rdquo;. Chennai&apos;s premier destination for trending ethnic dresses, sarees, kurtis, and designer wear at honest prices.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a
@@ -38,7 +63,7 @@ const Footer = () => {
                 <FaInstagram className="w-5 h-5" />
               </a>
               <a
-                href="https://wa.me/919500757024?text=Hi%20Friends%20Collections%2C%20I%20want%20to%20inquire%20about%20your%20products"
+                href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20want%20to%20inquire%20about%20your%20products`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-primary-800 hover:bg-emerald-600 flex items-center justify-center text-white transition-all transform hover:-translate-y-1 shadow-sm"
@@ -76,34 +101,35 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Popular Categories */}
+          {/* Popular Categories from DB */}
           <div>
             <h4 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
-              Categories
+              Featured Categories
             </h4>
             <ul className="space-y-2.5 text-sm text-neutral-300">
-              <li>
-                <Link to="/shop?category=sarees" className="hover:text-accent-300 transition-colors">Designer Sarees</Link>
-              </li>
-              <li>
-                <Link to="/shop?category=salwar-suits" className="hover:text-accent-300 transition-colors">Salwar Suits</Link>
-              </li>
-              <li>
-                <Link to="/shop?category=kurtis" className="hover:text-accent-300 transition-colors">Anarkalis & Kurtis</Link>
-              </li>
-              <li>
-                <Link to="/shop?category=lehengas" className="hover:text-accent-300 transition-colors">Bridal & Party Lehengas</Link>
-              </li>
-              <li>
-                <Link to="/shop?category=western-wear" className="hover:text-accent-300 transition-colors">Western Wear</Link>
-              </li>
-              <li>
-                <Link to="/shop?category=dupattas" className="hover:text-accent-300 transition-colors">Dupattas & Shawls</Link>
-              </li>
+              {categories.length > 0 ? (
+                categories.map((cat) => (
+                  <li key={cat._id || cat.slug}>
+                    <Link
+                      to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
+                      className="hover:text-accent-300 transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  </li>
+                ))
+              ) : (
+                <>
+                  <li><Link to="/shop?category=sarees" className="hover:text-accent-300 transition-colors">Designer Sarees</Link></li>
+                  <li><Link to="/shop?category=salwar-suits" className="hover:text-accent-300 transition-colors">Salwar Suits</Link></li>
+                  <li><Link to="/shop?category=kurtis" className="hover:text-accent-300 transition-colors">Anarkalis & Kurtis</Link></li>
+                  <li><Link to="/shop?category=lehengas" className="hover:text-accent-300 transition-colors">Bridal & Party Lehengas</Link></li>
+                </>
+              )}
             </ul>
           </div>
 
-          {/* Store Info & Support */}
+          {/* Store Info & Support from DB */}
           <div>
             <h4 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
               Store & Support
@@ -111,18 +137,20 @@ const Footer = () => {
             <ul className="space-y-3 text-sm text-neutral-300">
               <li className="flex items-start gap-3">
                 <HiOutlineLocationMarker className="w-5 h-5 text-accent-400 shrink-0 mt-0.5" />
-                <span>7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012</span>
+                <span>{storeAddress}</span>
               </li>
               <li className="flex items-start gap-3">
                 <HiOutlinePhone className="w-5 h-5 text-accent-400 shrink-0 mt-0.5" />
                 <div className="flex flex-col">
-                  <a href="tel:+919500757024" className="hover:text-white font-medium">+91 95007 57024</a>
+                  <a href={`tel:${storePhone.replace(/\s/g, '')}`} className="hover:text-white font-medium">
+                    {storePhone}
+                  </a>
                 </div>
               </li>
               <li className="flex items-center gap-3">
                 <HiOutlineMail className="w-5 h-5 text-accent-400 shrink-0" />
-                <a href="mailto:friends.collection06@gmail.com" className="hover:text-white break-all text-xs">
-                  friends.collection06@gmail.com
+                <a href={`mailto:${storeEmail}`} className="hover:text-white break-all text-xs">
+                  {storeEmail}
                 </a>
               </li>
             </ul>
@@ -131,7 +159,7 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
-          <p>© {new Date().getFullYear()} Friends Collections. All Rights Reserved.</p>
+          <p>© {new Date().getFullYear()} {storeName}. All Rights Reserved.</p>
           <p className="flex items-center gap-1.5">
             Designed with <span className="text-red-400">♥</span> in Chennai for effortless shopping
           </p>

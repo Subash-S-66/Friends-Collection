@@ -3,7 +3,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { HiCheckCircle, HiOutlineShoppingBag, HiOutlineLocationMarker, HiOutlinePhone, HiArrowRight } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
@@ -98,6 +98,7 @@ const OrderConfirmation = () => {
                         <img
                           src={getImageUrl(item.image)}
                           alt={item.title}
+                          onError={handleImageError}
                           className="w-10 h-12 object-cover object-top rounded-lg border border-neutral-200"
                         />
                         <div>

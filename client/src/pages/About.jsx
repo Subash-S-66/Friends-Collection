@@ -1,20 +1,37 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineSparkles, HiOutlineHeart, HiOutlineShieldCheck, HiOutlineShoppingBag, HiArrowRight } from 'react-icons/hi';
+import { HiOutlineSparkles, HiOutlineHeart, HiOutlineShieldCheck, HiOutlineShoppingBag, HiArrowRight, HiOutlineLocationMarker, HiOutlinePhone } from 'react-icons/hi';
+import API from '../utils/api';
+import { handleImageError } from '../utils/formatters';
 
 const About = () => {
+  const [settings, setSettings] = useState({
+    storeName: 'Friends Collections',
+    tagline: 'Style That Defines You',
+    storeAddress: '15/3, Perambur High Road, Jamalia, Chennai - 600012',
+    storePhone: '98400 12345'
+  });
+
+  useEffect(() => {
+    API.get('/settings').then(res => {
+      if (res.data && Object.keys(res.data).length > 0) {
+        setSettings(prev => ({ ...prev, ...res.data }));
+      }
+    }).catch(() => {});
+  }, []);
   return (
     <div className="min-h-screen bg-cream py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <span className="text-xs font-bold uppercase tracking-[0.25em] text-accent-700 bg-accent-100/60 px-4 py-1.5 rounded-full border border-accent-200">
-            About Friends Collections
+            About {settings.storeName || 'Friends Collections'}
           </span>
           <h1 className="font-serif text-4xl sm:text-5xl font-bold text-neutral-900 leading-tight">
-            Style That Defines You
+            {settings.tagline || 'Style That Defines You'}
           </h1>
           <p className="text-base sm:text-lg text-neutral-600 font-light leading-relaxed">
-            Born in Jamalia, Chennai, Friends Collections was founded on a simple philosophy: every woman deserves access
+            Located at {settings.storeAddress || 'Jamalia, Chennai'}, {settings.storeName || 'Friends Collections'} was founded on a simple philosophy: every customer deserves access
             to luxurious, trending ethnic and contemporary fashion without exorbitant markups.
           </p>
         </div>
@@ -67,7 +84,8 @@ const About = () => {
           <div className="lg:col-span-5 flex justify-center">
             <img
               src="/logo.png"
-              alt="Friends Collections emblem"
+              alt={`${settings.storeName || 'Friends Collections'} emblem`}
+              onError={handleImageError}
               className="w-56 h-56 sm:w-72 sm:h-72 rounded-full object-cover shadow-2xl p-2 bg-gradient-to-tr from-accent-400 via-primary to-accent-300"
             />
           </div>

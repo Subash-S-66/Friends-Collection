@@ -14,7 +14,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const Account = () => {
   const { user, logout } = useAuth();
@@ -171,6 +171,7 @@ const Account = () => {
                           <img
                             src={getImageUrl(item.image)}
                             alt={item.title}
+                            onError={handleImageError}
                             className="w-14 h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50"
                           />
                           <div className="flex-1 min-w-0">

@@ -5,14 +5,23 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
   const { user } = useAuth();
 
-  const freeShippingThreshold = 999;
+  const [threshold, setThreshold] = useState(999);
+  useEffect(() => {
+    API.get('/settings').then(res => {
+      if (res.data?.freeShippingThreshold) {
+        setThreshold(Number(res.data.freeShippingThreshold));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const freeShippingThreshold = threshold;
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const grandTotal = subtotal + shippingCharge;
@@ -377,6 +386,7 @@ const Checkout = () => {
                   <img
                     src={getImageUrl(item.image)}
                     alt={item.title}
+                    onError={handleImageError}
                     className="w-14 h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50 shrink-0"
                   />
                   <div className="flex-1 min-w-0">

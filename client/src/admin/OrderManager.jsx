@@ -11,7 +11,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const OrderManager = () => {
   const [orders, setOrders] = useState([]);
@@ -178,6 +178,7 @@ const OrderManager = () => {
                             <img
                               src={getImageUrl(item.image)}
                               alt={item.title}
+                              onError={handleImageError}
                               className="w-9 h-11 object-cover object-top rounded-md border border-neutral-200"
                             />
                             <div className="hidden group-hover/thumb:block absolute bottom-full left-0 z-20 bg-neutral-900 text-white text-[10px] p-1.5 rounded whitespace-nowrap shadow-lg">
@@ -303,6 +304,7 @@ const OrderManager = () => {
                       <img
                         src={getImageUrl(item.image)}
                         alt={item.title}
+                        onError={handleImageError}
                         className="w-12 h-14 object-cover object-top rounded-lg border border-neutral-200"
                       />
                       <div>

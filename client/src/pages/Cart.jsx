@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { HiOutlineShoppingBag, HiOutlineTrash, HiPlus, HiMinus, HiArrowRight } from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const Cart = () => {
   const { items, updateQuantity, removeItem, clearCart, totalItems, subtotal } = useCart();
@@ -59,6 +59,7 @@ const Cart = () => {
                   <img
                     src={getImageUrl(item.image)}
                     alt={item.title}
+                    onError={(e) => handleImageError(e, '/fallback-product.png')}
                     className="w-24 h-32 object-cover object-top rounded-2xl border border-accent-100 bg-neutral-50 shrink-0"
                   />
 

@@ -8,43 +8,51 @@ import {
   HiOutlineRefresh,
   HiOutlineSparkles,
   HiOutlineLocationMarker,
-  HiOutlinePhone
+  HiOutlinePhone,
+  HiChevronLeft,
+  HiChevronRight
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
-import { getImageUrl } from '../utils/formatters';
+import { getImageUrl, handleImageError } from '../utils/formatters';
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [featured, setFeatured] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [banners, setBanners] = useState([]);
   const [settings, setSettings] = useState({});
+  const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedGender, setSelectedGender] = useState('all');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [catsRes, featuredRes, newRes, settingsRes] = await Promise.all([
+        const [catsRes, featuredRes, newRes, settingsRes, bannersRes] = await Promise.all([
           API.get('/categories').catch(() => ({ data: [] })),
           API.get('/products/featured/list').catch(() => ({ data: [] })),
           API.get('/products?sort=newest&limit=8').catch(() => ({ data: { products: [] } })),
-          API.get('/settings').catch(() => ({ data: {} }))
+          API.get('/settings').catch(() => ({ data: {} })),
+          API.get('/banners').catch(() => ({ data: [] }))
         ]);
+
         const safeCats = Array.isArray(catsRes?.data) ? catsRes.data : [];
         const safeFeatured = Array.isArray(featuredRes?.data) ? featuredRes.data : [];
         const safeNew = Array.isArray(newRes?.data?.products)
           ? newRes.data.products
           : (Array.isArray(newRes?.data) ? newRes.data : []);
         const safeSettings = settingsRes?.data && typeof settingsRes.data === 'object' ? settingsRes.data : {};
+        const safeBanners = Array.isArray(bannersRes?.data) ? bannersRes.data.filter(b => b.isActive !== false) : [];
 
         setCategories(safeCats);
         setFeatured(safeFeatured);
         setNewArrivals(safeNew);
         setSettings(safeSettings);
+        setBanners(safeBanners);
       } catch (error) {
-        console.error('Error fetching home data:', error);
+        console.error('Error fetching dynamic home data:', error);
       } finally {
         setLoading(false);
       }
@@ -52,38 +60,72 @@ const Home = () => {
     fetchData();
   }, []);
 
+  // Auto-rotate hero banners if multiple exist in DB
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIdx((prev) => (prev + 1) % banners.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  const currentBanner = banners[activeBannerIdx] || null;
+  const storePhone = settings.storePhone || '+91 95007 57024';
+  const whatsappNum = settings.whatsappNumber || '919500757024';
+  const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
+  const freeShipping = settings.freeShippingThreshold || settings.shippingCharge?.freeAbove || 999;
+
   return (
     <div className="flex flex-col min-h-screen bg-cream">
-      {/* Signature Static Hero: "Style That Defines You" */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white py-16 sm:py-24 lg:py-32 flex items-center">
+      {/* Dynamic DB Hero Banner Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[440px] sm:min-h-[500px] flex items-center">
         {/* Subtle royal pattern/accents overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#C88A65_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        {/* Dynamic Background Image if Banner specifies an image */}
+        {currentBanner?.image && (
+          <div className="absolute inset-0 z-0">
+            <img
+              src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
+              alt={currentBanner.title || 'Friends Collections'}
+              onError={(e) => handleImageError(e, '/fallback-banner.png')}
+              className="w-full h-full object-cover opacity-25 filter blur-xs"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
+          </div>
+        )}
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            {/* Left Column: Headlines & Call to Actions */}
+            {/* Left Column: Dynamic Headlines & Call to Actions */}
             <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
-                <HiOutlineSparkles className="w-4 h-4" /> Chennai&apos;s Trendy Fashion House
+                <HiOutlineSparkles className="w-4 h-4" />
+                <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
               </div>
 
-              <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-tight">
-                Style That <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-300 via-accent-200 to-amber-100">
-                  Defines You.
-                </span>
+              <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                {currentBanner ? (
+                  currentBanner.title
+                ) : (
+                  <>
+                    {settings.heroTitle || 'Style That Defines You'}
+                  </>
+                )}
               </h1>
 
-              <p className="text-base sm:text-xl text-neutral-300 font-light max-w-lg leading-relaxed">
-                Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.
+              <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+                {currentBanner?.subtitle ||
+                  settings.heroDescription ||
+                  'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
               </p>
 
               <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
                 <Link
-                  to="/shop"
+                  to={currentBanner?.ctaLink || '/shop'}
                   className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5"
                 >
-                  <span>Explore Collection</span>
+                  <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
                   <HiOutlineArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
@@ -93,23 +135,48 @@ const Home = () => {
                   Visit Jamalia Store
                 </Link>
               </div>
+
+              {/* Multi-banner navigation dots if DB has > 1 active banner */}
+              {banners.length > 1 && (
+                <div className="flex items-center gap-2 pt-4">
+                  {banners.map((b, idx) => (
+                    <button
+                      key={b._id || idx}
+                      onClick={() => setActiveBannerIdx(idx)}
+                      aria-label={`Show banner ${idx + 1}`}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        activeBannerIdx === idx ? 'w-8 bg-accent-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Right Column: Branded Circular Seal with Royal Glow */}
+            {/* Right Column: Branded Visual Showcase */}
             <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-full p-2.5 bg-gradient-to-tr from-accent-400 via-primary-700 to-accent-300 shadow-2xl animate-fade-in flex items-center justify-center">
-                <img
-                  src="/logo.png"
-                  alt="Friends Collections"
-                  className="w-full h-full object-contain bg-white rounded-full p-5 shadow-inner"
-                />
+              <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/30 overflow-hidden flex items-center justify-center">
+                {currentBanner?.image ? (
+                  <img
+                    src={getImageUrl(currentBanner.image, '/fallback-banner.png')}
+                    alt={currentBanner.title || 'Friends Collections'}
+                    onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                    className="w-full h-full object-cover rounded-2xl shadow-inner"
+                  />
+                ) : (
+                  <img
+                    src="/logo.png"
+                    alt="Friends Collections"
+                    className="w-full h-full object-contain bg-white rounded-2xl p-6 shadow-inner"
+                  />
+                )}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust Badges Bar */}
+      {/* Dynamic Trust Badges Bar */}
       <section className="relative -mt-6 sm:-mt-8 z-30 max-w-6xl mx-auto px-4 w-full">
         <div className="bg-white rounded-2xl shadow-card border border-accent-100 p-4 sm:p-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 divide-y sm:divide-y-0 lg:divide-x divide-neutral-100">
           <div className="flex items-center gap-3.5 pt-2 sm:pt-0">
@@ -118,7 +185,7 @@ const Home = () => {
             </div>
             <div>
               <h4 className="text-sm font-bold text-neutral-900 leading-tight">Free Shipping</h4>
-              <p className="text-xs text-neutral-500 mt-0.5">On orders above ₹999</p>
+              <p className="text-xs text-neutral-500 mt-0.5">On orders above ₹{freeShipping}</p>
             </div>
           </div>
 
@@ -154,7 +221,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Categories (Horizontal Scroll on Mobile, Grid on Tablet/Desktop) */}
+      {/* Featured Categories from DB */}
       {categories.length > 0 && (
         <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
@@ -167,7 +234,7 @@ const Home = () => {
             <div className="w-16 h-0.5 bg-accent-400 mx-auto rounded-full mt-2" />
           </div>
 
-          {/* Department Filter Tabs (Smooth Horizontal Scroll on Mobile, Centered on Desktop) */}
+          {/* Department Filter Tabs */}
           <div className="w-full overflow-x-auto pb-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
             <div className="flex items-center justify-start sm:justify-center gap-2 min-w-max mx-auto">
               <button
@@ -213,7 +280,7 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Categories: Clean 2-column on Mobile, 3-col on Tablet, 5-col on Desktop */}
+          {/* Categories Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
             {(Array.isArray(categories) ? categories : [])
               .filter((c) => c && !c.parent)
@@ -225,8 +292,9 @@ const Home = () => {
                   className="group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <img
-                    src={getImageUrl(cat.image)}
+                    src={getImageUrl(cat.image, '/fallback-product.png')}
                     alt={cat.name}
+                    onError={(e) => handleImageError(e, '/fallback-product.png')}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     loading="lazy"
                   />
@@ -253,7 +321,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* Trending Products (2-column on Mobile, Multi-column on Desktop) */}
+      {/* Trending Products from DB */}
       {featured.length > 0 && (
         <section className="py-14 sm:py-16 bg-cream-dark/50 border-y border-accent-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -275,7 +343,6 @@ const Home = () => {
               </Link>
             </div>
 
-            {/* Clean 2-column Grid on Mobile, 3 on Tablet, 4 on Desktop (Flipkart & Zantum Style) */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {featured.slice(0, 8).map((product) => (
                 <ProductCard key={product._id} product={product} />
@@ -285,7 +352,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* New Arrivals (2-column on Mobile, Multi-column on Desktop) */}
+      {/* New Arrivals from DB */}
       {newArrivals.length > 0 && (
         <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
@@ -306,7 +373,6 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* Clean 2-column Grid on Mobile, 3 on Tablet, 4 on Desktop (Flipkart & Zantum Style) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
             {newArrivals.slice(0, 8).map((product) => (
               <ProductCard key={product._id} product={product} />
@@ -315,7 +381,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* Physical Store & Jamalia Showroom Invitation */}
+      {/* Dynamic Store & Jamalia Showroom Section from DB Settings */}
       <section className="py-16 bg-gradient-to-br from-primary-900 via-primary-950 to-primary-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="rounded-3xl border border-accent-400/20 p-8 sm:p-12 bg-white/5 backdrop-blur-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -332,11 +398,11 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 pt-2 text-xs sm:text-sm text-neutral-200">
                 <div className="flex items-center gap-2.5">
                   <HiOutlineLocationMarker className="w-5 h-5 text-accent-400 shrink-0" />
-                  <span>7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 12</span>
+                  <span>{storeAddress}</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <HiOutlinePhone className="w-5 h-5 text-accent-400 shrink-0" />
-                  <span>Call/WhatsApp: +91 95007 57024</span>
+                  <span>Call/WhatsApp: {storePhone}</span>
                 </div>
               </div>
             </div>
@@ -349,7 +415,7 @@ const Home = () => {
                 Store Location & Hours
               </Link>
               <a
-                href="https://wa.me/919500757024?text=Hi%20Friends%20Collections%2C%20I%20would%20like%20to%20visit%20your%20store"
+                href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20would%20like%20to%20visit%20your%20store`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all"
@@ -362,9 +428,9 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Floating WhatsApp Button (Home Screen Only) */}
+      {/* Floating WhatsApp Button (Dynamic from DB Settings) */}
       <a
-        href="https://wa.me/919500757024?text=Hi%20Friends%20Collections%2C%20I%20am%20browsing%20your%20store%20and%20would%20like%20to%20inquire%20about%20your%20collections!"
+        href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20am%20browsing%20your%20store%20and%20would%20like%20to%20inquire%20about%20your%20collections!`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with us on WhatsApp"
@@ -374,7 +440,6 @@ const Home = () => {
         <span className="font-semibold text-xs sm:text-sm tracking-wide text-white drop-shadow-xs whitespace-nowrap">
           Chat with us
         </span>
-        {/* Live status ping badge */}
         <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-300 border-2 border-white"></span>

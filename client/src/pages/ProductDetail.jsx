@@ -18,7 +18,7 @@ import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import NotifyModal from '../components/NotifyModal';
 import { useCart } from '../context/CartContext';
-import { formatPrice, getDiscount, getImageUrl } from '../utils/formatters';
+import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../utils/formatters';
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -207,6 +207,7 @@ const ProductDetail = () => {
                     <img
                       src={getImageUrl(img)}
                       alt={`View ${idx + 1}`}
+                      onError={(e) => handleImageError(e, '/fallback-product.png')}
                       className="w-full h-full object-cover object-top"
                       loading="lazy"
                     />
@@ -226,6 +227,7 @@ const ProductDetail = () => {
                   key={activeImageIndex}
                   src={getImageUrl(product.images?.[activeImageIndex] || product.images?.[0])}
                   alt={product.title}
+                  onError={(e) => handleImageError(e, '/fallback-product.png')}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -599,6 +601,7 @@ const ProductDetail = () => {
             <img
               src={getImageUrl(product.images?.[activeImageIndex] || product.images?.[0])}
               alt={product.title}
+              onError={(e) => handleImageError(e, '/fallback-product.png')}
               className="max-h-[82vh] max-w-full object-contain rounded-2xl shadow-2xl"
             />
             
@@ -613,7 +616,12 @@ const ProductDetail = () => {
                       activeImageIndex === i ? 'border-primary ring-2 ring-white scale-105' : 'border-white/30 opacity-60'
                     }`}
                   >
-                    <img src={getImageUrl(img)} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={getImageUrl(img)}
+                      alt=""
+                      onError={(e) => handleImageError(e, '/fallback-product.png')}
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>

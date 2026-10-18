@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { getImageUrl } from '../utils/formatters';
+import { getImageUrl, handleImageError } from '../utils/formatters';
 
 const BannerManager = () => {
   const [banners, setBanners] = useState([]);
@@ -150,8 +150,9 @@ const BannerManager = () => {
             >
               <div className="aspect-[16/9] bg-neutral-900 relative overflow-hidden">
                 <img
-                  src={getImageUrl(b.image)}
+                  src={getImageUrl(b.image, '/fallback-banner.png')}
                   alt={b.title}
+                  onError={(e) => handleImageError(e, '/fallback-banner.png')}
                   className="w-full h-full object-cover filter brightness-90"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-5 text-white">

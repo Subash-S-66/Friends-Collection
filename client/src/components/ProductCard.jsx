@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import NotifyModal from './NotifyModal';
-import { formatPrice, getDiscount, getImageUrl } from '../utils/formatters';
+import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../utils/formatters';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
@@ -55,6 +55,7 @@ const ProductCard = ({ product }) => {
           <img
             src={getImageUrl(product.images?.[0])}
             alt={product.title}
+            onError={(e) => handleImageError(e, '/fallback-product.png')}
             className={`w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105 ${
               isOutOfStock ? 'grayscale-[35%] opacity-85' : ''
             }`}
@@ -64,6 +65,7 @@ const ProductCard = ({ product }) => {
             <img
               src={getImageUrl(product.images[1])}
               alt={product.title}
+              onError={(e) => handleImageError(e, '/fallback-product.png')}
               className={`absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 ${
                 isOutOfStock ? 'grayscale-[35%] opacity-85' : ''
               }`}

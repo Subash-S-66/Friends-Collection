@@ -17,134 +17,6 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
 
-const defaultWomenTree = [
-  {
-    name: 'Sarees',
-    slug: 'sarees',
-    gender: 'women',
-    subcategories: [
-      { name: 'Banarasi Silk Sarees', slug: 'banarasi-silk' },
-      { name: 'Kanchipuram Silk Sarees', slug: 'kanchipuram-silk' },
-      { name: 'Pure Cotton Sarees', slug: 'cotton-sarees' },
-      { name: 'Party Wear Sarees', slug: 'party-wear-sarees' }
-    ]
-  },
-  {
-    name: 'Salwar Suits',
-    slug: 'salwar-suits',
-    gender: 'women',
-    subcategories: [
-      { name: 'Anarkali Suits', slug: 'anarkali-suits' },
-      { name: 'Straight Cut Suits', slug: 'straight-cut-suits' },
-      { name: 'Sharara & Gharara Sets', slug: 'sharara-sets' }
-    ]
-  },
-  {
-    name: 'Kurtis & Tunics',
-    slug: 'kurtis',
-    gender: 'women',
-    subcategories: [
-      { name: 'A-Line Kurtis', slug: 'a-line-kurtis' },
-      { name: 'Short Kurtis', slug: 'short-kurtis' },
-      { name: 'Festive Wear Kurtis', slug: 'festive-kurtis' }
-    ]
-  },
-  {
-    name: 'Lehengas',
-    slug: 'lehengas',
-    gender: 'women',
-    subcategories: [
-      { name: 'Bridal Lehengas', slug: 'bridal-lehengas' },
-      { name: 'Party Wear Lehengas', slug: 'party-wear-lehengas' }
-    ]
-  },
-  {
-    name: 'Western & Co-ords',
-    slug: 'western-wear',
-    gender: 'women',
-    subcategories: [
-      { name: 'Co-ord Sets', slug: 'co-ord-sets' },
-      { name: 'Maxi Dresses', slug: 'maxi-dresses' }
-    ]
-  }
-];
-
-const defaultMenTree = [
-  {
-    name: 'Shirts',
-    slug: 'men-shirts',
-    gender: 'men',
-    subcategories: [
-      { name: 'Pure Linen Shirts', slug: 'men-linen-shirts' },
-      { name: 'Casual Printed Shirts', slug: 'men-printed-shirts' },
-      { name: 'Formal Oxford Shirts', slug: 'men-formal-shirts' }
-    ]
-  },
-  {
-    name: 'Kurtas & Ethnic',
-    slug: 'men-kurtas',
-    gender: 'men',
-    subcategories: [
-      { name: 'Short Festive Kurtas', slug: 'men-short-kurtas' },
-      { name: 'Kurta Pajama Sets', slug: 'men-kurta-sets' },
-      { name: 'Nehru & Modi Jackets', slug: 'men-nehru-jackets' }
-    ]
-  },
-  {
-    name: 'Trousers & Pants',
-    slug: 'men-trousers',
-    gender: 'men',
-    subcategories: [
-      { name: 'Stretch Chinos', slug: 'men-chinos' },
-      { name: 'Tailored Formal Trousers', slug: 'men-formal-pants' },
-      { name: 'Casual Cargos', slug: 'men-cargos' }
-    ]
-  },
-  {
-    name: 'T-Shirts & Polos',
-    slug: 'men-tshirts',
-    gender: 'men',
-    subcategories: [
-      { name: 'Oversized Tees', slug: 'men-oversized-tees' },
-      { name: 'Classic Pique Polos', slug: 'men-classic-polos' }
-    ]
-  },
-  {
-    name: 'Suits & Blazers',
-    slug: 'men-suits',
-    gender: 'men',
-    subcategories: [
-      { name: 'Wedding & Festive Blazers', slug: 'men-wedding-blazers' },
-      { name: 'Slim Fit Formal Suits', slug: 'men-slim-suits' }
-    ]
-  }
-];
-
-const defaultKidsTree = [
-  {
-    _id: 'default-kids-boys',
-    name: "Boys' Wear",
-    slug: 'boys-wear',
-    gender: 'kids',
-    subcategories: [
-      { _id: 'sub-boys-shirts', name: 'Shirts & T-Shirts', slug: 'boys-shirts' },
-      { _id: 'sub-boys-kurtas', name: 'Kurta & Dhoti Sets', slug: 'boys-kurtas' },
-      { _id: 'sub-boys-jeans', name: 'Jeans & Trousers', slug: 'boys-jeans' }
-    ]
-  },
-  {
-    _id: 'default-kids-girls',
-    name: "Girls' Wear",
-    slug: 'girls-wear',
-    gender: 'kids',
-    subcategories: [
-      { _id: 'sub-girls-frocks', name: 'Frocks & Gowns', slug: 'girls-frocks' },
-      { _id: 'sub-girls-lehengas', name: 'Pattu Pavadai & Lehengas', slug: 'girls-lehengas' },
-      { _id: 'sub-girls-kurtis', name: 'Kurtis & Sets', slug: 'girls-kurtis' }
-    ]
-  }
-];
-
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -177,28 +49,23 @@ const Navbar = () => {
     setActiveMegaMenu(null);
   }, [location]);
 
-  // Fetch category tree from backend
+  // Fetch category tree dynamically from database
   useEffect(() => {
     API.get('/categories/tree')
       .then((res) => {
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           setCategoryTree(res.data);
-        } else {
-          setCategoryTree([...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree]);
         }
       })
-      .catch(() => {
-        setCategoryTree([...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree]);
+      .catch((err) => {
+        console.error('Error fetching dynamic category tree:', err);
       });
   }, []);
 
-  // Filter categories by gender
-  const allCategories = Array.isArray(categoryTree) && categoryTree.length > 0
-    ? categoryTree
-    : [...defaultWomenTree, ...defaultMenTree, ...defaultKidsTree];
-  const womenCategories = allCategories.filter((c) => c && (c.gender === 'women' || !c.gender));
-  const menCategories = allCategories.filter((c) => c && c.gender === 'men');
-  const kidsCategories = allCategories.filter((c) => c && c.gender === 'kids');
+  // Dynamic categories filtered directly from DB category tree
+  const womenCategories = (categoryTree || []).filter((c) => c && (c.gender === 'women' || !c.gender));
+  const menCategories = (categoryTree || []).filter((c) => c && c.gender === 'men');
+  const kidsCategories = (categoryTree || []).filter((c) => c && c.gender === 'kids');
 
   // Handle smooth mouse enter/leave for mega menu
   const handleMouseEnter = (gender) => {

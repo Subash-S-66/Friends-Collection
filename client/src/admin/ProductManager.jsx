@@ -14,7 +14,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { formatPrice, getImageUrl } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 
 const ProductManager = () => {
   const [products, setProducts] = useState([]);
@@ -386,6 +386,7 @@ const ProductManager = () => {
                           <img
                             src={getImageUrl(prod.images?.[0])}
                             alt={prod.title}
+                            onError={(e) => handleImageError(e, '/fallback-product.png')}
                             className="w-12 h-16 object-cover object-top rounded-lg border border-neutral-200 bg-neutral-100 shrink-0"
                           />
                           <div>
@@ -697,7 +698,12 @@ const ProductManager = () => {
                     <div className="flex flex-wrap gap-3">
                       {existingImages.map((img, i) => (
                         <div key={i} className="relative aspect-[3/4] w-20 rounded-xl overflow-hidden border border-accent-200 group">
-                          <img src={getImageUrl(img)} alt="Existing" className="w-full h-full object-cover object-top" />
+                          <img
+                            src={getImageUrl(img)}
+                            alt="Existing"
+                            onError={(e) => handleImageError(e, '/fallback-product.png')}
+                            className="w-full h-full object-cover object-top"
+                          />
                           <button
                             type="button"
                             onClick={() => handleRemoveExistingImage(i)}
