@@ -79,6 +79,7 @@ const ProductManager = () => {
     { color: 'Maroon', size: 'L', stock: 5, sku: 'FC-MRN-L' },
     { color: 'Maroon', size: 'XL', stock: 5, sku: 'FC-MRN-XL' },
   ]);
+  const [quickColorInput, setQuickColorInput] = useState('');
   const [tags, setTags] = useState(['new-arrival']);
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -322,13 +323,61 @@ const ProductManager = () => {
     });
   };
 
+  // Derive unique sizes already present across current variants (or fallback to selectedSizes)
+  const presentSizes = Array.from(new Set(variants.map((v) => v.size?.trim()).filter(Boolean)));
+  const referenceSizes = presentSizes.length > 0 ? presentSizes : (selectedSizes.length > 0 ? selectedSizes : ['S', 'M', 'L', 'XL']);
+
+  // Calculate missing sizes for any color compared to existing present sizes
+  const getMissingSizesForColor = (colorName) => {
+    if (!colorName || !colorName.trim()) return [];
+    const colLower = colorName.trim().toLowerCase();
+    const existingSizesForCol = variants
+      .filter((v) => (v.color || '').trim().toLowerCase() === colLower)
+      .map((v) => (v.size || '').trim());
+    return referenceSizes.filter((sz) => !existingSizesForCol.includes(sz));
+  };
+
+  // Auto-generate variants for a specific color using all present sizes without filling stock (leaves stock empty)
+  const handleAutoGenerateForColor = (colorName) => {
+    const trimmed = (colorName || '').trim();
+    if (!trimmed) {
+      toast.error('Please enter a color name (e.g. Red, Navy Blue)');
+      return;
+    }
+
+    const sizesToAdd = getMissingSizesForColor(trimmed);
+    if (sizesToAdd.length === 0) {
+      toast.info(`All ${referenceSizes.length} sizes already exist for "${trimmed}".`);
+      return;
+    }
+
+    const cleanCol = trimmed.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const newRows = sizesToAdd.map((sz) => {
+      const cleanSz = sz.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      return {
+        color: trimmed,
+        size: sz,
+        stock: '', // Keep stock empty as requested: user cannot save while empty, but 0 is allowed
+        sku: `FC-${cleanCol || 'CLR'}-${cleanSz || 'STD'}`
+      };
+    });
+
+    setVariants((prev) => [...prev, ...newRows]);
+    setQuickColorInput('');
+    setSelectedColors((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    toast.success(
+      `Auto-generated ${newRows.length} variant(s) for "${trimmed}"! Please enter stock quantities (0 is allowed, but not empty).`,
+      { icon: '🎨' }
+    );
+  };
+
   // Add / Remove Variant Row
   const handleAddVariantRow = () => {
     const isKidsMode = gender === 'kids';
     const fallbackSize = isKidsMode ? '1-2' : 'M';
     setVariants((prev) => [
       ...prev,
-      { color: selectedColors[0] || 'Standard', size: selectedSizes[0] || fallbackSize, stock: 5, sku: '' }
+      { color: selectedColors[0] || 'Standard', size: referenceSizes[0] || fallbackSize, stock: '', sku: '' }
     ]);
   };
 
@@ -339,7 +388,17 @@ const ProductManager = () => {
   const handleVariantChange = (index, field, value) => {
     setVariants((prev) => {
       const updated = [...prev];
-      updated[index][field] = field === 'stock' ? Math.max(0, parseInt(value) || 0) : value;
+      if (field === 'stock') {
+        // Keep empty string when user clears input or when empty; otherwise parse non-negative integer
+        if (value === '' || value === null || value === undefined) {
+          updated[index][field] = '';
+        } else {
+          const parsed = parseInt(value, 10);
+          updated[index][field] = isNaN(parsed) ? '' : Math.max(0, parsed);
+        }
+      } else {
+        updated[index][field] = value;
+      }
       return updated;
     });
   };
@@ -352,8 +411,14 @@ const ProductManager = () => {
       existingMap.set(k, v.stock);
     });
 
-    const colors = selectedColors.length > 0 ? selectedColors : ['Standard'];
-    const sizes = selectedSizes.length > 0 ? selectedSizes : ['Standard'];
+    const allColors = Array.from(
+      new Set([
+        ...variants.map((v) => v.color?.trim()).filter(Boolean),
+        ...selectedColors
+      ])
+    );
+    const colors = allColors.length > 0 ? allColors : ['Standard'];
+    const sizes = referenceSizes.length > 0 ? referenceSizes : ['Standard'];
     const matrix = [];
 
     colors.forEach((color) => {
@@ -363,13 +428,13 @@ const ProductManager = () => {
         matrix.push({
           color,
           size,
-          stock: existingStock !== undefined ? existingStock : 5,
-          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${size.replace(/[^A-Z0-9]/g, '')}`
+          stock: existingStock !== undefined && existingStock !== '' ? existingStock : '',
+          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${size.replace(/[^A-Z0-9]/g, '')}`
         });
       });
     });
     setVariants(matrix);
-    toast.success(`Generated ${matrix.length} variants!`);
+    toast.success(`Generated ${matrix.length} variants! Stock must be filled before saving.`);
   };
 
   // Multi-image selection with preview & 3:4 aspect ratio normalization
@@ -506,6 +571,33 @@ const ProductManager = () => {
       return;
     }
 
+    // Enforce variant inventory and size validation
+    if (!variants || variants.length === 0) {
+      toast.error('Please add at least one product variant (color & size).');
+      return;
+    }
+
+    // Enforce that stock cannot be empty: it can be 0 (out of stock), but cannot be empty/blank
+    const emptyStockIdx = variants.findIndex(
+      (v) => v.stock === '' || v.stock === null || v.stock === undefined || String(v.stock).trim() === ''
+    );
+    if (emptyStockIdx !== -1) {
+      const emptyVar = variants[emptyStockIdx];
+      toast.error(
+        `Stock cannot be empty for variant "${emptyVar.color || 'Variant'} - ${emptyVar.size || 'Size'}". Please enter a stock quantity (0 is allowed if out of stock, but cannot be left empty).`,
+        { duration: 6000, icon: '⚠️' }
+      );
+      return;
+    }
+
+    // Enforce valid non-negative numbers for all variant stocks
+    const invalidStockIdx = variants.findIndex((v) => isNaN(Number(v.stock)) || Number(v.stock) < 0);
+    if (invalidStockIdx !== -1) {
+      const invVar = variants[invalidStockIdx];
+      toast.error(`Invalid stock for variant "${invVar.color} - ${invVar.size}". Stock must be 0 or higher.`);
+      return;
+    }
+
     // Dynamic confirmation popup before publishing/updating
     const matchedCategoryName = safeCategories.find((c) => c._id === category)?.name || 'Catalog';
     const isEditing = Boolean(editingProduct);
@@ -517,7 +609,7 @@ const ProductManager = () => {
       type: 'save',
       confirmText: isEditing ? 'Save & Update' : 'Publish Dress',
       cancelText: 'Keep Editing',
-      details: `${matchedCategoryName} • ₹${price} • ${variants.length} Variants (${variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)} Total Units)`
+      details: `${matchedCategoryName} • ₹${price} • ${variants.length} Variants (${variants.reduce((s, v) => s + (parseInt(v.stock, 10) || 0), 0)} Total Units)`
     });
     if (!confirmed) return;
 
@@ -531,12 +623,33 @@ const ProductManager = () => {
       formData.append('subcategory', subcategory || '');
       formData.append('price', price);
       if (salePrice) formData.append('salePrice', salePrice);
-      formData.append('sizes', JSON.stringify(selectedSizes));
-      formData.append('colors', JSON.stringify(selectedColors));
-      formData.append('variants', JSON.stringify(variants));
+
+      const distinctSizes = Array.from(
+        new Set([
+          ...variants.map((v) => v.size?.trim()).filter(Boolean),
+          ...selectedSizes
+        ])
+      );
+      formData.append('sizes', JSON.stringify(distinctSizes.length > 0 ? distinctSizes : ['Standard']));
+
+      const distinctColors = Array.from(
+        new Set([
+          ...variants.map((v) => v.color?.trim()).filter(Boolean),
+          ...selectedColors
+        ])
+      );
+      formData.append('colors', JSON.stringify(distinctColors.length > 0 ? distinctColors : ['Standard']));
+
+      const sanitizedVariants = variants.map((v) => ({
+        color: (v.color || 'Standard').trim(),
+        size: (v.size || 'Standard').trim(),
+        stock: parseInt(v.stock, 10) || 0,
+        sku: v.sku || ''
+      }));
+      formData.append('variants', JSON.stringify(sanitizedVariants));
       formData.append('tags', JSON.stringify(tags));
 
-      const calculatedTotalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+      const calculatedTotalStock = sanitizedVariants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
       formData.append('stock', calculatedTotalStock);
 
       if (editingProduct) {
@@ -1646,84 +1759,188 @@ const ProductManager = () => {
                   </div>
                 )}
 
-                {/* Variant Table */}
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {variants.map((v, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs">
-                      <input
-                        type="text"
-                        placeholder="Color (e.g. Navy Blue)"
-                        value={v.color}
-                        onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50"
-                      />
-                      <select
-                        value={v.size}
-                        onChange={(e) => {
-                          if (e.target.value === '__custom__') {
-                            const val = window.prompt('Enter custom manual size (e.g. 1-2, 2-3, 18-24M):');
-                            if (val && val.trim()) {
-                              const customVal = val.trim();
-                              if (!customSizesList.includes(customVal)) {
-                                setCustomSizesList((prev) => [...prev, customVal]);
-                              }
-                              if (!selectedSizes.includes(customVal)) {
-                                setSelectedSizes((prev) => [...prev, customVal]);
-                              }
-                              handleVariantChange(idx, 'size', customVal);
-                            }
-                          } else {
-                            handleVariantChange(idx, 'size', e.target.value);
-                          }
-                        }}
-                        className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold"
-                      >
-                        {availableSizes.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                        {gender === 'kids' && (
-                          <option value="__custom__">+ Custom Size...</option>
-                        )}
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Stock"
-                        value={v.stock}
-                        onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
-                        className="w-20 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold text-center"
-                      />
-                      <input
-                        type="text"
-                        placeholder="SKU"
-                        value={v.sku || ''}
-                        onChange={(e) => handleVariantChange(idx, 'sku', e.target.value)}
-                        className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveVariantRow(idx)}
-                        className="p-2 text-neutral-400 hover:text-red-600 rounded-lg"
-                      >
-                        <HiOutlineX className="w-4 h-4" />
-                      </button>
+                {/* Quick Add Color & Auto-Generate Sizes Feature */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50/80 via-cream-light to-amber-50/60 border border-amber-200/90 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">🎨</span>
+                      <span className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                        Quick Add Color & Auto-Generate Sizes
+                      </span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
+                        {referenceSizes.length} sizes present ({referenceSizes.join(', ')})
+                      </span>
                     </div>
-                  ))}
+                    <span className="text-[10px] text-neutral-500">
+                      Auto-creates rows with empty stock (enter 0 if out of stock)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Type new color (e.g. Red, Royal Blue, Olive Green)..."
+                      value={quickColorInput}
+                      onChange={(e) => setQuickColorInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAutoGenerateForColor(quickColorInput);
+                        }
+                      }}
+                      className="flex-1 px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900 placeholder:text-neutral-400 focus:ring-2 focus:ring-primary font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAutoGenerateForColor(quickColorInput)}
+                      disabled={!quickColorInput.trim()}
+                      className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>⚡ Auto-Generate {referenceSizes.length} Sizes</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                {/* Variant Table */}
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {variants.map((v, idx) => {
+                    const isStockEmpty = v.stock === '' || v.stock === null || v.stock === undefined || String(v.stock).trim() === '';
+                    const colTrimmed = (v.color || '').trim();
+                    const missingSizes = colTrimmed && colTrimmed.length >= 2 ? getMissingSizesForColor(colTrimmed) : [];
+                    // Only display the prompt on the last row matching this color
+                    const isLastRowForThisColor =
+                      colTrimmed &&
+                      variants
+                        .map((row, i) => ({ color: (row.color || '').trim().toLowerCase(), idx: i }))
+                        .filter((row) => row.color === colTrimmed.toLowerCase())
+                        .pop()?.idx === idx;
+                    const showColorPrompt = isLastRowForThisColor && missingSizes.length > 0 && referenceSizes.length > 1;
+
+                    return (
+                      <div key={idx} className="space-y-1.5">
+                        <div className={`flex items-center gap-2 text-xs p-1 rounded-xl transition-all ${
+                          isStockEmpty ? 'bg-red-50/50 ring-1 ring-red-300' : 'bg-transparent'
+                        }`}>
+                          <input
+                            type="text"
+                            placeholder="Color (e.g. Red, Navy)"
+                            value={v.color}
+                            onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
+                            className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-medium"
+                          />
+                          <select
+                            value={v.size}
+                            onChange={(e) => {
+                              if (e.target.value === '__custom__') {
+                                const val = window.prompt('Enter custom manual size (e.g. 1-2, 2-3, 18-24M):');
+                                if (val && val.trim()) {
+                                  const customVal = val.trim();
+                                  if (!customSizesList.includes(customVal)) {
+                                    setCustomSizesList((prev) => [...prev, customVal]);
+                                  }
+                                  if (!selectedSizes.includes(customVal)) {
+                                    setSelectedSizes((prev) => [...prev, customVal]);
+                                  }
+                                  handleVariantChange(idx, 'size', customVal);
+                                }
+                              } else {
+                                handleVariantChange(idx, 'size', e.target.value);
+                              }
+                            }}
+                            className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold"
+                          >
+                            {availableSizes.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                            {gender === 'kids' && (
+                              <option value="__custom__">+ Custom Size...</option>
+                            )}
+                          </select>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Stock *"
+                              value={v.stock}
+                              onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+                              className={`w-24 px-2 py-2 rounded-xl font-bold text-center border transition-all ${
+                                isStockEmpty
+                                  ? 'border-red-400 bg-white text-red-900 placeholder:text-red-400 ring-2 ring-red-300'
+                                  : 'border-neutral-200 bg-neutral-50 text-neutral-900'
+                              }`}
+                            />
+                            {isStockEmpty && (
+                              <span className="block text-[9px] text-red-600 font-bold text-center">
+                                Empty (0+ req)
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="SKU"
+                            value={v.sku || ''}
+                            onChange={(e) => handleVariantChange(idx, 'sku', e.target.value)}
+                            className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVariantRow(idx)}
+                            className="p-2 text-neutral-400 hover:text-red-600 rounded-lg cursor-pointer"
+                            title="Remove variant row"
+                          >
+                            <HiOutlineX className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Inline Prompt: When typing a color that is missing sizes */}
+                        {showColorPrompt && (
+                          <div className="ml-1 mr-1 p-2 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center gap-1.5 text-xs text-amber-950 font-medium">
+                              <span className="text-amber-600 font-bold">💡 Auto-Generate:</span>
+                              <span>
+                                Color <strong>"{colTrimmed}"</strong> has {referenceSizes.length - missingSizes.length} of {referenceSizes.length} sizes.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAutoGenerateForColor(colTrimmed)}
+                              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shadow-xs whitespace-nowrap cursor-pointer flex items-center gap-1 transition-transform hover:scale-105"
+                            >
+                              <span>⚡ Auto-Generate Remaining {missingSizes.length} Size{missingSizes.length > 1 ? 's' : ''} ({missingSizes.join(', ')})</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-neutral-100 gap-2">
                   <button
                     type="button"
                     onClick={handleAddVariantRow}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer"
                   >
                     <HiOutlinePlus className="w-4 h-4" />
                     <span>Add Custom Variant Row</span>
                   </button>
 
-                  <span className="text-xs font-bold text-neutral-800">
-                    Total Calculated Stock: {variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)} Units
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {variants.some((v) => v.stock === '' || v.stock === null || v.stock === undefined || String(v.stock).trim() === '') ? (
+                      <span className="text-[11px] font-bold text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <span>⚠️</span>
+                        <span>Stock cannot be empty (0 is allowed)</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <span>✓</span>
+                        <span>All variant stocks set</span>
+                      </span>
+                    )}
+                    <span className="text-xs font-bold text-neutral-800">
+                      Total Calculated Stock: {variants.reduce((s, v) => s + (parseInt(v.stock, 10) || 0), 0)} Units
+                    </span>
+                  </div>
                 </div>
               </div>
 
