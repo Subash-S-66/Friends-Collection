@@ -47,6 +47,8 @@ const OrderManager = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  // Track in-flight row updates to prevent double clicks and render micro-loaders over specific buttons/selects
+  const [rowUpdating, setRowUpdating] = useState({}); // { [orderId]: 'status' | 'payment' }
 
   // Tracking & Status form states
   const [modalStatus, setModalStatus] = useState('yet_to_move');
@@ -61,8 +63,8 @@ const OrderManager = () => {
   // Invoice state
   const [invoiceOrder, setInvoiceOrder] = useState(null);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedStatus !== 'all') params.append('status', selectedStatus);
@@ -78,7 +80,7 @@ const OrderManager = () => {
       console.error('Error fetching admin orders:', err);
       toast.error('Failed to load orders');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -105,8 +107,15 @@ const OrderManager = () => {
     setTrackingMessage('');
   };
 
-  const handleQuickStatusUpdate = async (orderId, newStatus) => {
-    if (updatingStatus) return;
+  const handleQuickStatusUpdate = async (e, orderId, newStatus, currentStatus) => {
+    const selectEl = e?.target;
+    // Prevent double submission / duplicate in-flight requests
+    if (rowUpdating[orderId]) {
+      if (selectEl) selectEl.value = currentStatus;
+      return;
+    }
+    if (newStatus === currentStatus) return;
+
     const ok = await confirm({
       title: 'Update Fulfillment Status?',
       message: `Change fulfillment status to "${newStatus.replace('_', ' ').toUpperCase()}"?`,
@@ -114,28 +123,48 @@ const OrderManager = () => {
       confirmText: 'Yes, Update Status',
       cancelText: 'Cancel'
     });
+
     if (!ok) {
-      fetchOrders(); // reset select visual state if user cancelled
+      // Revert select visual state immediately without reloading the entire table
+      if (selectEl) selectEl.value = currentStatus;
+      setOrders((prev) => [...prev]);
       return;
     }
 
-    setUpdatingStatus(true);
+    setRowUpdating((prev) => ({ ...prev, [orderId]: 'status' }));
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { status: newStatus });
       toast.success(`Fulfillment status updated to ${newStatus.replace('_', ' ')}`);
+      // Update order in state directly in background - no full table reload!
+      setOrders((prev) =>
+        prev.map((o) => (o._id === orderId ? { ...o, ...res.data } : o))
+      );
       if (selectedOrder && selectedOrder._id === orderId) {
         setSelectedOrder(res.data);
       }
-      fetchOrders();
-    } catch {
-      toast.error('Failed to update order status');
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      toast.error(err.response?.data?.message || 'Failed to update order status');
+      if (selectEl) selectEl.value = currentStatus;
+      setOrders((prev) => [...prev]);
     } finally {
-      setUpdatingStatus(false);
+      setRowUpdating((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
     }
   };
 
-  const handleQuickPaymentUpdate = async (orderId, newPaymentStatus) => {
-    if (updatingStatus) return;
+  const handleQuickPaymentUpdate = async (e, orderId, newPaymentStatus, currentPaymentStatus) => {
+    const selectEl = e?.target;
+    // Prevent double submission / duplicate in-flight requests
+    if (rowUpdating[orderId]) {
+      if (selectEl) selectEl.value = currentPaymentStatus;
+      return;
+    }
+    if (newPaymentStatus === currentPaymentStatus) return;
+
     const ok = await confirm({
       title: 'Update Payment Status?',
       message: `Change payment status to "${newPaymentStatus.replace('_', ' ').toUpperCase()}"?`,
@@ -143,23 +172,35 @@ const OrderManager = () => {
       confirmText: 'Yes, Update Payment',
       cancelText: 'Cancel'
     });
+
     if (!ok) {
-      fetchOrders();
+      if (selectEl) selectEl.value = currentPaymentStatus;
+      setOrders((prev) => [...prev]);
       return;
     }
 
-    setUpdatingStatus(true);
+    setRowUpdating((prev) => ({ ...prev, [orderId]: 'payment' }));
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { paymentStatus: newPaymentStatus });
       toast.success(`Payment status marked as ${newPaymentStatus.replace('_', ' ')}`);
+      // Update order in state directly in background - no full table reload!
+      setOrders((prev) =>
+        prev.map((o) => (o._id === orderId ? { ...o, ...res.data } : o))
+      );
       if (selectedOrder && selectedOrder._id === orderId) {
         setSelectedOrder(res.data);
       }
-      fetchOrders();
-    } catch {
-      toast.error('Failed to update payment status');
+    } catch (err) {
+      console.error('Failed to update payment status:', err);
+      toast.error(err.response?.data?.message || 'Failed to update payment status');
+      if (selectEl) selectEl.value = currentPaymentStatus;
+      setOrders((prev) => [...prev]);
     } finally {
-      setUpdatingStatus(false);
+      setRowUpdating((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
     }
   };
 
@@ -194,7 +235,10 @@ const OrderManager = () => {
       const res = await API.put(`/orders/admin/${selectedOrder._id}/status`, payload);
       toast.success('Order status, payment & tracking saved successfully!');
       setSelectedOrder(res.data);
-      fetchOrders();
+      // Update table data in-place without triggering full table reload spinner
+      setOrders((prev) =>
+        prev.map((o) => (o._id === res.data._id ? res.data : o))
+      );
     } catch (err) {
       console.error('Failed to update order details:', err);
       toast.error(err.response?.data?.message || 'Failed to update order details');
@@ -221,7 +265,7 @@ const OrderManager = () => {
         </div>
 
         <button
-          onClick={fetchOrders}
+          onClick={() => fetchOrders(true)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:text-primary transition-colors shadow-xs cursor-pointer"
         >
           <HiOutlineRefresh className="w-4 h-4" />
@@ -324,7 +368,12 @@ const OrderManager = () => {
                 orders.map((order) => {
                   const hasTracking = Boolean(order.tracking?.trackingNumber);
                   const isPaid = order.paymentStatus === 'paid';
-                  const isYetToMove = order.status === 'yet_to_move' || order.status === 'pending';
+                  const currentStatusVal = order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move');
+                  const currentPaymentVal = order.paymentStatus || 'payment_pending';
+                  const isYetToMove = currentStatusVal === 'yet_to_move';
+                  const isRowUpdating = Boolean(rowUpdating[order._id]);
+                  const isUpdatingThisStatus = rowUpdating[order._id] === 'status';
+                  const isUpdatingThisPayment = rowUpdating[order._id] === 'payment';
 
                   return (
                     <tr key={order._id} className="hover:bg-cream-light/40 transition-colors">
@@ -425,47 +474,69 @@ const OrderManager = () => {
 
                       {/* Payment Status Dropdown */}
                       <td className="py-4 px-6">
-                        <select
-                          value={order.paymentStatus || 'payment_pending'}
-                          onChange={(e) => handleQuickPaymentUpdate(order._id, e.target.value)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
-                            isPaid
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : order.paymentStatus === 'failed'
-                              ? 'bg-red-50 text-red-800 border-red-300'
-                              : 'bg-amber-50 text-amber-900 border-amber-300'
-                          }`}
-                        >
-                          <option value="payment_pending">Payment Pending</option>
-                          <option value="paid">Paid</option>
-                          <option value="failed">Failed</option>
-                          <option value="refunded">Refunded</option>
-                        </select>
+                        <div className="relative inline-flex items-center">
+                          <select
+                            value={currentPaymentVal}
+                            disabled={isRowUpdating}
+                            onChange={(e) => handleQuickPaymentUpdate(e, order._id, e.target.value, currentPaymentVal)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none transition-all ${
+                              isRowUpdating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
+                              isPaid
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : order.paymentStatus === 'failed'
+                                ? 'bg-red-50 text-red-800 border-red-300'
+                                : 'bg-amber-50 text-amber-900 border-amber-300'
+                            }`}
+                          >
+                            <option value="payment_pending">Payment Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="failed">Failed</option>
+                            <option value="refunded">Refunded</option>
+                          </select>
+                          {isUpdatingThisPayment && (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] rounded-lg flex items-center justify-center gap-1.5 shadow-xs pointer-events-none">
+                              <div className="w-3.5 h-3.5 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                              <span className="text-[10px] font-bold text-emerald-800">Updating...</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Fulfillment Status Dropdown */}
                       <td className="py-4 px-6">
-                        <select
-                          value={order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move')}
-                          onChange={(e) => handleQuickStatusUpdate(order._id, e.target.value)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
-                            isYetToMove
-                              ? 'bg-amber-50 text-amber-800 border-amber-300'
-                              : order.status === 'confirmed'
-                              ? 'bg-blue-50 text-blue-800 border-blue-300'
-                              : order.status === 'shipped'
-                              ? 'bg-purple-50 text-purple-800 border-purple-300'
-                              : order.status === 'delivered'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : 'bg-red-50 text-red-800 border-red-300'
-                          }`}
-                        >
-                          <option value="yet_to_move">Yet to Move</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
+                        <div className="relative inline-flex items-center">
+                          <select
+                            value={currentStatusVal}
+                            disabled={isRowUpdating}
+                            onChange={(e) => handleQuickStatusUpdate(e, order._id, e.target.value, currentStatusVal)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none transition-all ${
+                              isRowUpdating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
+                              isYetToMove
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : order.status === 'confirmed'
+                                ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                : order.status === 'shipped'
+                                ? 'bg-purple-50 text-purple-800 border-purple-300'
+                                : order.status === 'delivered'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : 'bg-red-50 text-red-800 border-red-300'
+                            }`}
+                          >
+                            <option value="yet_to_move">Yet to Move</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          {isUpdatingThisStatus && (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] rounded-lg flex items-center justify-center gap-1.5 shadow-xs pointer-events-none">
+                              <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                              <span className="text-[10px] font-bold text-neutral-800">Updating...</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
