@@ -109,12 +109,21 @@ exports.checkSubscription = async (req, res, next) => {
   }
 };
 
-// Helper: Notify all pending waitlisted customers for a product / variant
-exports.notifyWaitlistedCustomers = async (productId, color = '', size = '') => {
+// Active restock jobs to prevent concurrent duplicate dispatch for the same product
+const activeRestockJobs = new Set();
+
+// Helper: Notify all pending waitlisted customers for a product / variant one after another
+exports.notifyWaitlistedCustomers = async (productId, color = '', size = '', waitForCompletion = false) => {
   try {
     const product = await Product.findById(productId);
     if (!product || (product.stock !== undefined && product.stock <= 0)) {
       return { notifiedCount: 0 };
+    }
+
+    const prodKey = `${product._id.toString()}_${color || ''}_${size || ''}`;
+    if (activeRestockJobs.has(prodKey)) {
+      console.log(`ℹ️ [Restock Notification] Dispatch queue already actively running for "${product.title}"`);
+      return { notifiedCount: 0, message: 'Already processing' };
     }
 
     const query = {
@@ -130,28 +139,69 @@ exports.notifyWaitlistedCustomers = async (productId, color = '', size = '') => 
       return { notifiedCount: 0 };
     }
 
-    let successCount = 0;
-    for (const sub of subscriptions) {
-      try {
-        const recipientName = sub.name || sub.user?.name || '';
-        const recipientPhone = sub.phone || sub.user?.phone || '';
-        await sendBackInStockAlertEmail({
-          to: sub.email,
-          name: recipientName,
-          phone: recipientPhone,
-          product,
-          variant: sub.variant
-        });
-        // Clear request completely after notifying once so it never re-sends even if stock cycles
-        await NotificationSubscription.findByIdAndDelete(sub._id);
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to send alert to ${sub.email}:`, err.message);
-      }
-    }
+    activeRestockJobs.add(prodKey);
 
-    console.log(`📢 [Restock Alert] Successfully emailed ${successCount} waitlisted customers for "${product.title}"`);
-    return { notifiedCount: successCount };
+    // Sequential, throttled worker that sends emails one after another
+    const dispatchWorker = async () => {
+      let successCount = 0;
+      let failedCount = 0;
+      console.log(`🚀 [Restock Queue Started] Processing ${subscriptions.length} waitlisted customers for "${product.title}" one by one...`);
+
+      for (let i = 0; i < subscriptions.length; i++) {
+        const sub = subscriptions[i];
+        try {
+          // Verify subscription is still pending in DB
+          const currentSub = await NotificationSubscription.findById(sub._id);
+          if (!currentSub) continue;
+
+          const recipientName = sub.name || sub.user?.name || '';
+          const recipientPhone = sub.phone || sub.user?.phone || '';
+
+          const res = await sendBackInStockAlertEmail({
+            to: sub.email,
+            name: recipientName,
+            phone: recipientPhone,
+            product,
+            variant: sub.variant
+          });
+
+          // Permanently clear subscription request from DB immediately so it never re-sends
+          await NotificationSubscription.findByIdAndDelete(sub._id).catch(() => {});
+
+          if (res && res.success) {
+            successCount++;
+            console.log(`✉️ [Restock ${i + 1}/${subscriptions.length}] Alert delivered to ${sub.email}`);
+          } else {
+            failedCount++;
+            console.warn(`⚠️ [Restock ${i + 1}/${subscriptions.length}] Delivery error for ${sub.email}:`, res?.error);
+          }
+        } catch (subErr) {
+          failedCount++;
+          console.error(`❌ [Restock Queue] Error delivering to ${sub.email}:`, subErr.message);
+          await NotificationSubscription.findByIdAndDelete(sub._id).catch(() => {});
+        }
+
+        // Controlled throttle: Pause 800ms between each email to prevent server overload and SMTP rate limits
+        if (i < subscriptions.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        }
+      }
+
+      activeRestockJobs.delete(prodKey);
+      console.log(`🏁 [Restock Queue Finished] "${product.title}": ${successCount} sent, ${failedCount} failed (${subscriptions.length} total).`);
+      return { notifiedCount: successCount, failedCount };
+    };
+
+    if (waitForCompletion) {
+      return await dispatchWorker();
+    } else {
+      // Run in the background without blocking the caller/server response
+      dispatchWorker().catch((err) => {
+        console.error('❌ [Restock Worker Error]:', err);
+        activeRestockJobs.delete(prodKey);
+      });
+      return { queued: true, notifiedCount: subscriptions.length };
+    }
   } catch (error) {
     console.error('❌ [Restock Alert Error] notifyWaitlistedCustomers:', error);
     return { notifiedCount: 0, error: error.message };
@@ -165,8 +215,8 @@ exports.notifySubscribers = async (req, res, next) => {
     const { productId } = req.params;
     const { color, size } = req.body;
 
-    const result = await exports.notifyWaitlistedCustomers(productId, color, size);
-    if (result.notifiedCount === 0) {
+    const result = await exports.notifyWaitlistedCustomers(productId, color, size, false);
+    if (!result.notifiedCount || result.notifiedCount === 0) {
       return res.json({
         message: 'No pending waitlist subscribers for this item or item still out of stock',
         notifiedCount: 0
@@ -174,7 +224,7 @@ exports.notifySubscribers = async (req, res, next) => {
     }
 
     res.json({
-      message: `Successfully notified ${result.notifiedCount} waitlisted customers via email!`,
+      message: `Restock campaign started! Dispatching alerts to ${result.notifiedCount} waitlisted customers one after another in the background.`,
       notifiedCount: result.notifiedCount
     });
   } catch (error) {

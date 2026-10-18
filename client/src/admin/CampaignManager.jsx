@@ -208,6 +208,16 @@ const CampaignManager = () => {
     fetchCampaigns();
   }, []);
 
+  // Auto-poll progress while any campaign is actively sending in the background
+  useEffect(() => {
+    const hasSending = campaigns.some((c) => c.status === 'sending');
+    if (!hasSending) return;
+    const interval = setInterval(() => {
+      fetchCampaigns();
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [campaigns]);
+
   // Sync editor innerHTML when template or bodyHtml changes externally
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== bodyHtml) {
@@ -1141,14 +1151,29 @@ const CampaignManager = () => {
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           c.status === 'sent'
                             ? 'bg-emerald-100 text-emerald-800'
+                            : c.status === 'sending'
+                            ? 'bg-blue-100 text-blue-800 animate-pulse'
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        {c.status === 'sent' ? '✓ Blast Delivered' : '📝 Draft'}
+                        {c.status === 'sent'
+                          ? '✓ Blast Delivered'
+                          : c.status === 'sending'
+                          ? `⏳ Sending (${c.sentCount || 0}/${c.totalRecipients || '...'})`
+                          : '📝 Draft'}
                       </span>
                     </td>
                     <td className="py-4 px-6 font-semibold text-neutral-900">
-                      {c.recipientCount > 0 ? `${c.recipientCount} Inboxes` : '—'}
+                      {c.status === 'sending' ? (
+                        <div className="flex items-center gap-2 text-blue-700 text-xs font-bold">
+                          <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                          <span>{c.sentCount || 0} of {c.totalRecipients || 0} sent</span>
+                        </div>
+                      ) : c.recipientCount > 0 ? (
+                        `${c.recipientCount} Inboxes`
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>

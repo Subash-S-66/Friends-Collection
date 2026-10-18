@@ -171,13 +171,22 @@ exports.sendTestEmail = async (req, res, next) => {
   }
 };
 
-// @desc    Send campaign blast to targeted recipients
+// Active campaign sending jobs tracker
+const activeCampaignJobs = new Set();
+
+// @desc    Send campaign blast to targeted recipients one after another in background
 // @route   POST /api/campaigns/admin/send/:id
 exports.sendCampaignBlast = async (req, res, next) => {
   try {
     const campaign = await Campaign.findById(req.params.id);
     if (!campaign) {
       return res.status(404).json({ message: 'Campaign not found' });
+    }
+
+    if (campaign.status === 'sending' || activeCampaignJobs.has(campaign._id.toString())) {
+      return res.status(400).json({
+        message: 'This campaign is already currently dispatching emails in the background. Please wait for it to complete.'
+      });
     }
 
     // Gather recipients
@@ -215,30 +224,74 @@ exports.sendCampaignBlast = async (req, res, next) => {
       return res.status(400).json({ message: 'No recipients found for this target audience' });
     }
 
-    let sentSuccess = 0;
-    // Dispatch in batches of 5 to avoid overwhelming SMTP
-    for (const recipient of recipients) {
-      try {
-        const result = await sendCampaignEmail({
-          to: recipient.email,
-          name: recipient.name,
-          campaign
-        });
-        if (result.success) sentSuccess++;
-      } catch (err) {
-        console.error(`Blast error for ${recipient.email}:`, err.message);
-      }
-    }
-
-    campaign.status = 'sent';
-    campaign.sentAt = new Date();
-    campaign.recipientCount = sentSuccess;
+    // Mark status as 'sending' immediately and record total
+    campaign.status = 'sending';
+    campaign.totalRecipients = recipients.length;
+    campaign.sentCount = 0;
     await campaign.save();
 
+    activeCampaignJobs.add(campaign._id.toString());
+
+    // Respond immediately so admin request never times out or hangs
     res.json({
-      message: `🎉 Campaign successfully delivered to ${sentSuccess} customer inboxes!`,
-      recipientCount: sentSuccess,
+      message: `🎉 Campaign blast launched! Sending to ${recipients.length} recipients one after another in the background.`,
+      recipientCount: recipients.length,
       campaign
+    });
+
+    // Background worker: dispatches emails one after another with controlled throttling
+    setImmediate(async () => {
+      let sentSuccess = 0;
+      let failedCount = 0;
+      console.log(`🚀 [Campaign Queue] Started delivering "${campaign.title}" to ${recipients.length} recipients one by one...`);
+
+      for (let i = 0; i < recipients.length; i++) {
+        const recipient = recipients[i];
+        try {
+          const result = await sendCampaignEmail({
+            to: recipient.email,
+            name: recipient.name,
+            campaign
+          });
+
+          if (result && result.success) {
+            sentSuccess++;
+            console.log(`✉️ [Campaign ${i + 1}/${recipients.length}] Delivered to ${recipient.email}`);
+          } else {
+            failedCount++;
+            console.warn(`⚠️ [Campaign ${i + 1}/${recipients.length}] Delivery error for ${recipient.email}:`, result?.error);
+          }
+        } catch (err) {
+          failedCount++;
+          console.error(`❌ [Campaign Queue] Error for ${recipient.email}:`, err.message);
+        }
+
+        // Periodically update sentCount in MongoDB so admin UI progress bar reflects live progress
+        if ((i + 1) % 5 === 0 || i === recipients.length - 1) {
+          await Campaign.findByIdAndUpdate(campaign._id, {
+            $set: { sentCount: sentSuccess }
+          }).catch(() => {});
+        }
+
+        // Controlled throttle: Pause 750ms between each email to prevent server overload and SMTP limits
+        if (i < recipients.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 750));
+        }
+      }
+
+      activeCampaignJobs.delete(campaign._id.toString());
+
+      // Mark campaign completed
+      await Campaign.findByIdAndUpdate(campaign._id, {
+        $set: {
+          status: 'sent',
+          sentAt: new Date(),
+          recipientCount: sentSuccess,
+          sentCount: sentSuccess
+        }
+      }).catch(() => {});
+
+      console.log(`🏁 [Campaign Queue Finished] "${campaign.title}": ${sentSuccess} delivered, ${failedCount} failed (${recipients.length} total).`);
     });
   } catch (error) {
     next(error);

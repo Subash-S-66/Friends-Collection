@@ -51,10 +51,18 @@ const campaignSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'sent'],
+    enum: ['draft', 'sending', 'sent', 'failed'],
     default: 'draft'
   },
   recipientCount: {
+    type: Number,
+    default: 0
+  },
+  sentCount: {
+    type: Number,
+    default: 0
+  },
+  totalRecipients: {
     type: Number,
     default: 0
   },
