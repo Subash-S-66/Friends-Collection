@@ -12,7 +12,8 @@ exports.getCategories = async (req, res, next) => {
     }
     const categories = await Category.find(filter)
       .populate('parent', 'name slug gender')
-      .sort({ priority: 1, createdAt: -1 });
+      .sort({ priority: 1, createdAt: -1 })
+      .lean();
     res.json(categories);
   } catch (error) {
     next(error);

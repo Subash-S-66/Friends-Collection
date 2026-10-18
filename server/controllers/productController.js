@@ -70,11 +70,12 @@ exports.getProducts = async (req, res, next) => {
     const skip = (Number(page) - 1) * Number(limit);
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
-      .populate('category', 'name slug')
+      .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug')
       .sort(sortOption)
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     res.json({
       products,
@@ -92,16 +93,15 @@ exports.getProducts = async (req, res, next) => {
 exports.getProduct = async (req, res, next) => {
   try {
     const product = await Product.findOne({ slug: req.params.slug, isActive: true })
-      .populate('category', 'name slug')
+      .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug');
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Increment views
-    product.views += 1;
-    await product.save();
+    // Increment views asynchronously without blocking response
+    Product.updateOne({ _id: product._id }, { $inc: { views: 1 } }).catch(() => {});
 
     res.json(product);
   } catch (error) {
@@ -114,10 +114,11 @@ exports.getProduct = async (req, res, next) => {
 exports.getFeatured = async (req, res, next) => {
   try {
     const products = await Product.find({ isActive: true, isFeatured: true })
-      .populate('category', 'name slug')
+      .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug')
       .sort({ createdAt: -1 })
-      .limit(8);
+      .limit(24)
+      .lean();
     res.json(products);
   } catch (error) {
     next(error);
@@ -128,7 +129,7 @@ exports.getFeatured = async (req, res, next) => {
 // @route   GET /api/products/:slug/related
 exports.getRelated = async (req, res, next) => {
   try {
-    const product = await Product.findOne({ slug: req.params.slug });
+    const product = await Product.findOne({ slug: req.params.slug }).lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     const related = await Product.find({
@@ -136,9 +137,10 @@ exports.getRelated = async (req, res, next) => {
       _id: { $ne: product._id },
       isActive: true
     })
-      .populate('category', 'name slug')
+      .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug')
-      .limit(4);
+      .limit(4)
+      .lean();
 
     res.json(related);
   } catch (error) {

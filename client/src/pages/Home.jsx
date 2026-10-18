@@ -33,7 +33,7 @@ const Home = () => {
         const [catsRes, featuredRes, newRes, settingsRes, bannersRes] = await Promise.all([
           API.get('/categories').catch(() => ({ data: [] })),
           API.get('/products/featured/list').catch(() => ({ data: [] })),
-          API.get('/products?sort=newest&limit=8').catch(() => ({ data: { products: [] } })),
+          API.get('/products?sort=newest&limit=24').catch(() => ({ data: { products: [] } })),
           API.get('/settings').catch(() => ({ data: {} })),
           API.get('/banners').catch(() => ({ data: [] }))
         ]);
@@ -59,6 +59,67 @@ const Home = () => {
     };
     fetchData();
   }, []);
+
+  // Interleave items fairly across departments (women, men, kids, unisex)
+  // ensuring that if women, men, and kids are available,
+  // the first 3 items are [Women, Men, Kids], the next 3 are [Women, Men, Kids], etc.
+  const interleaveByDepartment = (items = [], maxLimit = 8) => {
+    if (!Array.isArray(items) || items.length === 0) return [];
+
+    const women = [];
+    const men = [];
+    const kids = [];
+    const others = [];
+
+    for (const item of items) {
+      if (!item) continue;
+      const g = (item.gender || item.category?.gender || '').toLowerCase();
+      if (g === 'women') women.push(item);
+      else if (g === 'men') men.push(item);
+      else if (g === 'kids') kids.push(item);
+      else others.push(item);
+    }
+
+    // Active buckets in balanced round-robin order: Women, Men, Kids, and Others
+    const buckets = [women, men, kids, others].filter((b) => b.length > 0);
+    if (buckets.length === 0) return items.slice(0, maxLimit);
+
+    const interleaved = [];
+    let round = 0;
+    let hasMore = true;
+
+    while (hasMore && interleaved.length < maxLimit) {
+      hasMore = false;
+      for (const b of buckets) {
+        if (round < b.length) {
+          interleaved.push(b[round]);
+          hasMore = true;
+          if (interleaved.length >= maxLimit) break;
+        }
+      }
+      round++;
+    }
+
+    return interleaved;
+  };
+
+  // Filter and interleave categories: strictly max 2 rows on desktop (10 items on 5-col grid)
+  const rootCategories = (Array.isArray(categories) ? categories : []).filter(
+    (c) => c && !c.parent && c.isActive !== false
+  );
+
+  const displayedCategories =
+    selectedGender === 'all'
+      ? interleaveByDepartment(rootCategories, 10)
+      : rootCategories
+          .filter((c) => c.gender === selectedGender || c.gender === 'all' || !c.gender)
+          .slice(0, 10);
+
+  // Interleave featured/trending products: strictly max 2 rows on desktop (8 items on 4-col grid)
+  const displayedFeatured = interleaveByDepartment(featured, 8);
+
+  // Interleave new arrivals products: strictly max 2 rows on desktop (8 items on 4-col grid)
+  const displayedNewArrivals = interleaveByDepartment(newArrivals, 8);
 
   // Auto-rotate hero banners if multiple exist in DB
   useEffect(() => {
@@ -278,48 +339,60 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Categories Grid */}
+          {/* Categories Grid (strictly max 2 rows: 4 mobile, 6 tablet, 10 desktop) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
-            {(Array.isArray(categories) ? categories : [])
-              .filter((c) => c && !c.parent)
-              .filter((c) => selectedGender === 'all' || c.gender === selectedGender || c.gender === 'all' || !c.gender)
-              .map((cat) => (
-                <Link
-                  to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
-                  key={cat._id}
-                  className="group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1"
-                >
-                  <img
-                    src={getImageUrl(cat.image, '/fallback-product.png')}
-                    alt={cat.name}
-                    onError={(e) => handleImageError(e, '/fallback-product.png')}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary-950/85 via-primary-900/30 to-transparent flex flex-col justify-end p-3 sm:p-5">
-                    <span className={`self-start mb-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${
-                      cat.gender === 'men'
-                        ? 'bg-blue-600/80 text-white'
-                        : cat.gender === 'kids'
-                        ? 'bg-amber-600/80 text-white'
-                        : 'bg-rose-600/80 text-white'
-                    }`}>
-                      {cat.gender === 'men' ? 'Men' : cat.gender === 'kids' ? 'Kids' : 'Women'}
-                    </span>
-                    <h3 className="font-serif text-sm sm:text-lg font-bold text-white leading-tight line-clamp-1">
-                      {cat.name}
-                    </h3>
-                    <span className="text-[10px] sm:text-xs font-medium text-accent-300 flex items-center gap-1 mt-0.5 sm:mt-1 opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
-                      Shop Now <HiOutlineArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </span>
-                  </div>
-                </Link>
-              ))}
+            {displayedCategories.map((cat, idx) => (
+              <Link
+                to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
+                key={cat._id}
+                className={`group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1 ${
+                  idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
+                }`}
+              >
+                <img
+                  src={getImageUrl(cat.image, '/fallback-product.png')}
+                  alt={cat.name}
+                  onError={(e) => handleImageError(e, '/fallback-product.png')}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary-950/85 via-primary-900/30 to-transparent flex flex-col justify-end p-3 sm:p-5">
+                  <span className={`self-start mb-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${
+                    cat.gender === 'men'
+                      ? 'bg-blue-600/80 text-white'
+                      : cat.gender === 'kids'
+                      ? 'bg-amber-600/80 text-white'
+                      : 'bg-rose-600/80 text-white'
+                  }`}>
+                    {cat.gender === 'men' ? 'Men' : cat.gender === 'kids' ? 'Kids' : 'Women'}
+                  </span>
+                  <h3 className="font-serif text-sm sm:text-lg font-bold text-white leading-tight line-clamp-1">
+                    {cat.name}
+                  </h3>
+                  <span className="text-[10px] sm:text-xs font-medium text-accent-300 flex items-center gap-1 mt-0.5 sm:mt-1 opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                    Shop Now <HiOutlineArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
+
+          {rootCategories.length > displayedCategories.length && (
+            <div className="text-center mt-8 sm:mt-10">
+              <Link
+                to={selectedGender === 'all' ? '/shop' : `/shop?gender=${selectedGender}`}
+                className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full bg-white hover:bg-neutral-50 text-neutral-800 text-xs sm:text-sm font-semibold border border-neutral-200 shadow-xs hover:shadow-md transition-all transform hover:-translate-y-0.5"
+              >
+                <span>Explore All Categories in Boutique</span>
+                <HiOutlineArrowRight className="w-4 h-4 text-accent" />
+              </Link>
+            </div>
+          )}
         </section>
       )}
 
-      {/* Trending Products from DB */}
+      {/* Trending Products from DB (strictly max 2 rows: 4 mobile, 6 tablet, 8 desktop) */}
       {featured.length > 0 && (
         <section className="py-14 sm:py-16 bg-cream-dark/50 border-y border-accent-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -342,15 +415,20 @@ const Home = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-              {featured.slice(0, 8).map((product) => (
-                <ProductCard key={product._id} product={product} />
+              {displayedFeatured.map((product, idx) => (
+                <div
+                  key={product._id}
+                  className={`${idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''}`}
+                >
+                  <ProductCard product={product} />
+                </div>
               ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* New Arrivals from DB */}
+      {/* New Arrivals from DB (strictly max 2 rows: 4 mobile, 6 tablet, 8 desktop) */}
       {newArrivals.length > 0 && (
         <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
@@ -372,8 +450,13 @@ const Home = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-            {newArrivals.slice(0, 8).map((product) => (
-              <ProductCard key={product._id} product={product} />
+            {displayedNewArrivals.map((product, idx) => (
+              <div
+                key={product._id}
+                className={`${idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden md:block' : ''}`}
+              >
+                <ProductCard product={product} />
+              </div>
             ))}
           </div>
         </section>

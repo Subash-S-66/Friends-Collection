@@ -17,10 +17,18 @@ connectDB();
 
 const app = express();
 
-// Security middleware
+// Security Hardening: Hide tech stack details & configure trust proxy
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+// Security Headers via Helmet
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false,
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
 // CORS Configuration
@@ -52,18 +60,54 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting
+// Global Rate Limiting
 app.use('/api/', generalLimiter);
 
-// Body parsing
+// Body Parsing with size protection
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Compression
-app.use(compression());
+// NoSQL Injection Sanitization (Strips operators starting with $ or containing .)
+const sanitizeInput = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeInput);
+  const sanitized = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (key.startsWith('$') || key.includes('.')) {
+      continue; // strip dangerous MongoDB operators
+    }
+    sanitized[key] = sanitizeInput(val);
+  }
+  return sanitized;
+};
 
-// Serve uploaded files with automatic fallback for missing or unresolvable images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use((req, res, next) => {
+  if (req.body) req.body = sanitizeInput(req.body);
+  if (req.query) req.query = sanitizeInput(req.query);
+  if (req.params) req.params = sanitizeInput(req.params);
+  next();
+});
+
+// HTTP Parameter Pollution (HPP) Protection
+app.use((req, res, next) => {
+  if (req.query) {
+    for (const [k, v] of Object.entries(req.query)) {
+      if (Array.isArray(v) && ['category', 'subcategory', 'gender', 'sort', 'tag', 'search', 'page', 'limit'].includes(k)) {
+        req.query[k] = v[v.length - 1]; // normalize to latest string
+      }
+    }
+  }
+  next();
+});
+
+// Ultra-Fast Gzip/Brotli Compression
+app.use(compression({ threshold: 1024 }));
+
+// Serve uploaded files with high-speed caching & fallback
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '7d',
+  etag: true
+}));
 app.use('/uploads', (req, res) => {
   const isBanner = req.path && req.path.toLowerCase().includes('banner');
   const fallbackFile = isBanner ? 'banner.jpg' : 'card.png';
@@ -88,7 +132,7 @@ app.get('/api/health', (req, res) => {
 // Serve static client build if present (for full-stack deployment on Render)
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
 if (require('fs').existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath, { maxAge: '1d', etag: true }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
       return next();
@@ -97,7 +141,7 @@ if (require('fs').existsSync(clientDistPath)) {
   });
 }
 
-// Error handler
+// Global Error Handler
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
