@@ -210,6 +210,12 @@ export const CartProvider = ({ children }) => {
   const clearCart = useCallback(() => {
     setItems([]);
     saveToLocal([]);
+    try {
+      localStorage.removeItem(CART_KEY);
+    } catch (e) {
+      console.warn('LocalStorage clear error:', e);
+    }
+    setIsCartOpen(false);
     if (user && user._id) {
       API.delete('/cart').catch(() => {});
     }

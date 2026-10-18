@@ -181,23 +181,36 @@ exports.placeOrder = async (req, res, next) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
     }
-    if (!customer || !customer.name || !customer.phone) {
-      return res.status(400).json({ message: 'Customer name and phone number are required' });
+    if (!customer || !customer.name || !customer.phone || !customer.email) {
+      return res.status(400).json({ message: 'Customer name, mobile number, and email address are required' });
     }
     if (!customer.address || !customer.address.street || !customer.address.city || !customer.address.state || !customer.address.pincode) {
-      return res.status(400).json({ message: 'Complete address is required' });
+      return res.status(400).json({ message: 'Complete delivery address is required' });
     }
 
-    // Validate phone number format
+    // Validate primary phone number format (strictly 10-digit Indian mobile)
     const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(customer.phone.replace(/\s/g, ''))) {
-      return res.status(400).json({ message: 'Please enter a valid 10-digit Indian phone number' });
+    const cleanPhone = (customer.phone || '').toString().replace(/\D/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit Indian mobile number' });
     }
+    customer.phone = cleanPhone;
+
+    // Validate email address format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const cleanEmail = (customer.email || '').toString().trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address for order confirmation & tax invoice' });
+    }
+    customer.email = cleanEmail;
 
     if (customer.secondaryPhone && customer.secondaryPhone.trim()) {
-      const cleanSecPhone = customer.secondaryPhone.replace(/\s/g, '');
+      const cleanSecPhone = customer.secondaryPhone.toString().replace(/\D/g, '');
       if (!phoneRegex.test(cleanSecPhone)) {
-        return res.status(400).json({ message: 'Secondary phone number must be a valid 10-digit Indian phone number' });
+        return res.status(400).json({ message: 'Secondary phone number must be a valid 10-digit Indian mobile number' });
+      }
+      if (cleanSecPhone === cleanPhone) {
+        return res.status(400).json({ message: 'Alternate phone number must be different from primary phone number' });
       }
       customer.secondaryPhone = cleanSecPhone;
     } else {
@@ -335,6 +348,14 @@ exports.placeOrder = async (req, res, next) => {
       } catch (saveErr) {
         console.error('Failed to auto-save address to user profile:', saveErr);
       }
+    }
+
+    // Immediately clear cart in database for the user so items never resurrect
+    if (orderUserId) {
+      await User.findByIdAndUpdate(orderUserId, { $set: { cart: [] } }).catch(() => {});
+    }
+    if (req.user?._id && req.user._id.toString() !== orderUserId?.toString()) {
+      await User.findByIdAndUpdate(req.user._id, { $set: { cart: [] } }).catch(() => {});
     }
 
     // Mark any active reservation for this session as completed (hold is cleared)

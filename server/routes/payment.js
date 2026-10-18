@@ -38,42 +38,53 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
   try {
     const { items, customer, sessionId, saveAddress } = req.body;
 
-    // Check if Razorpay keys are configured
-    const razorpay = getRazorpayInstance();
-    if (!razorpay) {
-      return res.status(400).json({
-        message: 'Razorpay is not yet configured with API credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env.'
-      });
-    }
-
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'No items provided for payment' });
     }
 
-    if (!customer || !customer.name || !customer.phone) {
-      return res.status(400).json({ message: 'Customer name and phone number are required' });
+    if (!customer || !customer.name || !customer.phone || !customer.email) {
+      return res.status(400).json({ message: 'Customer name, mobile number, and email address are required' });
     }
 
     if (!customer.address || !customer.address.street || !customer.address.city || !customer.address.state || !customer.address.pincode) {
       return res.status(400).json({ message: 'Complete delivery address is required' });
     }
 
-    // Validate phone number format
+    // Validate primary phone number format (strictly 10-digit Indian mobile)
     const phoneRegex = /^[6-9]\d{9}$/;
-    const cleanPhone = customer.phone.replace(/\s/g, '');
+    const cleanPhone = (customer.phone || '').toString().replace(/\D/g, '');
     if (!phoneRegex.test(cleanPhone)) {
-      return res.status(400).json({ message: 'Please enter a valid 10-digit Indian phone number' });
+      return res.status(400).json({ message: 'Please enter a valid 10-digit Indian mobile number' });
     }
     customer.phone = cleanPhone;
 
+    // Validate email address format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const cleanEmail = (customer.email || '').toString().trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address for order confirmation & tax invoice' });
+    }
+    customer.email = cleanEmail;
+
     if (customer.secondaryPhone && customer.secondaryPhone.trim()) {
-      const cleanSecPhone = customer.secondaryPhone.replace(/\s/g, '');
+      const cleanSecPhone = customer.secondaryPhone.toString().replace(/\D/g, '');
       if (!phoneRegex.test(cleanSecPhone)) {
-        return res.status(400).json({ message: 'Secondary phone number must be a valid 10-digit Indian phone number' });
+        return res.status(400).json({ message: 'Secondary phone number must be a valid 10-digit Indian mobile number' });
+      }
+      if (cleanSecPhone === cleanPhone) {
+        return res.status(400).json({ message: 'Alternate phone number must be different from primary phone number' });
       }
       customer.secondaryPhone = cleanSecPhone;
     } else {
       customer.secondaryPhone = '';
+    }
+
+    // Check if Razorpay keys are configured
+    const razorpay = getRazorpayInstance();
+    if (!razorpay) {
+      return res.status(400).json({
+        message: 'Razorpay is not yet configured with API credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env.'
+      });
     }
 
     // Build verified items and calculate total strictly from database prices
@@ -331,6 +342,15 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
         ]
       }
     });
+
+    // 8.5 Immediately wipe user's cart in database so items never resurrect
+    const cartUserId = order.user || draft.user || (req.user ? req.user._id : null);
+    if (cartUserId) {
+      await User.findByIdAndUpdate(cartUserId, { $set: { cart: [] } }).catch(() => {});
+    }
+    if (req.user?._id && req.user._id.toString() !== cartUserId?.toString()) {
+      await User.findByIdAndUpdate(req.user._id, { $set: { cart: [] } }).catch(() => {});
+    }
 
     // 9. Release 10-minute stock reservation
     if (draft.sessionId) {

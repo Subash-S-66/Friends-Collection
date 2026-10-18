@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   HiOutlineShoppingBag,
@@ -20,6 +20,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { items, availableItems, outOfStockCount, subtotal, clearCart, getSavedAddress, saveAddress } = useCart();
   const { user, updateUser } = useAuth();
+  const isOrderPlacedRef = useRef(false);
 
   const [threshold, setThreshold] = useState(999);
   useEffect(() => {
@@ -163,6 +164,9 @@ const Checkout = () => {
 
   // Pre-fill form from user account or saved guest address
   useEffect(() => {
+    // If order has already been placed or is currently being processed, NEVER redirect to /cart!
+    if (isOrderPlacedRef.current || submitting) return;
+
     if (availableItems.length === 0) {
       navigate('/cart');
       return;
@@ -228,10 +232,22 @@ const Checkout = () => {
     if (submitting) return; // Prevent double entry clicks
     setErrorMsg('');
 
-    // Validation for primary phone
+    // Validation for primary phone (strictly 10-digit Indian mobile)
     const cleanPhone = formData.phone.replace(/\D/g, '');
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number for primary contact.');
+      const msg = 'Please enter a valid 10-digit Indian mobile number for primary contact.';
+      setErrorMsg(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Validation for mandatory email address (strictly required for tax invoice & order tracking)
+    const cleanEmail = (formData.email || '').trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      const msg = 'Please enter a valid email address to receive your order confirmation & tax invoice.';
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
 
@@ -240,22 +256,30 @@ const Checkout = () => {
     if (formData.secondaryPhone && formData.secondaryPhone.trim()) {
       cleanSecPhone = formData.secondaryPhone.replace(/\D/g, '');
       if (!/^[6-9]\d{9}$/.test(cleanSecPhone)) {
-        setErrorMsg('Please enter a valid 10-digit Indian mobile number for the 2nd number (or leave it blank).');
+        const msg = 'Please enter a valid 10-digit Indian mobile number for the 2nd number (or leave it blank).';
+        setErrorMsg(msg);
+        toast.error(msg);
         return;
       }
       if (cleanSecPhone === cleanPhone) {
-        setErrorMsg('Alternate 2nd number should be different from your primary mobile number.');
+        const msg = 'Alternate 2nd number should be different from your primary mobile number.';
+        setErrorMsg(msg);
+        toast.error(msg);
         return;
       }
     }
 
     if (!formData.street.trim()) {
-      setErrorMsg('Please enter your house/flat number and street address.');
+      const msg = 'Please enter your house/flat number and street address.';
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
 
     if (!/^\d{6}$/.test(formData.pincode.trim())) {
-      setErrorMsg('Please enter a valid 6-digit postal pincode.');
+      const msg = 'Please enter a valid 6-digit postal pincode.';
+      setErrorMsg(msg);
+      toast.error(msg);
       return;
     }
 
@@ -265,14 +289,14 @@ const Checkout = () => {
       // Save address locally if opted
       if (formData.saveInfo) {
         saveAddress({
-          name: formData.name,
+          name: formData.name.trim(),
           phone: cleanPhone,
           secondaryPhone: cleanSecPhone,
-          email: formData.email,
-          street: formData.street,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
+          email: cleanEmail,
+          street: formData.street.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          pincode: formData.pincode.trim(),
         });
 
         // Also save/update address directly in User profile in MongoDB if logged in
@@ -312,7 +336,7 @@ const Checkout = () => {
           name: formData.name.trim(),
           phone: cleanPhone,
           secondaryPhone: cleanSecPhone,
-          email: formData.email.trim() || undefined,
+          email: cleanEmail,
           address: {
             street: formData.street.trim(),
             city: formData.city.trim(),
@@ -362,7 +386,7 @@ const Checkout = () => {
               name: formData.name.trim(),
               phone: cleanPhone,
               secondaryPhone: cleanSecPhone,
-              email: formData.email.trim() || undefined,
+              email: cleanEmail,
               address: {
                 street: formData.street.trim(),
                 city: formData.city.trim(),
@@ -393,7 +417,7 @@ const Checkout = () => {
           order_id: rzpOrderData.razorpayOrderId,
           prefill: {
             name: formData.name.trim(),
-            email: formData.email.trim(),
+            email: cleanEmail,
             contact: cleanPhone
           },
           notes: {
@@ -415,6 +439,8 @@ const Checkout = () => {
               });
 
               if (verifyRes.data?.success && verifyRes.data?.order) {
+                // Mark order placed immediately to prevent any empty-cart redirection
+                isOrderPlacedRef.current = true;
                 toast.success('🎉 Payment verified! Order confirmed automatically.', { id: 'rzp-verify' });
 
                 // SUCCESS ONLY: Clear hold session and clear cart!
@@ -422,6 +448,7 @@ const Checkout = () => {
                 clearCart();
 
                 navigate(`/order-success/${verifyRes.data.order.orderId}`, {
+                  replace: true,
                   state: { order: verifyRes.data.order }
                 });
               } else {
@@ -476,13 +503,17 @@ const Checkout = () => {
       });
       const placedOrder = res.data;
 
-      // Clear checkout session & cart
+      // Mark order placed before clearing cart so empty-cart hook doesn't redirect to /cart
+      isOrderPlacedRef.current = true;
       sessionStorage.removeItem('fc_checkout_session');
       clearCart();
       toast.success('🎉 Order placed successfully with Cash on Delivery!');
 
       // Redirect to confirmation page
-      navigate(`/order-success/${placedOrder.orderId}`, { state: { order: placedOrder } });
+      navigate(`/order-success/${placedOrder.orderId}`, {
+        replace: true,
+        state: { order: placedOrder }
+      });
     } catch (err) {
       console.error('Checkout error:', err);
       const msg =
@@ -697,17 +728,26 @@ const Checkout = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Email Address (Optional — for order receipt & tracking)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-neutral-700">
+                      Email Address (Mandatory) <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      Receipt & Tax Invoice
+                    </span>
+                  </div>
                   <input
                     type="email"
                     name="email"
+                    required
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="priya@example.com"
                     className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                   />
+                  <p className="text-[11px] text-neutral-400 mt-1">
+                    Your official order confirmation & PDF tax invoice will be delivered here.
+                  </p>
                 </div>
               </div>
             </div>
