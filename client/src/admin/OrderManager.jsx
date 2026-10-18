@@ -295,13 +295,27 @@ const OrderManager = () => {
                       {/* Order ID & Date */}
                       <td className="py-4 px-6 font-medium">
                         <span className="font-mono font-bold text-neutral-900 block text-xs">{order.orderId}</span>
-                        <span className="text-[11px] text-neutral-400">
+                        <span className="text-[11px] text-neutral-400 block">
                           {new Date(order.createdAt).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric'
                           })}
                         </span>
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            order.paymentMethod === 'razorpay'
+                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                              : 'bg-neutral-100 text-neutral-700 border border-neutral-200'
+                          }`}>
+                            {order.paymentMethod === 'razorpay' ? '⚡ Razorpay' : '💵 COD'}
+                          </span>
+                          {order.paymentDetails?.razorpayPaymentId && (
+                            <span className="font-mono text-[9px] text-neutral-500 truncate max-w-[85px]" title={`Razorpay Payment ID: ${order.paymentDetails.razorpayPaymentId}`}>
+                              {order.paymentDetails.razorpayPaymentId.slice(-8)}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Customer Info */}
@@ -525,9 +539,20 @@ const OrderManager = () => {
                   {selectedOrder.customer?.address?.city}, {selectedOrder.customer?.address?.state} -{' '}
                   <span className="font-bold">{selectedOrder.customer?.address?.pincode}</span>
                 </p>
-                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
-                  {selectedOrder.paymentMethod || 'COD'}
-                </span>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    selectedOrder.paymentMethod === 'razorpay'
+                      ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {selectedOrder.paymentMethod === 'razorpay' ? '⚡ Razorpay Online' : '💵 Cash on Delivery'}
+                  </span>
+                  {selectedOrder.paymentDetails?.razorpayPaymentId && (
+                    <span className="font-mono text-[11px] text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+                      Payment ID: <strong className="text-neutral-900">{selectedOrder.paymentDetails.razorpayPaymentId}</strong>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

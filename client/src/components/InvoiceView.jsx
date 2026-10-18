@@ -171,9 +171,19 @@ const InvoiceView = ({ order, isOpen, onClose }) => {
               <div className="flex items-center justify-between">
                 <span className="text-neutral-500">Payment Method:</span>
                 <span className="font-semibold text-neutral-800 uppercase">
-                  {order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : (order.paymentMethod || 'COD')}
+                  {order.paymentMethod === 'razorpay'
+                    ? 'Online (Razorpay)'
+                    : order.paymentMethod === 'cod'
+                    ? 'Cash on Delivery (COD)'
+                    : (order.paymentMethod || 'COD')}
                 </span>
               </div>
+              {order.paymentDetails?.razorpayPaymentId && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-neutral-500">Razorpay Txn ID:</span>
+                  <span className="font-mono font-bold text-neutral-900">{order.paymentDetails.razorpayPaymentId}</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <span className="text-neutral-500">Fulfillment Status:</span>

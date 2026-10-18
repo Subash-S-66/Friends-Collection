@@ -42,6 +42,11 @@ const orderSchema = new mongoose.Schema({
   paymentNotes: { type: String, default: '' },
   notes: { type: String, default: '' },
   paymentMethod: { type: String, default: 'cod' },
+  paymentDetails: {
+    razorpayOrderId: { type: String, default: '' },
+    razorpayPaymentId: { type: String, default: '' },
+    razorpaySignature: { type: String, default: '' }
+  },
   tracking: {
     courier: { type: String, default: '' },
     trackingNumber: { type: String, default: '' },

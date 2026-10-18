@@ -88,9 +88,19 @@ const OrderConfirmation = () => {
                   {order.customer?.email && (
                     <p className="text-neutral-500 mt-1">{order.customer.email}</p>
                   )}
-                  <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800">
-                    Cash / UPI on Delivery
-                  </span>
+                  {order.paymentMethod === 'razorpay' ? (
+                    <span className={`inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
+                      order.paymentStatus === 'paid'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-blue-100 text-blue-800 border border-blue-300'
+                    }`}>
+                      {order.paymentStatus === 'paid' ? '✓ Paid Online (Razorpay)' : '⚡ Online Payment (Pending)'}
+                    </span>
+                  ) : (
+                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      Cash / UPI on Delivery (COD)
+                    </span>
+                  )}
                 </div>
               </div>
 

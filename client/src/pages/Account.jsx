@@ -215,12 +215,12 @@ const Account = () => {
     }
   };
 
-  const getPaymentBadge = (status) => {
+  const getPaymentBadge = (status, method = '') => {
     if (status === 'paid') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
           <HiCheckCircle className="w-3 h-3 text-emerald-600" />
-          Paid
+          Paid {method === 'razorpay' ? '(Razorpay)' : ''}
         </span>
       );
     }
@@ -241,7 +241,7 @@ const Account = () => {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
         <HiOutlineClock className="w-3 h-3 text-amber-700" />
-        Payment Pending (COD)
+        {method === 'razorpay' ? 'Payment Pending (Online)' : 'Payment Pending (COD)'}
       </span>
     );
   };
@@ -425,8 +425,13 @@ const Account = () => {
                 Payment & Order Value
               </strong>
               <p className="text-neutral-700 font-medium mt-1">
-                Method: <span className="uppercase font-bold text-primary">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD')}</span>
+                Method: <span className="uppercase font-bold text-primary">{order.paymentMethod === 'razorpay' ? 'Online (Razorpay)' : (order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD'))}</span>
               </p>
+              {order.paymentDetails?.razorpayPaymentId && (
+                <p className="font-mono text-[11px] text-neutral-600">
+                  Txn ID: <strong className="text-neutral-800">{order.paymentDetails.razorpayPaymentId}</strong>
+                </p>
+              )}
               <p className="text-neutral-700">
                 Payment Status: <strong className="capitalize">{order.paymentStatus || 'pending'}</strong>
               </p>
@@ -459,7 +464,7 @@ const Account = () => {
             <div className="flex items-center gap-3 flex-wrap">
               <span className="font-mono font-bold text-base text-neutral-900">{order.orderId}</span>
               {getFulfillmentBadge(order.status)}
-              {getPaymentBadge(order.paymentStatus)}
+              {getPaymentBadge(order.paymentStatus, order.paymentMethod)}
             </div>
             <p className="text-xs text-neutral-500 mt-1">
               Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -473,7 +478,7 @@ const Account = () => {
                 {formatPrice(totalWithShipping)}
               </span>
               <span className="block text-[10px] text-neutral-400 font-medium uppercase">
-                {order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD')}
+                {order.paymentMethod === 'razorpay' ? 'Online (Razorpay)' : (order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD'))}
               </span>
             </div>
 
@@ -970,7 +975,7 @@ const Account = () => {
                         #{trackedOrderResult.orderId}
                       </h3>
                       {getFulfillmentBadge(trackedOrderResult.status)}
-                      {getPaymentBadge(trackedOrderResult.paymentStatus)}
+                      {getPaymentBadge(trackedOrderResult.paymentStatus, trackedOrderResult.paymentMethod)}
                     </div>
                   </div>
 
@@ -1040,7 +1045,7 @@ const Account = () => {
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
                     <h3 className="font-serif text-2xl font-bold text-neutral-900">{detailOrder.orderId}</h3>
                     {getFulfillmentBadge(detailOrder.status)}
-                    {getPaymentBadge(detailOrder.paymentStatus)}
+                    {getPaymentBadge(detailOrder.paymentStatus, detailOrder.paymentMethod)}
                   </div>
                 </div>
                 <button
@@ -1197,7 +1202,7 @@ const Account = () => {
                       #{trackingOrder.orderId}
                     </h3>
                     {getFulfillmentBadge(trackingOrder.status)}
-                    {getPaymentBadge(trackingOrder.paymentStatus)}
+                    {getPaymentBadge(trackingOrder.paymentStatus, trackingOrder.paymentMethod)}
                   </div>
                 </div>
                 <button

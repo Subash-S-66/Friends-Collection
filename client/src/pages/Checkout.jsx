@@ -35,6 +35,31 @@ const Checkout = () => {
   const shippingCharge = isFreeShipping ? 0 : 79;
   const grandTotal = subtotal + shippingCharge;
 
+  // Razorpay Gateway Config
+  const [razorpayConfig, setRazorpayConfig] = useState({ keyId: '', isConfigured: false });
+  useEffect(() => {
+    API.get('/payment/razorpay-key')
+      .then((res) => {
+        if (res.data) setRazorpayConfig(res.data);
+      })
+      .catch((err) => console.warn('Could not load Razorpay key from backend:', err));
+  }, []);
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   // 10-Minute Stock Reservation Session
   const [sessionId] = useState(() => {
     let sid = sessionStorage.getItem('fc_checkout_session');
@@ -130,7 +155,7 @@ const Checkout = () => {
     state: 'Tamil Nadu',
     pincode: '',
     saveInfo: true,
-    paymentMethod: 'cod', // Cash / UPI on Delivery
+    paymentMethod: 'razorpay', // 'razorpay' | 'cod'
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -299,13 +324,151 @@ const Checkout = () => {
         saveAddress: formData.saveInfo
       };
 
-      const res = await API.post('/orders', orderPayload);
+      // 1. ONLINE PAYMENT VIA RAZORPAY
+      if (formData.paymentMethod === 'razorpay') {
+        const keyToUse = razorpayConfig.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+        // If keys are not configured yet, advise the user
+        if (!keyToUse && !razorpayConfig.isConfigured) {
+          setSubmitting(false);
+          const notice = 'Razorpay keys are not yet configured in server .env. Please fill RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, or choose Cash on Delivery to complete your purchase.';
+          setErrorMsg(notice);
+          toast.error(notice, { duration: 6000 });
+          return;
+        }
+
+        // Place initial order in DB with pending status
+        const res = await API.post('/orders', {
+          ...orderPayload,
+          paymentMethod: 'razorpay',
+          paymentStatus: 'pending'
+        });
+        const placedOrder = res.data;
+
+        // Ensure Razorpay SDK script is ready
+        const isLoaded = await loadRazorpayScript();
+        if (!isLoaded || typeof window.Razorpay === 'undefined') {
+          setSubmitting(false);
+          const err = 'Failed to load Razorpay payment gateway. Please check your internet connection or choose Cash on Delivery.';
+          setErrorMsg(err);
+          toast.error(err);
+          return;
+        }
+
+        // Create Razorpay Order on server
+        let rzpOrderData;
+        try {
+          const createRes = await API.post('/payment/create-order', { orderId: placedOrder.orderId });
+          rzpOrderData = createRes.data;
+        } catch (createErr) {
+          setSubmitting(false);
+          const errMsg = createErr.response?.data?.message || 'Could not initiate Razorpay payment.';
+          setErrorMsg(errMsg);
+          toast.error(errMsg, { duration: 6000 });
+          return;
+        }
+
+        // Configure Razorpay checkout options
+        const rzpOptions = {
+          key: rzpOrderData.keyId || keyToUse,
+          amount: rzpOrderData.amount,
+          currency: rzpOrderData.currency || 'INR',
+          name: 'Friends Collections',
+          description: `Order #${placedOrder.orderId} Payment`,
+          image: '/logo.png',
+          order_id: rzpOrderData.razorpayOrderId,
+          prefill: {
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            contact: cleanPhone
+          },
+          notes: {
+            orderId: placedOrder.orderId
+          },
+          theme: {
+            color: '#54142D'
+          },
+          handler: async function (response) {
+            // Cryptographically verify HMAC-SHA256 signature on backend
+            try {
+              setSubmitting(true);
+              toast.loading('Verifying secure payment with Razorpay...', { id: 'rzp-verify' });
+
+              const verifyRes = await API.post('/payment/verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: placedOrder.orderId
+              });
+
+              if (verifyRes.data?.success) {
+                toast.success('🎉 Payment verified! Order confirmed automatically.', { id: 'rzp-verify' });
+
+                // SUCCESS: Clear hold session and clear cart!
+                sessionStorage.removeItem('fc_checkout_session');
+                clearCart();
+
+                navigate(`/order-success/${placedOrder.orderId}`, {
+                  state: { order: verifyRes.data.order || placedOrder }
+                });
+              } else {
+                toast.error('Payment verification failed. Please contact support.', { id: 'rzp-verify' });
+              }
+            } catch (vErr) {
+              console.error('Verification error:', vErr);
+              toast.error('Payment verification failed. Your items remain in your cart.', { id: 'rzp-verify' });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setSubmitting(false);
+              API.post('/payment/failure', {
+                orderId: placedOrder.orderId,
+                errorReason: 'Payment cancelled or dismissed by customer'
+              }).catch(() => {});
+              toast('Payment was not completed. Your items remain safely in your cart so you can try again or choose Cash on Delivery.', {
+                icon: 'ℹ️',
+                duration: 5000
+              });
+              // DO NOT CLEAR CART!
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+        rzp.on('payment.failed', function (resp) {
+          setSubmitting(false);
+          API.post('/payment/failure', {
+            orderId: placedOrder.orderId,
+            errorReason: resp.error?.description || 'Transaction failed',
+            paymentDetails: {
+              razorpayPaymentId: resp.error?.metadata?.payment_id || ''
+            }
+          }).catch(() => {});
+          toast.error(`Payment Failed: ${resp.error?.description || 'Payment was unsuccessful'}. Your cart has NOT been cleared.`, {
+            duration: 6000
+          });
+          // DO NOT CLEAR CART!
+        });
+
+        rzp.open();
+        return;
+      }
+
+      // 2. CASH ON DELIVERY (COD)
+      const res = await API.post('/orders', {
+        ...orderPayload,
+        paymentMethod: 'cod',
+        paymentStatus: 'payment_pending'
+      });
       const placedOrder = res.data;
 
       // Clear checkout session & cart
       sessionStorage.removeItem('fc_checkout_session');
       clearCart();
-      toast.success('🎉 Order placed successfully!');
+      toast.success('🎉 Order placed successfully with Cash on Delivery!');
 
       // Redirect to confirmation page
       navigate(`/order-success/${placedOrder.orderId}`, { state: { order: placedOrder } });
@@ -319,7 +482,9 @@ const Checkout = () => {
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
-      setSubmitting(false);
+      if (formData.paymentMethod !== 'razorpay') {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -683,31 +848,84 @@ const Checkout = () => {
 
             {/* Payment Method Card */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-4">
-              <h2 className="font-serif text-lg font-bold text-neutral-900 pb-3 border-b border-neutral-100">
-                3. Payment Method
-              </h2>
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                <h2 className="font-serif text-lg font-bold text-neutral-900">
+                  3. Select Payment Method
+                </h2>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <HiOutlineShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  100% Secure Checkout
+                </span>
+              </div>
 
               <div className="space-y-3">
-                <label className="flex items-center justify-between p-4 rounded-2xl border-2 border-primary bg-primary-50/30 cursor-pointer">
-                  <div className="flex items-center gap-3">
+                {/* Option 1: Razorpay Instant Online Payment */}
+                <label className={`flex items-start justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                  formData.paymentMethod === 'razorpay'
+                    ? 'border-primary bg-primary-50/40 shadow-xs ring-2 ring-primary/20'
+                    : 'border-neutral-200 hover:border-accent-300 bg-white'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="razorpay"
+                      checked={formData.paymentMethod === 'razorpay'}
+                      onChange={handleChange}
+                      className="h-4 w-4 mt-1 text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <strong className="text-sm text-neutral-900 font-bold">
+                          Online Payment (UPI, Cards, NetBanking, Wallets)
+                        </strong>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary uppercase">
+                          ⚡ Instant Confirmation
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards (Visa, Mastercard, RuPay), NetBanking
+                      </p>
+                      <div className="flex items-center gap-2 mt-2 text-[11px] font-semibold text-neutral-600 flex-wrap">
+                        <span className="px-2 py-0.5 bg-neutral-100 rounded text-neutral-700 border border-neutral-200 text-[10px]">UPI</span>
+                        <span className="px-2 py-0.5 bg-neutral-100 rounded text-neutral-700 border border-neutral-200 text-[10px]">Cards</span>
+                        <span className="px-2 py-0.5 bg-neutral-100 rounded text-neutral-700 border border-neutral-200 text-[10px]">NetBanking</span>
+                        <span className="text-accent-800 text-[10px] font-bold">via Razorpay Gateway</span>
+                      </div>
+                    </div>
+                  </div>
+                  {formData.paymentMethod === 'razorpay' && (
+                    <HiOutlineCheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  )}
+                </label>
+
+                {/* Option 2: Cash on Delivery / UPI at Doorstep */}
+                <label className={`flex items-start justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                  formData.paymentMethod === 'cod'
+                    ? 'border-primary bg-primary-50/40 shadow-xs ring-2 ring-primary/20'
+                    : 'border-neutral-200 hover:border-accent-300 bg-white'
+                }`}>
+                  <div className="flex items-start gap-3">
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="cod"
                       checked={formData.paymentMethod === 'cod'}
                       onChange={handleChange}
-                      className="h-4 w-4 text-primary focus:ring-primary"
+                      className="h-4 w-4 mt-1 text-primary focus:ring-primary cursor-pointer"
                     />
                     <div>
-                      <strong className="text-sm text-neutral-900 block font-semibold">
+                      <strong className="text-sm text-neutral-900 font-bold block">
                         Cash on Delivery / UPI at Doorstep
                       </strong>
-                      <span className="text-xs text-neutral-500">
-                        Pay with GooglePay, PhonePe, Paytm, or Cash when your dress arrives
-                      </span>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Pay with GooglePay, PhonePe, Paytm QR or Cash when your parcel arrives
+                      </p>
                     </div>
                   </div>
-                  <HiOutlineCheckCircle className="w-5 h-5 text-primary shrink-0" />
+                  {formData.paymentMethod === 'cod' && (
+                    <HiOutlineCheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  )}
                 </label>
               </div>
             </div>
@@ -786,17 +1004,25 @@ const Checkout = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Confirming Order... Please wait</span>
+                  <span>
+                    {formData.paymentMethod === 'razorpay' ? 'Opening Secure Payment Gateway...' : 'Confirming Order... Please wait'}
+                  </span>
+                </>
+              ) : formData.paymentMethod === 'razorpay' ? (
+                <>
+                  <HiOutlineLockClosed className="w-4 h-4 text-accent-300" />
+                  <span>Pay Securely • {formatPrice(grandTotal)}</span>
+                  <HiArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
-                  <HiOutlineLockClosed className="w-4 h-4" />
-                  <span>Place Order • {formatPrice(grandTotal)}</span>
+                  <HiOutlineShoppingBag className="w-4 h-4 text-accent-300" />
+                  <span>Place Cash on Delivery Order • {formatPrice(grandTotal)}</span>
                   <HiArrowRight className="w-4 h-4" />
                 </>
               )}
