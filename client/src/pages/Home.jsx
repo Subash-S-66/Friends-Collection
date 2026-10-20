@@ -516,21 +516,6 @@ const Home = () => {
                       <span>{settings.storeVisitText || 'Visit Store'}</span>
                     </Link>
                   </div>
-
-                  {/* Spotlight Indicator Chip for the currently active rotating image box */}
-                  {isCarouselEnabled && activeBanners.length > 1 && (
-                    <div className="pt-2 flex items-center gap-2 flex-wrap text-xs">
-                      <span className="text-[11px] text-accent-300 font-medium">Spotlight Look:</span>
-                      <button
-                        type="button"
-                        onClick={() => handleBannerClick(currentBanner)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-white font-semibold transition-all cursor-pointer shadow-xs truncate max-w-xs sm:max-w-md group/look"
-                      >
-                        <span className="truncate">{currentBanner?.title || 'Promotional Collection'}</span>
-                        <HiOutlineArrowRight className="w-3.5 h-3.5 text-accent-300 group-hover/look:translate-x-0.5 transition-transform shrink-0" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -605,17 +590,6 @@ const Home = () => {
                       </div>
                     );
                   })}
-                </div>
-
-                {/* Floating Bottom Look Caption Bar */}
-                <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-2 pointer-events-none">
-                  <div className="px-3 py-1.5 rounded-full bg-black/65 backdrop-blur-md text-white text-[11px] font-bold border border-white/20 shadow-lg truncate max-w-[68%]">
-                    {currentBanner?.title || 'Boutique Collection'}
-                  </div>
-                  <div className="px-3 py-1.5 rounded-full bg-accent hover:bg-accent-light text-white text-[11px] font-bold flex items-center gap-1.5 shadow-lg border border-accent-300/40 pointer-events-auto transition-transform active:scale-95">
-                    <span>{currentBanner?.ctaText || 'Shop'}</span>
-                    <HiOutlineArrowRight className="w-3.5 h-3.5" />
-                  </div>
                 </div>
 
                 {/* Direct Image Box Carousel Controls (Previous, Next, and Dots on the box) */}
