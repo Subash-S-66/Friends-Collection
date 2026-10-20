@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import API from '../utils/api';
 import SearchAutocomplete from './SearchAutocomplete';
+import AnnouncementBar from './AnnouncementBar';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -168,12 +169,7 @@ const Navbar = () => {
         }`}
       >
         {/* Dynamic Top Announcement Strip from DB Settings */}
-        {announcement?.isActive && Boolean(announcement?.text) && (
-          <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 text-white text-[11px] sm:text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 border-b border-accent-400/20 shadow-xs">
-            <HiOutlineSparkles className="w-3.5 h-3.5 text-accent-300 shrink-0 animate-pulse" />
-            <span className="truncate">{announcement.text}</span>
-          </div>
-        )}
+        <AnnouncementBar announcement={announcement} />
 
         <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-300 ${
           scrolled || activeMegaMenu ? 'py-2 sm:py-2.5' : 'py-3 sm:py-3.5'
