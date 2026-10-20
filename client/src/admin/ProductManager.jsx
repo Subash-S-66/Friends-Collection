@@ -17,7 +17,9 @@ import {
   HiOutlineStar,
   HiOutlineSparkles,
   HiOutlineTag,
-  HiOutlineFilter
+  HiOutlineFilter,
+  HiOutlineEye,
+  HiOutlineEyeOff
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -59,11 +61,13 @@ const ProductManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCat, setSelectedCat] = useState('');
   const [expandedVariantsId, setExpandedVariantsId] = useState(null);
+  const [togglingProductId, setTogglingProductId] = useState(null);
 
   // Form states
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [gender, setGender] = useState('women');
+  const [isActive, setIsActive] = useState(true);
   const [selectedGenderFilter, setSelectedGenderFilter] = useState('all');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -141,8 +145,8 @@ const ProductManager = () => {
   const availableTags = ['trending', 'new-arrival', 'festive', 'bestseller'];
   const commonColors = ['Maroon', 'Navy Blue', 'Wine', 'Emerald Green', 'Black', 'Pastel Pink', 'Mustard Yellow', 'Royal Blue', 'Red', 'Beige', 'White', 'Khaki', 'Charcoal Black', 'Olive'];
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent && products.length === 0) setLoading(true);
     try {
       const [prodRes, catRes] = await Promise.all([
         API.get('/products/admin/all?limit=1000'),
@@ -217,6 +221,7 @@ const ProductManager = () => {
     setImages([]);
     setImagePreviews([]);
     setExistingImages([]);
+    setIsActive(true);
     setModalOpen(true);
   };
 
@@ -224,6 +229,7 @@ const ProductManager = () => {
     setEditingProduct(prod);
     setTitle(prod.title);
     setDescription(prod.description || '');
+    setIsActive(prod.isActive !== false);
     const prodGender = prod.gender || 'women';
     setGender(prodGender);
     setCategory(prod.category?._id || prod.category || '');
@@ -762,6 +768,7 @@ const ProductManager = () => {
       }));
       formData.append('variants', JSON.stringify(sanitizedVariants));
       formData.append('tags', JSON.stringify(tags));
+      formData.append('isActive', String(isActive));
 
       const calculatedTotalStock = sanitizedVariants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
       formData.append('stock', calculatedTotalStock);
@@ -787,12 +794,48 @@ const ProductManager = () => {
       }
 
       setModalOpen(false);
-      fetchData();
+      fetchData(true);
     } catch (err) {
       console.error('Save product error:', err);
       toast.error(err.response?.data?.message || 'Failed to save product');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 1-Click Visibility Toggle for individual product with inline button loading
+  const handleToggleProduct = async (prod) => {
+    const updatedStatus = prod.isActive === false ? true : false;
+    const ok = await confirm({
+      title: updatedStatus ? 'Make Dress Visible on Store?' : 'Hide Dress from Storefront?',
+      message: updatedStatus
+        ? `Are you sure you want to show "${prod.title}" to customers on the storefront catalog & search?`
+        : `Are you sure you want to hide "${prod.title}" from customers? It will immediately disappear from shop catalog and search.`,
+      type: updatedStatus ? 'primary' : 'warning',
+      confirmText: updatedStatus ? 'Yes, Make Live' : 'Yes, Hide Dress',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
+    setTogglingProductId(prod._id);
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((p) => (p._id === prod._id ? { ...p, isActive: updatedStatus } : p))
+    );
+
+    try {
+      const res = await API.patch(`/products/admin/${prod._id}/toggle`);
+      toast.success(
+        res.data?.message || `"${prod.title}" is now ${updatedStatus ? 'VISIBLE' : 'HIDDEN'} on store`,
+        { icon: updatedStatus ? '👁️' : '🙈' }
+      );
+      fetchData(true);
+    } catch (err) {
+      console.error('Error toggling product visibility:', err);
+      toast.error('Failed to update product visibility');
+      fetchData(true);
+    } finally {
+      setTogglingProductId(null);
     }
   };
 
@@ -809,7 +852,7 @@ const ProductManager = () => {
     try {
       await API.delete(`/products/admin/${id}`);
       toast.success('Product deleted');
-      fetchData();
+      fetchData(true);
     } catch {
       toast.error('Failed to delete product');
     }
@@ -1062,19 +1105,20 @@ const ProductManager = () => {
                 <th className="py-3.5 px-6">Price</th>
                 <th className="py-3.5 px-6">Total Stock</th>
                 <th className="py-3.5 px-6">Variants & Stocks</th>
+                <th className="py-3.5 px-6 text-center">Visibility</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-neutral-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-neutral-400">
+                  <td colSpan="7" className="py-12 text-center text-neutral-400">
                     <div className="w-8 h-8 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-neutral-400">
+                  <td colSpan="7" className="py-12 text-center text-neutral-400">
                     No dresses found matching &ldquo;{searchTerm}&rdquo;.
                   </td>
                 </tr>
@@ -1093,7 +1137,14 @@ const ProductManager = () => {
                             className="w-12 h-16 object-cover object-top rounded-lg border border-neutral-200 bg-neutral-100 shrink-0"
                           />
                           <div>
-                            <p className="font-bold text-neutral-900 text-xs sm:text-sm">{prod.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-neutral-900 text-xs sm:text-sm">{prod.title}</p>
+                              {prod.isActive === false && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-200 text-neutral-700">
+                                  Hidden
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-neutral-400 font-mono">/{prod.slug}</span>
                             {prod.images && prod.images.length > 1 && (
                               <span className="ml-2 text-[10px] text-neutral-500 font-medium">
@@ -1237,6 +1288,38 @@ const ProductManager = () => {
                         ) : (
                           <span className="text-neutral-400 text-[11px]">No variants configured</span>
                         )}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <button
+                          type="button"
+                          disabled={togglingProductId === prod._id}
+                          onClick={() => handleToggleProduct(prod)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            togglingProductId === prod._id
+                              ? 'bg-neutral-100 text-neutral-400 cursor-wait'
+                              : prod.isActive !== false
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-300'
+                          }`}
+                          title={prod.isActive !== false ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
+                        >
+                          {togglingProductId === prod._id ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              <span>Saving...</span>
+                            </>
+                          ) : prod.isActive !== false ? (
+                            <>
+                              <HiOutlineEye className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Live</span>
+                            </>
+                          ) : (
+                            <>
+                              <HiOutlineEyeOff className="w-3.5 h-3.5 text-neutral-400" />
+                              <span>Hidden</span>
+                            </>
+                          )}
+                        </button>
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -1384,16 +1467,33 @@ const ProductManager = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Info */}
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">Dress Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Royal Maroon Silk Anarkali Suit"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
-                  />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Dress Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. Royal Maroon Silk Anarkali Suit"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="shrink-0">
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">Store Visibility</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsActive(!isActive)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                          : 'bg-neutral-100 text-neutral-600 border-neutral-300 hover:bg-neutral-200'
+                      }`}
+                    >
+                      {isActive ? <HiOutlineEye className="w-4 h-4 text-emerald-600" /> : <HiOutlineEyeOff className="w-4 h-4 text-neutral-400" />}
+                      <span>{isActive ? 'Live on Store' : 'Hidden from Store'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

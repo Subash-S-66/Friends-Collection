@@ -735,3 +735,24 @@ exports.deleteProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Toggle product active visibility (admin)
+// @route   PATCH /api/products/admin/:id/toggle
+exports.toggleProductStatus = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    product.isActive = !product.isActive;
+    await product.save();
+
+    res.json({
+      success: true,
+      productId: product._id,
+      isActive: product.isActive,
+      message: `Product "${product.title}" is now ${product.isActive ? 'VISIBLE' : 'HIDDEN'} on store.`
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -25,9 +25,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
   const [togglingDept, setTogglingDept] = useState(null);
+  const [togglingDeptAction, setTogglingDeptAction] = useState(null);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent && !stats) setLoading(true);
     try {
       const [statsRes, ordersRes, settingsRes] = await Promise.all([
         API.get('/orders/admin/stats'),
@@ -81,6 +82,7 @@ const Dashboard = () => {
     if (!ok) return;
 
     setTogglingDept(deptKey);
+    setTogglingDeptAction(newIsActive ? 'on' : 'off');
     const toastId = toast.loading(
       newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
     );
@@ -97,13 +99,14 @@ const Dashboard = () => {
         isActive: newIsActive
       });
       toast.success(res.data?.message || `Entire ${deptName} updated successfully!`, { id: toastId });
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (err) {
       console.error('Failed to update department visibility:', err);
       toast.error(err.response?.data?.message || 'Failed to update department visibility', { id: toastId });
-      fetchDashboardData();
+      fetchDashboardData(true);
     } finally {
       setTogglingDept(null);
+      setTogglingDeptAction(null);
     }
   };
 
@@ -111,7 +114,7 @@ const Dashboard = () => {
     try {
       await API.put(`/orders/admin/${orderId}/status`, { status: newStatus });
       toast.success(`Order status updated to ${newStatus}`);
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch {
       toast.error('Failed to update status');
     }
@@ -235,7 +238,7 @@ const Dashboard = () => {
                   {togglingDept === dept.key ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                      <span>{togglingDeptAction === 'on' ? 'Turning ON...' : 'Turning OFF...'}</span>
                     </>
                   ) : (
                     <span>{isHidden ? 'Show on Store' : 'Hide Section'}</span>

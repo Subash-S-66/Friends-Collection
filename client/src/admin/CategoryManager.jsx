@@ -65,9 +65,10 @@ const CategoryManager = () => {
   const [togglingId, setTogglingId] = useState(null);
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
   const [togglingDept, setTogglingDept] = useState(false);
+  const [togglingDeptAction, setTogglingDeptAction] = useState(null);
 
-  const fetchCategories = async () => {
-    setLoading(true);
+  const fetchCategories = async (silent = false) => {
+    if (!silent && categories.length === 0) setLoading(true);
     try {
       const [catRes, prodRes, settingsRes] = await Promise.all([
         API.get('/categories/admin/all'),
@@ -130,6 +131,7 @@ const CategoryManager = () => {
     if (!ok) return;
 
     setTogglingDept(deptKey);
+    setTogglingDeptAction(newIsActive ? 'on' : 'off');
     const toastId = toast.loading(
       newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
     );
@@ -167,13 +169,14 @@ const CategoryManager = () => {
         isActive: newIsActive
       });
       toast.success(res.data?.message || `Entire ${deptName} updated successfully!`, { id: toastId });
-      await fetchCategories();
+      await fetchCategories(true);
     } catch (err) {
       console.error('Error toggling entire department:', err);
       toast.error(err.response?.data?.message || 'Failed to update department visibility', { id: toastId });
-      fetchCategories();
+      fetchCategories(true);
     } finally {
       setTogglingDept(null);
+      setTogglingDeptAction(null);
     }
   };
 
@@ -225,11 +228,11 @@ const CategoryManager = () => {
           : `"${cat.name}" is now ${updatedStatus ? 'VISIBLE' : 'HIDDEN'} on store`,
         { icon: updatedStatus ? '👁️' : '🙈' }
       );
-      fetchCategories();
+      fetchCategories(true);
     } catch (err) {
       console.error('Toggle error:', err);
       toast.error('Failed to update visibility');
-      fetchCategories();
+      fetchCategories(true);
     } finally {
       setTogglingId(null);
     }
@@ -311,7 +314,7 @@ const CategoryManager = () => {
       }
 
       setModalOpen(false);
-      fetchCategories();
+      fetchCategories(true);
     } catch (err) {
       console.error('Save category error:', err);
       toast.error(err.response?.data?.message || 'Failed to save category');
@@ -339,7 +342,7 @@ const CategoryManager = () => {
     try {
       await API.delete(`/categories/admin/${cat._id}`);
       toast.success('Category deleted successfully');
-      fetchCategories();
+      fetchCategories(true);
     } catch {
       toast.error('Failed to delete category');
     }
@@ -534,7 +537,7 @@ const CategoryManager = () => {
                   {togglingDept === dept.key ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                      <span>{togglingDeptAction === 'on' ? 'Turning ON...' : 'Turning OFF...'}</span>
                     </>
                   ) : (
                     <span>{isHidden ? 'Show on Store' : 'Hide Section'}</span>
@@ -628,7 +631,7 @@ const CategoryManager = () => {
                 {togglingDept === 'kids' ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{hiddenDepartments.includes('kids') ? 'Turning ON Kids Department...' : 'Turning OFF Kids Department...'}</span>
+                    <span>{togglingDeptAction === 'on' ? 'Turning ON Kids Department...' : 'Turning OFF Kids Department...'}</span>
                   </>
                 ) : hiddenDepartments.includes('kids') ? (
                   <>
@@ -660,7 +663,7 @@ const CategoryManager = () => {
                 {togglingDept === 'women' ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{hiddenDepartments.includes('women') ? "Turning ON Women's Department..." : "Turning OFF Women's Department..."}</span>
+                    <span>{togglingDeptAction === 'on' ? "Turning ON Women's Department..." : "Turning OFF Women's Department..."}</span>
                   </>
                 ) : hiddenDepartments.includes('women') ? (
                   <>
@@ -692,7 +695,7 @@ const CategoryManager = () => {
                 {togglingDept === 'men' ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{hiddenDepartments.includes('men') ? "Turning ON Men's Department..." : "Turning OFF Men's Department..."}</span>
+                    <span>{togglingDeptAction === 'on' ? "Turning ON Men's Department..." : "Turning OFF Men's Department..."}</span>
                   </>
                 ) : hiddenDepartments.includes('men') ? (
                   <>
@@ -967,22 +970,26 @@ const CategoryManager = () => {
                                     disabled={isToggling}
                                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
                                       isVisible ? 'bg-emerald-500' : 'bg-neutral-300'
-                                    } ${isToggling ? 'opacity-50' : ''}`}
+                                    } ${isToggling ? 'opacity-80 cursor-wait' : ''}`}
                                     aria-label={`Toggle visibility for ${cat.name}`}
                                     title={isVisible ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
                                   >
                                     <span
-                                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                      className={`pointer-events-none inline-flex items-center justify-center h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                                         isVisible ? 'translate-x-5' : 'translate-x-0'
                                       }`}
-                                    />
+                                    >
+                                      {isToggling && (
+                                        <div className="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                      )}
+                                    </span>
                                   </button>
                                   <span
                                     className={`text-[11px] font-bold ${
                                       isVisible ? 'text-emerald-700' : 'text-neutral-400'
                                     }`}
                                   >
-                                    {isVisible ? 'Visible' : 'Hidden'}
+                                    {isToggling ? 'Saving...' : isVisible ? 'Visible' : 'Hidden'}
                                   </span>
                                 </div>
                                 {isParentInactive && (
@@ -1277,16 +1284,34 @@ const CategoryManager = () => {
                     <div className="flex items-center gap-2 self-end sm:self-center">
                       {/* Quick visibility toggle button */}
                       <button
+                        type="button"
+                        disabled={togglingId === parent._id}
                         onClick={() => handleToggleStatus(parent)}
-                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                          isVisible
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          togglingId === parent._id
+                            ? 'bg-neutral-200 text-neutral-600 cursor-wait'
+                            : isVisible
                             ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                             : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                         }`}
                         title="Toggle visibility on storefront"
                       >
-                        {isVisible ? <HiOutlineEye className="w-3.5 h-3.5" /> : <HiOutlineEyeOff className="w-3.5 h-3.5" />}
-                        <span>{isVisible ? 'Visible' : 'Hidden'}</span>
+                        {togglingId === parent._id ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Saving...</span>
+                          </>
+                        ) : isVisible ? (
+                          <>
+                            <HiOutlineEye className="w-3.5 h-3.5" />
+                            <span>Visible</span>
+                          </>
+                        ) : (
+                          <>
+                            <HiOutlineEyeOff className="w-3.5 h-3.5" />
+                            <span>Hidden</span>
+                          </>
+                        )}
                       </button>
 
                       <button
@@ -1353,13 +1378,23 @@ const CategoryManager = () => {
 
                               <div className="flex items-center gap-1 shrink-0 ml-2">
                                 <button
+                                  type="button"
+                                  disabled={togglingId === sub._id}
                                   onClick={() => handleToggleStatus(sub)}
-                                  className={`p-1 rounded ${
-                                    subVisible ? 'text-emerald-600 hover:bg-emerald-50' : 'text-neutral-400 hover:bg-neutral-200'
+                                  className={`p-1 rounded cursor-pointer ${
+                                    togglingId === sub._id
+                                      ? 'text-neutral-400 cursor-wait'
+                                      : subVisible ? 'text-emerald-600 hover:bg-emerald-50' : 'text-neutral-400 hover:bg-neutral-200'
                                   }`}
                                   title={subVisible ? 'Hide from store' : 'Make visible on store'}
                                 >
-                                  {subVisible ? <HiOutlineEye className="w-3.5 h-3.5" /> : <HiOutlineEyeOff className="w-3.5 h-3.5" />}
+                                  {togglingId === sub._id ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                  ) : subVisible ? (
+                                    <HiOutlineEye className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <HiOutlineEyeOff className="w-3.5 h-3.5" />
+                                  )}
                                 </button>
                                 <button
                                   onClick={() => openEditModal(sub)}

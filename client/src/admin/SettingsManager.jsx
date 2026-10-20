@@ -66,6 +66,7 @@ const SettingsManager = () => {
   // 6. Department Visibility state
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
   const [savingDepartmentKey, setSavingDepartmentKey] = useState(null);
+  const [savingDepartmentAction, setSavingDepartmentAction] = useState(null);
 
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
@@ -134,6 +135,7 @@ const SettingsManager = () => {
     if (!ok) return;
 
     setSavingDepartmentKey(deptKey);
+    setSavingDepartmentAction(newIsActive ? 'on' : 'off');
     const toastId = toast.loading(
       newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
     );
@@ -160,6 +162,7 @@ const SettingsManager = () => {
       });
     } finally {
       setSavingDepartmentKey(null);
+      setSavingDepartmentAction(null);
     }
   };
 
@@ -501,7 +504,7 @@ const SettingsManager = () => {
                       {savingDepartmentKey === dept.key ? (
                         <>
                           <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                          <span>{savingDepartmentAction === 'on' ? 'Turning ON...' : 'Turning OFF...'}</span>
                         </>
                       ) : isHidden ? (
                         <>
