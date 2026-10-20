@@ -93,7 +93,7 @@ const defaultHeroBanner = {
   title: 'Style That Defines You',
   subtitle:
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
-  image: '/fallback-banner.jpg',
+  image: '/fallback-banner.png',
   ctaText: 'Explore Collection',
   ctaLink: '/shop'
 };
@@ -304,7 +304,7 @@ const Home = () => {
   useEffect(() => {
     if (Array.isArray(activeBanners) && activeBanners.length > 0) {
       activeBanners.forEach((b) => {
-        const imgSrc = getImageUrl(b?.image, '/fallback-banner.jpg');
+        const imgSrc = getImageUrl(b?.image, '/fallback-banner.png');
         if (imgSrc) {
           const img = new Image();
           img.src = imgSrc;
@@ -385,10 +385,10 @@ const Home = () => {
           {activeBanners.map((b, idx) => (
             <img
               key={b._id || idx}
-              src={getImageUrl(b?.image, '/fallback-banner.jpg')}
+              src={getImageUrl(b?.image, '/fallback-banner.png')}
               alt=""
               aria-hidden="true"
-              onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+              onError={(e) => handleImageError(e, '/fallback-banner.png')}
               className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
                 idx === activeBannerIdx ? 'opacity-25' : 'opacity-0'
               }`}
@@ -479,21 +479,22 @@ const Home = () => {
                   </motion.div>
                 </AnimatePresence>
               ) : (
-                /* DEFAULT MODE: Image Box Carousel - Stable, Premium Boutique Presentation */
+                /* DEFAULT MODE / SINGLE BANNER MODE: Display active banner content in side content instead of pre-entered defaults */
                 <div className="space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
                       <HiOutlineSparkles className="w-4 h-4" />
-                      <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                      <span>{currentBanner?.badge || settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                     </div>
                   </div>
 
                   <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                    {settings.heroTitle || 'Style That Defines You'}
+                    {currentBanner?.title || settings.heroTitle || 'Style That Defines You'}
                   </h1>
 
                   <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
-                    {settings.heroDescription ||
+                    {currentBanner?.subtitle ||
+                      settings.heroDescription ||
                       'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
                   </p>
 
@@ -502,9 +503,9 @@ const Home = () => {
                       type="button"
                       onClick={() => handleBannerClick(currentBanner)}
                       className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
-                      title="Explore boutique collection"
+                      title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
                     >
-                      <span>Explore Collections</span>
+                      <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
                       <HiOutlineArrowRight className="w-4 h-4" />
                     </button>
                     <Link
@@ -577,9 +578,9 @@ const Home = () => {
                         className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
                       >
                         <img
-                          src={getImageUrl(banner?.image, '/fallback-banner.jpg')}
+                          src={getImageUrl(banner?.image, '/fallback-banner.png')}
                           alt={banner?.title || 'Friends Collections'}
-                          onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
                           fetchPriority={idx === 0 ? 'high' : 'auto'}
                           loading="eager"
                           decoding="async"

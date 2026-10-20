@@ -1027,9 +1027,9 @@ const CampaignManager = () => {
                 {bannerImage && (
                   <div className="rounded-2xl overflow-hidden border border-[#EEDCD0] shadow-xs">
                     <img
-                      src={getImageUrl(bannerImage, '/fallback-banner.jpg')}
+                      src={getImageUrl(bannerImage, '/fallback-banner.png')}
                       alt={title}
-                      onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+                      onError={(e) => handleImageError(e, '/fallback-banner.png')}
                       className="w-full max-h-56 object-cover"
                     />
                   </div>

@@ -44,7 +44,7 @@ const defaultHeroBanner = {
   title: 'Style That Defines You',
   subtitle:
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
-  image: '/fallback-banner.jpg',
+  image: '/fallback-banner.png',
   ctaText: 'Explore Collection',
   ctaLink: '/shop'
 };
@@ -85,10 +85,10 @@ const HeroExactPreview = ({
         {bannersList.map((b, idx) => (
           <img
             key={b._id || idx}
-            src={getImageUrl(b?.image, '/fallback-banner.jpg')}
+            src={getImageUrl(b?.image, '/fallback-banner.png')}
             alt=""
             aria-hidden="true"
-            onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+            onError={(e) => handleImageError(e, '/fallback-banner.png')}
             className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
               idx === safeIdx ? 'opacity-25' : 'opacity-0'
             }`}
@@ -179,21 +179,22 @@ const HeroExactPreview = ({
                 </motion.div>
               </AnimatePresence>
             ) : (
-              /* DEFAULT MODE: Image Box Carousel - Stable, Premium Boutique Presentation */
+              /* DEFAULT MODE / SINGLE BANNER MODE: Display active banner content in side content instead of pre-entered defaults */
               <div className="space-y-5 sm:space-y-6">
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
                     <HiOutlineSparkles className="w-4 h-4" />
-                    <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                    <span>{currentBanner?.badge || storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                   </div>
                 </div>
 
                 <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                  {storeSettings.heroTitle || 'Style That Defines You'}
+                  {currentBanner?.title || storeSettings.heroTitle || 'Style That Defines You'}
                 </h1>
 
                 <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
-                  {storeSettings.heroDescription ||
+                  {currentBanner?.subtitle ||
+                    storeSettings.heroDescription ||
                     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
                 </p>
 
@@ -202,9 +203,9 @@ const HeroExactPreview = ({
                     type="button"
                     onClick={() => onBannerClick(currentBanner)}
                     className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
-                    title="Explore boutique collection"
+                    title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
                   >
-                    <span>Explore Collections</span>
+                    <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
                     <HiOutlineArrowRight className="w-4 h-4" />
                   </button>
                   <button
@@ -278,9 +279,9 @@ const HeroExactPreview = ({
                       className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
                     >
                       <img
-                        src={getImageUrl(banner?.image, '/fallback-banner.jpg')}
+                        src={getImageUrl(banner?.image, '/fallback-banner.png')}
                         alt={banner?.title || 'Friends Collections'}
-                        onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
                         fetchPriority={idx === 0 ? 'high' : 'auto'}
                         loading="eager"
                         decoding="async"
@@ -446,7 +447,7 @@ const BannerManager = () => {
   useEffect(() => {
     if (Array.isArray(activeBanners) && activeBanners.length > 0) {
       activeBanners.forEach((b) => {
-        const imgSrc = getImageUrl(b?.image, '/fallback-banner.jpg');
+        const imgSrc = getImageUrl(b?.image, '/fallback-banner.png');
         if (imgSrc) {
           const img = new Image();
           img.src = imgSrc;
@@ -1387,9 +1388,9 @@ const BannerManager = () => {
                     {/* Thumbnail */}
                     <div className="relative w-28 h-18 sm:w-36 sm:h-20 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-200 shrink-0">
                       <img
-                        src={getImageUrl(b.image, '/fallback-banner.jpg')}
+                        src={getImageUrl(b.image, '/fallback-banner.png')}
                         alt={b.title}
-                        onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
                         className="w-full h-full object-cover"
                       />
                       {b.isActive === false && (
@@ -1639,9 +1640,9 @@ const BannerManager = () => {
                     <div className="space-y-3 animate-fade-in">
                       <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
                         <img
-                          src={getImageUrl(imagePreview, '/fallback-banner.jpg')}
+                          src={getImageUrl(imagePreview, '/fallback-banner.png')}
                           alt="Banner Preview"
-                          onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
+                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
                         />
 

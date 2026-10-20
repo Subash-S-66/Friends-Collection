@@ -7,22 +7,34 @@ export const getDiscount = (price, salePrice) => {
   return Math.round(((price - salePrice) / price) * 100);
 };
 
+export const BANNER_FALLBACK = '/fallback-banner.png';
+export const PRODUCT_FALLBACK_1 = '/fallback-product-1.png';
+export const PRODUCT_FALLBACK_2 = '/fallback-product-2.png';
+export const CATEGORY_FALLBACK = '/fallback-product.png';
+
 export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
+  const isBanner =
+    fallback === '/fallback-banner.png' ||
+    fallback === '/fallback-banner.jpg' ||
+    (typeof path === 'string' && path.toLowerCase().includes('banner'));
+
+  const effectiveFallback = isBanner ? BANNER_FALLBACK : fallback;
+
   if (!path || typeof path !== 'string' || !path.trim() || path === 'null' || path === 'undefined') {
-    return fallback;
+    return effectiveFallback;
   }
   const clean = path.trim();
   if (clean === '/uploads/card.png' || clean === '/card.png' || clean === '/fallback-product.png') {
-    return fallback;
+    return effectiveFallback;
   }
   if (clean === '/fallback-banner.png' || clean === '/fallback-banner.jpg') {
-    return '/fallback-banner.jpg';
+    return BANNER_FALLBACK;
   }
-  if (clean.includes('fallback-na-1')) return '/fallback-product-1.png';
-  if (clean.includes('fallback-na-2')) return '/fallback-product-2.png';
-  // Prevent store logo from being used as a product photo
+  if (clean.includes('fallback-na-1')) return isBanner ? BANNER_FALLBACK : '/fallback-product-1.png';
+  if (clean.includes('fallback-na-2')) return isBanner ? BANNER_FALLBACK : '/fallback-product-2.png';
+  // Prevent store logo from being used as a product photo or banner
   if (clean.includes('logo.png') && !fallback.includes('logo')) {
-    return fallback;
+    return effectiveFallback;
   }
   if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
 
@@ -43,12 +55,18 @@ export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
     const alt = (e.currentTarget.alt || '').toLowerCase();
     const className = (e.currentTarget.className || '').toLowerCase();
 
-    // Contextual autodetection if default fallback was provided
-    if (fallback === '/fallback-product-1.png') {
-      if (currentSrc.includes('banner') || alt.includes('banner') || className.includes('banner')) {
-        chosenFallback = '/fallback-banner.jpg';
-      } else if (currentSrc.includes('category') || alt.includes('category') || className.includes('category')) {
-        chosenFallback = '/fallback-product.png';
+    // Contextual autodetection: banners strictly use fallback-banner.png, never product fallbacks
+    if (
+      fallback === '/fallback-banner.jpg' ||
+      fallback === '/fallback-banner.png' ||
+      currentSrc.includes('banner') ||
+      alt.includes('banner') ||
+      className.includes('banner')
+    ) {
+      chosenFallback = BANNER_FALLBACK;
+    } else if (fallback === '/fallback-product-1.png') {
+      if (currentSrc.includes('category') || alt.includes('category') || className.includes('category')) {
+        chosenFallback = CATEGORY_FALLBACK;
       }
     }
 
