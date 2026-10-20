@@ -21,7 +21,8 @@ import {
   HiOutlineTrash,
   HiOutlinePlus,
   HiOutlineHome,
-  HiOutlineOfficeBuilding
+  HiOutlineOfficeBuilding,
+  HiOutlineArrowRight
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -141,6 +142,8 @@ const Account = () => {
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
   const [trackingOrder, setTrackingOrder] = useState(null);
+  const [allOrdersModal, setAllOrdersModal] = useState({ isOpen: false, title: '', ordersList: [] });
+  const [allOrdersSearch, setAllOrdersSearch] = useState('');
 
   const fetchOrders = () => {
     if (!user) return;
@@ -665,7 +668,7 @@ const Account = () => {
 
         {/* Items Preview */}
         <div className="divide-y divide-neutral-100">
-          {order.items?.map((item, idx) => (
+          {(order.items || []).slice(0, 5).map((item, idx) => (
             <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-center gap-4">
               <img
                 src={getImageUrl(item.image)}
@@ -684,6 +687,22 @@ const Account = () => {
               </span>
             </div>
           ))}
+
+          {order.items && order.items.length > 5 && (
+            <div className="pt-3 pb-1 flex items-center justify-between text-xs bg-accent-50/50 px-3.5 py-2.5 rounded-xl border border-accent-200/60 mt-2">
+              <span className="text-neutral-700 font-medium">
+                Showing 5 of {order.items.length} items (+{order.items.length - 5} more items in this order)
+              </span>
+              <button
+                type="button"
+                onClick={() => setDetailOrder(order)}
+                className="inline-flex items-center gap-1 font-bold text-primary hover:text-primary-light cursor-pointer hover:underline"
+              >
+                <span>View All Items</span>
+                <HiOutlineArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions: Address, View Details, WhatsApp */}
@@ -912,7 +931,35 @@ const Account = () => {
                 </div>
               </div>
             ) : (
-              orders.map(renderOrderCard)
+              <>
+                {orders.slice(0, 5).map(renderOrderCard)}
+
+                {orders.length > 5 && (
+                  <div className="bg-white rounded-3xl p-6 border border-accent-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left mt-2">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <HiOutlineShoppingBag className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-serif text-base sm:text-lg font-bold text-neutral-900">
+                          Showing 5 of {orders.length} Orders
+                        </h4>
+                        <p className="text-xs text-neutral-500">
+                          You have {orders.length - 5} older order{orders.length - 5 > 1 ? 's' : ''} in your account history.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAllOrdersModal({ isOpen: true, title: 'My Account Orders', ordersList: orders })}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <HiOutlineEye className="w-4 h-4 text-accent-300" />
+                      <span>View All Orders ({orders.length})</span>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -996,7 +1043,35 @@ const Account = () => {
                     </Link>
                   </div>
                 ) : (
-                  phoneOrders.map(renderOrderCard)
+                  <>
+                    {phoneOrders.slice(0, 5).map(renderOrderCard)}
+
+                    {phoneOrders.length > 5 && (
+                      <div className="bg-white rounded-3xl p-6 border border-accent-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left mt-2">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <HiOutlineShoppingBag className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-serif text-base sm:text-lg font-bold text-neutral-900">
+                              Showing 5 of {phoneOrders.length} Orders
+                            </h4>
+                            <p className="text-xs text-neutral-500">
+                              Found {phoneOrders.length - 5} more order{phoneOrders.length - 5 > 1 ? 's' : ''} linked to +91 {lookupPhone}.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAllOrdersModal({ isOpen: true, title: `Orders for +91 ${lookupPhone}`, ordersList: phoneOrders })}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                        >
+                          <HiOutlineEye className="w-4 h-4 text-accent-300" />
+                          <span>View All Orders ({phoneOrders.length})</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1244,7 +1319,7 @@ const Account = () => {
 
         {/* Full Order Details Modal */}
         {detailOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
             <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-accent-100">
               {/* Fixed Header with Pinned Close "X" Button */}
               <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
@@ -1410,7 +1485,7 @@ const Account = () => {
 
         {/* Dedicated Live Tracking Modal Overlay */}
         {trackingOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
             <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-accent-100">
               {/* Fixed Header with Pinned Close "X" Button */}
               <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
@@ -1475,6 +1550,143 @@ const Account = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* All Orders Pop-up Modal */}
+        {allOrdersModal.isOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs animate-fade-in"
+            onClick={() => {
+              setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
+              setAllOrdersSearch('');
+            }}
+          >
+            <div
+              className="bg-neutral-50 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-accent-200/80 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Top Header */}
+              <div className="p-4 sm:p-6 bg-white border-b border-accent-200/60 flex items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <HiOutlineShoppingBag className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-serif text-lg sm:text-xl font-bold text-neutral-900 truncate">
+                        {allOrdersModal.title || 'All Orders History'}
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-accent-100 text-accent-800 border border-accent-200">
+                        {allOrdersModal.ordersList?.length || 0} Total Orders
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500 truncate">
+                      Full view of all placed orders, tracking info & tax invoices
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
+                    setAllOrdersSearch('');
+                  }}
+                  className="p-2.5 rounded-2xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors border border-neutral-200 cursor-pointer shrink-0"
+                  title="Close (ESC)"
+                >
+                  <HiOutlineX className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Fast Search & Filter Bar inside Modal */}
+              <div className="p-4 bg-white/80 border-b border-neutral-200/70 shrink-0">
+                <div className="relative max-w-md">
+                  <HiOutlineSearch className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={allOrdersSearch}
+                    onChange={(e) => setAllOrdersSearch(e.target.value)}
+                    placeholder="Search by Order ID (FC-...), product name, or status..."
+                    className="w-full pl-10 pr-16 py-2.5 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                  />
+                  {allOrdersSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAllOrdersSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs font-bold cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Body: Scrollable Orders List */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1">
+                {(() => {
+                  const query = allOrdersSearch.trim().toLowerCase();
+                  const filtered = (allOrdersModal.ordersList || []).filter((o) => {
+                    if (!query) return true;
+                    const orderId = (o.orderId || '').toLowerCase();
+                    const status = (o.status || '').toLowerCase();
+                    const payment = (o.paymentMethod || '').toLowerCase();
+                    const customerName = (o.customer?.name || '').toLowerCase();
+                    const itemsMatch = (o.items || []).some((item) =>
+                      (item.title || '').toLowerCase().includes(query)
+                    );
+                    return (
+                      orderId.includes(query) ||
+                      status.includes(query) ||
+                      payment.includes(query) ||
+                      customerName.includes(query) ||
+                      itemsMatch
+                    );
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="bg-white rounded-3xl p-12 text-center border border-accent-100 shadow-xs max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
+                          <HiOutlineSearch className="w-6 h-6" />
+                        </div>
+                        <h4 className="font-serif text-base font-bold text-neutral-900">No Orders Found</h4>
+                        <p className="text-xs text-neutral-500">
+                          No orders match &ldquo;{allOrdersSearch}&rdquo;. Try another search term or clear the filter.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setAllOrdersSearch('')}
+                          className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold cursor-pointer"
+                        >
+                          Clear Search
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((ord) => renderOrderCard(ord));
+                })()}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-white border-t border-accent-200/60 flex items-center justify-between gap-3 shrink-0">
+                <span className="text-xs text-neutral-500 font-medium">
+                  Showing {allOrdersModal.ordersList?.length || 0} orders
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
+                    setAllOrdersSearch('');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

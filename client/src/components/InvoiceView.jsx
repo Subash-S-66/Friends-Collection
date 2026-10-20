@@ -425,7 +425,7 @@ const InvoiceView = ({
 
   // Otherwise, full modal overlay
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs print:p-0 print:bg-white print:fixed-none animate-fade-in">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs print:p-0 print:bg-white print:fixed-none animate-fade-in">
       <div className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden my-auto border border-neutral-200 print:border-none print:shadow-none print:rounded-none print:max-w-none flex flex-col max-h-[92vh]">
         
         {/* Modal Action Bar (Fixed at top, hidden when printing) */}

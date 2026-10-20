@@ -344,7 +344,7 @@ const SettingsManager = () => {
       icon: HiOutlineEyeOff,
       badge: hiddenDepartments.length > 0 ? `${hiddenDepartments.length} Hidden` : null
     },
-    { id: 'hero', name: 'Hero Headline & Copy', icon: HiOutlineSpeakerphone },
+    { id: 'hero', name: 'Announcement Bar', icon: HiOutlineSpeakerphone },
     { id: 'shipping', name: 'Shipping Rules', icon: HiOutlineTruck },
     { id: 'contact', name: 'Store Contact & Info', icon: HiOutlineOfficeBuilding },
   ];
@@ -677,78 +677,10 @@ const SettingsManager = () => {
       )}
 
       {/* ============================================================== */}
-      {/* TAB 3: HERO SECTION & ANNOUNCEMENTS                           */}
+      {/* TAB 3: ANNOUNCEMENT BAR                                        */}
       {/* ============================================================== */}
       {currentTab === 'hero' && (
         <div className="space-y-6">
-          <form onSubmit={handleSaveHero} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                <HiOutlineSparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="font-serif text-lg font-bold text-neutral-900">Homepage Hero Headline & Copy</h2>
-                <p className="text-xs text-neutral-500">Edit the prominent title, subtitle, and badge on the homepage hero banner</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Hero Eyebrow Badge</label>
-                <input
-                  type="text"
-                  required
-                  value={heroBadge}
-                  onChange={(e) => setHeroBadge(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Main Hero Headline</label>
-                <input
-                  type="text"
-                  required
-                  value={heroTitle}
-                  onChange={(e) => setHeroTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-serif text-base focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Hero Subtitle & Brand Story</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={heroDescription}
-                  onChange={(e) => setHeroDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">Store Visit Button Label</label>
-                <input
-                  type="text"
-                  required
-                  value={storeVisitText}
-                  onChange={(e) => setStoreVisitText(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            <div className="text-right pt-2">
-              <button
-                type="submit"
-                disabled={savingHero}
-                className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
-              >
-                {savingHero ? 'Saving Hero Copy...' : 'Save Hero Copy'}
-              </button>
-            </div>
-          </form>
-
           {/* Announcement Bar */}
           <form onSubmit={handleSaveAnnouncement} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">

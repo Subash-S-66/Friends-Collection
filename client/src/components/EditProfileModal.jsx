@@ -84,6 +84,8 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
 
   const currentEmail = (user?.email || '').trim().toLowerCase();
   const currentPhone = (user?.phone || '').trim();
+  const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
+  const isPhoneValid = cleanPhone.length === 10 && /^[6-9]\d{9}$/.test(cleanPhone);
 
   // Validate and submit Step 1 form
   const handleFormSubmit = async (e) => {
@@ -91,15 +93,19 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
     setError('');
 
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
 
     if (!cleanEmail || !/\S+@\S+\.\S+/.test(cleanEmail)) {
       setError('Please provide a valid email address.');
       return;
     }
 
-    if (phone.trim() && cleanPhone.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number.');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setError('Mobile number is required. Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setError('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
       return;
     }
 
@@ -331,8 +337,8 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
                   <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1.5">
                     Email Address <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative rounded-xl shadow-2xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                  <div className="relative rounded-xl shadow-xs">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400 z-10">
                       <HiOutlineMail className="w-5 h-5" />
                     </div>
                     <input
@@ -356,23 +362,34 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
 
                 {/* Phone Input */}
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1.5">
-                    Mobile Number <span className="text-neutral-400 font-normal lowercase">(optional)</span>
-                  </label>
-                  <div className="relative rounded-xl shadow-2xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
-                      <HiOutlinePhone className="w-5 h-5" />
-                    </div>
-                    <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none text-neutral-500 text-xs font-semibold">
-                      +91
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                      Mobile Number <span className="text-red-500">*</span>
+                    </label>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                      isPhoneValid
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : cleanPhone.length > 0
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-neutral-100 text-neutral-600'
+                    }`}>
+                      {isPhoneValid ? '✓ 10 Digits Valid' : `${cleanPhone.length}/10 digits`}
+                    </span>
+                  </div>
+                  <div className="relative flex items-center rounded-xl shadow-xs">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none gap-2 text-neutral-400 select-none z-10">
+                      <HiOutlinePhone className="w-4 h-4 text-neutral-400 shrink-0" />
+                      <span className="text-xs font-bold text-neutral-600 font-sans tracking-normal">+91</span>
+                      <span className="h-4 w-px bg-neutral-300" />
                     </div>
                     <input
                       type="tel"
+                      required
                       maxLength={10}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9840759206"
-                      className="block w-full pl-18 pr-4 py-3 text-sm bg-neutral-50/50 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all text-neutral-900 font-mono tracking-wider"
+                      placeholder="98407 59206"
+                      className="block w-full pl-[88px] pr-4 py-3 text-sm bg-neutral-50/50 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all text-neutral-900 font-mono tracking-wider"
                     />
                   </div>
                   <p className="text-[11px] text-neutral-500 mt-1">
