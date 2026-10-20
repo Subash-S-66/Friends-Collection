@@ -144,9 +144,6 @@ const HeroExactPreview = ({
                       <HiOutlineSparkles className="w-4 h-4" />
                       <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/10 text-neutral-300 border border-white/10 font-numeric">
-                      Slide {safeIdx + 1} of {bannersList.length}
-                    </span>
                   </div>
 
                   <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
@@ -188,12 +185,6 @@ const HeroExactPreview = ({
                     <HiOutlineSparkles className="w-4 h-4" />
                     <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                   </div>
-
-                  {isCarouselEnabled && bannersList.length > 1 && (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/10 text-accent-200 border border-white/15 font-numeric">
-                      Featured Slide {safeIdx + 1} of {bannersList.length}
-                    </span>
-                  )}
                 </div>
 
                 <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
@@ -237,11 +228,6 @@ const HeroExactPreview = ({
                       <span className="truncate">{currentBanner?.title || 'Promotional Collection'}</span>
                       <HiOutlineArrowRight className="w-3.5 h-3.5 text-accent-300 group-hover/look:translate-x-0.5 transition-transform shrink-0" />
                     </button>
-                    {isHovered && (
-                      <span className="text-[10px] text-accent-300/80 font-mono ml-1">
-                        (Paused on hover)
-                      </span>
-                    )}
                   </div>
                 )}
               </div>
@@ -264,11 +250,6 @@ const HeroExactPreview = ({
                     title={`Slide ${idx + 1}: ${b.title || 'Promotional Banner'}`}
                   />
                 ))}
-                {isHovered && (
-                  <span className="text-[10px] text-accent-300 font-medium ml-2 animate-pulse">
-                    (Paused on hover)
-                  </span>
-                )}
               </div>
             )}
           </div>
