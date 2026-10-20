@@ -4,6 +4,7 @@ import { HiOutlineFilter, HiOutlineX, HiOutlineAdjustments, HiOutlineSearch, HiC
 import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import SearchAutocomplete from '../components/SearchAutocomplete';
+import HorizontalScrollContainer from '../components/HorizontalScrollContainer';
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -368,10 +369,15 @@ const Shop = () => {
         </div>
 
         {/* Department / Gender Switcher Tabs */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
+        <HorizontalScrollContainer
+          className="mb-3"
+          innerClassName="gap-2 py-1 px-1"
+          activeKey={selectedGender || 'all'}
+        >
           <button
             onClick={() => updateParam('gender', '')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 ${
+            data-active={!selectedGender ? 'true' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
               !selectedGender
                 ? 'bg-neutral-900 text-white shadow-md'
                 : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200'
@@ -381,7 +387,8 @@ const Shop = () => {
           </button>
           <button
             onClick={() => updateParam('gender', 'women')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 ${
+            data-active={selectedGender === 'women' ? 'true' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
               selectedGender === 'women'
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -391,7 +398,8 @@ const Shop = () => {
           </button>
           <button
             onClick={() => updateParam('gender', 'men')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 ${
+            data-active={selectedGender === 'men' ? 'true' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
               selectedGender === 'men'
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -401,7 +409,8 @@ const Shop = () => {
           </button>
           <button
             onClick={() => updateParam('gender', 'kids')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 ${
+            data-active={selectedGender === 'kids' ? 'true' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
               selectedGender === 'kids'
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -409,13 +418,18 @@ const Shop = () => {
           >
             🧒 Kids' Studio
           </button>
-        </div>
+        </HorizontalScrollContainer>
 
         {/* Primary Category Pills Bar (Filtered by Gender) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
+        <HorizontalScrollContainer
+          className="mb-4"
+          innerClassName="gap-2 py-1 px-1"
+          activeKey={selectedCategory || 'all'}
+        >
           <button
             onClick={() => updateParam('category', '')}
-            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all shadow-xs ${
+            data-active={!selectedCategory ? 'true' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all shadow-xs cursor-pointer ${
               !selectedCategory
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -427,7 +441,8 @@ const Shop = () => {
             <button
               key={cat._id || cat.slug}
               onClick={() => updateParam('category', cat.slug)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all shadow-xs ${
+              data-active={selectedCategory === cat.slug ? 'true' : undefined}
+              className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all shadow-xs cursor-pointer ${
                 selectedCategory === cat.slug
                   ? 'bg-primary text-white shadow-md'
                   : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -436,37 +451,44 @@ const Shop = () => {
               {cat.name}
             </button>
           ))}
-        </div>
+        </HorizontalScrollContainer>
 
         {/* Sub-Category Sub-Pills Bar (like Zantum when a category is selected) */}
         {selectedCategory && activeSubcategories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 no-scrollbar animate-fade-in pl-2 border-l-2 border-primary">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 whitespace-nowrap mr-1">
-              Types:
-            </span>
-            <button
-              onClick={() => updateParam('subcategory', '')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                !selectedSubcategory
-                  ? 'bg-accent text-white shadow-xs'
-                  : 'bg-white/80 text-neutral-600 hover:text-primary hover:bg-white border border-neutral-200'
-              }`}
+          <div className="mb-6 pl-2 border-l-2 border-primary">
+            <HorizontalScrollContainer
+              innerClassName="gap-2 py-1 px-1"
+              activeKey={selectedSubcategory || 'all'}
             >
-              All {activeCatObj?.name}
-            </button>
-            {activeSubcategories.map((sub) => (
+              <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-neutral-400 whitespace-nowrap mr-1 select-none">
+                Types:
+              </span>
               <button
-                key={sub._id || sub.slug}
-                onClick={() => updateParam('subcategory', sub.slug)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  selectedSubcategory === sub.slug
+                onClick={() => updateParam('subcategory', '')}
+                data-active={!selectedSubcategory ? 'true' : undefined}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  !selectedSubcategory
                     ? 'bg-accent text-white shadow-xs'
                     : 'bg-white/80 text-neutral-600 hover:text-primary hover:bg-white border border-neutral-200'
                 }`}
               >
-                {sub.name}
+                All {activeCatObj?.name}
               </button>
-            ))}
+              {activeSubcategories.map((sub) => (
+                <button
+                  key={sub._id || sub.slug}
+                  onClick={() => updateParam('subcategory', sub.slug)}
+                  data-active={selectedSubcategory === sub.slug ? 'true' : undefined}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedSubcategory === sub.slug
+                      ? 'bg-accent text-white shadow-xs'
+                      : 'bg-white/80 text-neutral-600 hover:text-primary hover:bg-white border border-neutral-200'
+                  }`}
+                >
+                  {sub.name}
+                </button>
+              ))}
+            </HorizontalScrollContainer>
           </div>
         )}
 
