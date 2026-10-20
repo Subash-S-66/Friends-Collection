@@ -31,6 +31,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import InvoiceView from '../components/InvoiceView';
 import AddressModal from '../components/AddressModal';
+import EditProfileModal from '../components/EditProfileModal';
 
 const TRACKING_STEPS = [
   { step: 1, title: 'Order Placed', desc: 'Received at Jamalia boutique' },
@@ -69,6 +70,9 @@ const Account = () => {
   // Address Modal States
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [selectedAddressForEdit, setSelectedAddressForEdit] = useState(null);
+
+  // Edit Profile (Email & Phone Dual OTP) Modal State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const handleOpenAddAddress = () => {
     setSelectedAddressForEdit(null);
@@ -736,7 +740,18 @@ const Account = () => {
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div>
-                <h1 className="font-serif text-2xl font-bold text-neutral-900">{user?.name}</h1>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="font-serif text-2xl font-bold text-neutral-900">{user?.name}</h1>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditProfileOpen(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                    title="Edit Email & Phone"
+                  >
+                    <HiOutlinePencilAlt className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
+                </div>
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {user?.email} {user?.phone ? `• +91 ${user.phone}` : ''}
                 </p>
@@ -1476,6 +1491,18 @@ const Account = () => {
           onSuccess={handleAddressSuccess}
           defaultPhone={user?.phone || ''}
           defaultSecondaryPhone={user?.secondaryPhone || ''}
+        />
+
+        {/* Edit Profile Modal (Email & Phone Change with Dual OTP) */}
+        <EditProfileModal
+          isOpen={isEditProfileOpen}
+          onClose={() => setIsEditProfileOpen(false)}
+          user={user}
+          onSuccess={(updatedUser) => {
+            if (updatedUser) {
+              updateUser(updatedUser);
+            }
+          }}
         />
       </div>
     </div>

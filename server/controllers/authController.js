@@ -5,7 +5,9 @@ const VerificationToken = require('../models/VerificationToken');
 const {
   sendVerificationTokenEmail,
   sendForgotPasswordOtpEmail,
-  sendAccountVerificationEmail
+  sendAccountVerificationEmail,
+  sendOldEmailChangeOtp,
+  sendNewEmailChangeOtp
 } = require('../utils/emailService');
 
 const generateToken = (id) => {
@@ -705,4 +707,219 @@ exports.forgotPasswordVerify = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Request email and/or phone change (initiates dual OTP verification for email changes)
+// @route   POST /api/auth/request-email-change
+// @access  Private
+exports.requestEmailChange = async (req, res, next) => {
+  try {
+    const { newEmail, newPhone } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!newEmail || !/\S+@\S+\.\S+/.test(newEmail)) {
+      return res.status(400).json({ message: 'Please provide a valid new email address.' });
+    }
+
+    const currentEmail = (user.email || '').toLowerCase().trim();
+    const cleanNewEmail = newEmail.toLowerCase().trim();
+
+    if (cleanNewEmail === currentEmail) {
+      return res.status(400).json({
+        message: 'The new email address cannot be identical to your current email address.'
+      });
+    }
+
+    // Check if new email is already in use by another user
+    const existingUser = await User.findOne({
+      email: cleanNewEmail,
+      _id: { $ne: user._id }
+    });
+    if (existingUser) {
+      return res.status(400).json({
+        message: 'This email address is already in use by another account.'
+      });
+    }
+
+    // Format phone if provided
+    let cleanPhone = user.phone || '';
+    if (newPhone !== undefined && newPhone !== null && newPhone.toString().trim() !== '') {
+      cleanPhone = newPhone.toString().trim().replace(/[^0-9]/g, '');
+      if (cleanPhone.length > 10) cleanPhone = cleanPhone.slice(-10);
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ message: 'Please provide a valid 10-digit mobile number.' });
+      }
+    }
+
+    // Generate two distinct 6-digit OTPs
+    const oldEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let newEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    while (newEmailOtp === oldEmailOtp) {
+      newEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Remove any previous pending change-email tokens for this user
+    await VerificationToken.deleteMany({
+      type: 'change-email',
+      'metadata.userId': user._id.toString()
+    });
+
+    // Store in VerificationToken
+    await VerificationToken.create({
+      email: currentEmail,
+      token: oldEmailOtp,
+      type: 'change-email',
+      metadata: {
+        userId: user._id.toString(),
+        newEmail: cleanNewEmail,
+        newPhone: cleanPhone,
+        oldEmailOtp,
+        newEmailOtp
+      },
+      expiresAt
+    });
+
+    console.log(`\n================ [DUAL OTP EMAIL CHANGE] ================`);
+    console.log(`User: ${user.name} (${user._id})`);
+    console.log(`Current Email: ${currentEmail} -> OTP: [${oldEmailOtp}]`);
+    console.log(`New Email: ${cleanNewEmail} -> OTP: [${newEmailOtp}]`);
+    console.log(`=========================================================\n`);
+
+    // Concurrently dispatch both emails
+    await Promise.all([
+      sendOldEmailChangeOtp({
+        to: currentEmail,
+        token: oldEmailOtp,
+        newEmail: cleanNewEmail,
+        name: user.name
+      }),
+      sendNewEmailChangeOtp({
+        to: cleanNewEmail,
+        token: newEmailOtp,
+        currentEmail: currentEmail,
+        name: user.name
+      })
+    ]);
+
+    res.json({
+      success: true,
+      message: `Verification codes have been dispatched to both ${currentEmail} and ${cleanNewEmail}.`,
+      currentEmail,
+      newEmail: cleanNewEmail,
+      newPhone: cleanPhone
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify dual OTPs and commit email/phone changes
+// @route   POST /api/auth/verify-email-change
+// @access  Private
+exports.verifyEmailChange = async (req, res, next) => {
+  try {
+    const { oldOtp, newOtp } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+
+    const record = await VerificationToken.findOne({
+      type: 'change-email',
+      'metadata.userId': user._id.toString(),
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!record) {
+      return res.status(400).json({
+        message: 'No pending email change request found or the verification codes have expired. Please start over.'
+      });
+    }
+
+    const cleanOldOtp = (oldOtp || '').toString().trim();
+    const cleanNewOtp = (newOtp || '').toString().trim();
+
+    if (!cleanOldOtp || !cleanNewOtp) {
+      return res.status(400).json({
+        message: 'Both current email and new email verification codes are required.'
+      });
+    }
+
+    const isOldCorrect = record.metadata?.oldEmailOtp === cleanOldOtp || record.token === cleanOldOtp;
+    const isNewCorrect = record.metadata?.newEmailOtp === cleanNewOtp;
+
+    if (!isOldCorrect || !isNewCorrect) {
+      let failMessage = 'Verification failed: ';
+      if (!isOldCorrect && !isNewCorrect) {
+        failMessage += 'Both OTP codes are incorrect.';
+      } else if (!isOldCorrect) {
+        failMessage += 'The OTP code sent to your current email is incorrect.';
+      } else {
+        failMessage += 'The OTP code sent to your new email is incorrect.';
+      }
+      return res.status(400).json({ message: failMessage });
+    }
+
+    // Double check conflict before committing
+    const targetEmail = record.metadata.newEmail;
+    const collision = await User.findOne({
+      email: targetEmail,
+      _id: { $ne: user._id }
+    });
+    if (collision) {
+      return res.status(400).json({
+        message: 'This email address is already in use by another account.'
+      });
+    }
+
+    // Both OTPs are valid! Mark token used
+    record.used = true;
+    await record.save();
+
+    // Commit changes to User
+    user.email = targetEmail;
+    if (record.metadata?.newPhone !== undefined && record.metadata?.newPhone !== null) {
+      user.phone = record.metadata.newPhone;
+    }
+    await user.save();
+
+    // Clean up any remaining change-email tokens for this user
+    await VerificationToken.deleteMany({
+      type: 'change-email',
+      'metadata.userId': user._id.toString()
+    });
+
+    const jwtToken = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Email address and contact details updated successfully!',
+      user,
+      token: jwtToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Cancel a pending email change and purge tokens
+// @route   POST /api/auth/cancel-email-change
+// @access  Private
+exports.cancelEmailChange = async (req, res, next) => {
+  try {
+    await VerificationToken.deleteMany({
+      type: 'change-email',
+      'metadata.userId': req.user._id.toString()
+    });
+    res.json({ success: true, message: 'Email change request cancelled. No changes were made.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

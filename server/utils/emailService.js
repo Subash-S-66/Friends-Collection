@@ -441,6 +441,122 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
   }
 };
 
+// 1d. Send OTP to Old / Current Email to Authorize Change
+exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
+  try {
+    const mailClient = await getTransporter();
+    const greeting = name ? `Dear ${name},` : 'Hello,';
+
+    const contentHtml = `
+      <h2 class="content-title">Authorize Email Address Change 🔒</h2>
+      <p class="content-text" style="text-align: center;">
+        ${greeting}<br>
+        We received a request to change the email address of your Friends Collections account.
+      </p>
+
+      <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 12px 18px; margin: 16px auto; max-width: 440px; text-align: center;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #9A3412; font-weight: 700; display: block; margin-bottom: 2px;">Requested New Email</span>
+        <strong style="color: #431407; font-size: 15px; font-family: monospace;">${newEmail}</strong>
+      </div>
+
+      <p class="content-text" style="text-align: center;">
+        To authorize this change, please enter your <strong>Current Email Security OTP</strong>:
+      </p>
+
+      <div class="token-box">
+        <div class="token-label">Current Email Authorization OTP</div>
+        <div class="token-digits">${token}</div>
+        <div class="token-expires">Valid for the next 10 minutes</div>
+      </div>
+
+      <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 18px;">
+        ⚠️ <strong>Security Rule:</strong> For your protection, your email will not be updated until <em>both</em> this code and the code sent to your new email are correctly entered.
+      </p>
+
+      <p class="content-text" style="font-size: 11px; color: #9E9590; text-align: center; border-top: 1px solid #EEDCD0; padding-top: 14px; margin-top: 16px;">
+        If you did not make this request, please disregard this email or report immediately to 
+        <a href="mailto:friends.collection06@gmail.com" style="color: #4A0E17; font-weight: 600;">friends.collection06@gmail.com</a>.
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `${token} - Authorize Email Change on Friends Collections`,
+      preheader: `Security Code ${token} to authorize changing your Friends Collections account email.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: `🔒 ${token} is your Security Code to Authorize Email Change`,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    if (info?.messageId && !info.messageId.startsWith('stub-') && nodemailer.getTestMessageUrl) {
+      console.log('📬 [Old Email OTP Sent] Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendOldEmailChangeOtp:', error);
+    throw error;
+  }
+};
+
+// 1e. Send OTP to New Email to Confirm Ownership
+exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
+  try {
+    const mailClient = await getTransporter();
+    const greeting = name ? `Dear ${name},` : 'Hello,';
+
+    const contentHtml = `
+      <h2 class="content-title">Confirm Your New Email Address ✨</h2>
+      <p class="content-text" style="text-align: center;">
+        ${greeting}<br>
+        You have requested to set this address as the primary email for your Friends Collections account.
+      </p>
+
+      <p class="content-text" style="text-align: center;">
+        Please enter the confirmation OTP below to verify that you own this new inbox:
+      </p>
+
+      <div class="token-box">
+        <div class="token-label">New Email Confirmation OTP</div>
+        <div class="token-digits">${token}</div>
+        <div class="token-expires">Valid for the next 10 minutes</div>
+      </div>
+
+      <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 18px;">
+        Both this code and the security code sent to your existing email must be entered together on the verification screen to complete this update.
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `${token} - Confirm New Email on Friends Collections`,
+      preheader: `Confirmation Code ${token} for your new Friends Collections account email.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject: `✨ ${token} is your Code to Confirm New Email Address`,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    if (info?.messageId && !info.messageId.startsWith('stub-') && nodemailer.getTestMessageUrl) {
+      console.log('📬 [New Email OTP Sent] Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendNewEmailChangeOtp:', error);
+    throw error;
+  }
+};
+
 // 2. Send Back In Stock Subscription Confirmation
 exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, variant }) => {
   try {
