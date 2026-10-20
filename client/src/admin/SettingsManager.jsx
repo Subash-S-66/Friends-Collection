@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   HiOutlineColorSwatch,
   HiOutlineSpeakerphone,
@@ -23,11 +23,14 @@ const SettingsManager = () => {
   const { theme, changeTheme, applyPreset, presets } = useTheme();
   const { confirm } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Redirect legacy /admin/settings?tab=invoice to the dedicated /admin/invoice page
-  if (searchParams.get('tab') === 'invoice') {
-    return <Navigate to="/admin/invoice" replace />;
-  }
+  useEffect(() => {
+    if (searchParams.get('tab') === 'invoice') {
+      navigate('/admin/invoice', { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   // Tab control from URL (?tab=theming, hero, shipping, contact)
   const currentTab = searchParams.get('tab') || 'theming';

@@ -91,6 +91,10 @@ const ProductManager = () => {
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  // Pagination states (10 / 20 / 30 per table)
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Combined photo pool for image assignment (existing + new uploads)
   const allPhotoPool = [
     ...existingImages.map((url, idx) => ({
@@ -180,6 +184,11 @@ const ProductManager = () => {
       openAddModal(catQuery || '');
     }
   }, [searchParams]);
+
+  // Auto-reset page when filtering or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCat, selectedGenderFilter, itemsPerPage]);
 
   // Filter parent categories vs subcategories
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -894,15 +903,6 @@ const ProductManager = () => {
     const matchesGender = selectedGenderFilter === 'all' || p.gender === selectedGenderFilter;
     return matchesSearch && matchesCat && matchesGender;
   });
-
-  // Pagination states (10 / 20 / 30 per table)
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Auto-reset page when filtering or searching
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedCat, selectedGenderFilter, itemsPerPage]);
 
   const totalItems = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));

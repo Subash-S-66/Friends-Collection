@@ -124,6 +124,55 @@ const ProductDetail = () => {
     }
   }, [currentStock, quantity]);
 
+  // Clean and prepare product images including color and variant photos
+  const allCandidateImages = [
+    ...(product?.images || []),
+    ...(product?.colorImages || []).map((ci) => ci.image),
+    ...(product?.variants || []).map((v) => v.image)
+  ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+
+  const rawImages = Array.from(new Set(allCandidateImages));
+  const displayImages =
+    rawImages.length > 0
+      ? rawImages
+      : ['/fallback-product-1.png', '/fallback-product-2.png'];
+
+  const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
+
+  // Dynamic Image Switching:
+  // When customer selects a color or size variant, switch the active gallery photo to match!
+  useEffect(() => {
+    if (!product || displayImages.length === 0) return;
+
+    // 1. Check if specific size variant has a custom image override
+    let targetImage = currentVariant?.image;
+
+    // 2. If no custom variant image, fall back to selected color's photo
+    if (!targetImage && selectedColor) {
+      const normColor = selectedColor.trim().toLowerCase();
+      const colorObj = product.colorImages?.find(
+        (ci) => (ci.color || '').trim().toLowerCase() === normColor
+      );
+      if (colorObj?.image) {
+        targetImage = colorObj.image;
+      } else {
+        const vWithImg = product.variants?.find(
+          (v) => (v.color || '').trim().toLowerCase() === normColor && v.image
+        );
+        if (vWithImg?.image) {
+          targetImage = vWithImg.image;
+        }
+      }
+    }
+
+    if (targetImage) {
+      const idx = displayImages.indexOf(targetImage);
+      if (idx >= 0) {
+        setActiveImageIndex(idx);
+      }
+    }
+  }, [selectedColor, selectedSize, currentVariant?.image, product, displayImages]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-cream py-8 sm:py-12 animate-pulse">
@@ -184,55 +233,6 @@ const ProductDetail = () => {
   }
 
   const discount = getDiscount(product.price, product.salePrice);
-
-  // Clean and prepare product images including color and variant photos
-  const allCandidateImages = [
-    ...(product.images || []),
-    ...(product.colorImages || []).map((ci) => ci.image),
-    ...(product.variants || []).map((v) => v.image)
-  ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
-
-  const rawImages = Array.from(new Set(allCandidateImages));
-  const displayImages =
-    rawImages.length > 0
-      ? rawImages
-      : ['/fallback-product-1.png', '/fallback-product-2.png'];
-
-  const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
-
-  // Dynamic Image Switching:
-  // When customer selects a color or size variant, switch the active gallery photo to match!
-  useEffect(() => {
-    if (!product || displayImages.length === 0) return;
-
-    // 1. Check if specific size variant has a custom image override
-    let targetImage = currentVariant?.image;
-
-    // 2. If no custom variant image, fall back to selected color's photo
-    if (!targetImage && selectedColor) {
-      const normColor = selectedColor.trim().toLowerCase();
-      const colorObj = product.colorImages?.find(
-        (ci) => (ci.color || '').trim().toLowerCase() === normColor
-      );
-      if (colorObj?.image) {
-        targetImage = colorObj.image;
-      } else {
-        const vWithImg = product.variants?.find(
-          (v) => (v.color || '').trim().toLowerCase() === normColor && v.image
-        );
-        if (vWithImg?.image) {
-          targetImage = vWithImg.image;
-        }
-      }
-    }
-
-    if (targetImage) {
-      const idx = displayImages.indexOf(targetImage);
-      if (idx >= 0) {
-        setActiveImageIndex(idx);
-      }
-    }
-  }, [selectedColor, selectedSize, currentVariant?.image, product]);
 
   // Distinct colors and sizes for chips
   const allColors = hasVariants
