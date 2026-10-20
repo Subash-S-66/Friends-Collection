@@ -95,32 +95,37 @@ const CategoryManager = () => {
   };
 
   const toggleDepartmentVisibility = async (deptKey) => {
+    setTogglingDept(true);
     const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
-    let updated;
-    if (isCurrentlyHidden) {
-      updated = hiddenDepartments.filter((k) => k !== deptKey);
+    const newIsActive = isCurrentlyHidden; // If hidden, make active (true); if active, make hidden (false)
+
+    // Optimistically update local categories & hiddenDepartments
+    setCategories((prev) =>
+      prev.map((c) => {
+        const catGender = (c.gender || 'women').toLowerCase();
+        if (catGender === deptKey || (deptKey === 'women' && (!c.gender || c.gender === 'women'))) {
+          return { ...c, isActive: newIsActive };
+        }
+        return c;
+      })
+    );
+
+    if (newIsActive) {
+      setHiddenDepartments((prev) => prev.filter((d) => d !== deptKey));
     } else {
-      const allDepts = ['women', 'men', 'kids'];
-      const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
-      if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
-        toast.error('At least one department must remain visible on the store.');
-        return;
-      }
-      updated = [...hiddenDepartments, deptKey];
+      setHiddenDepartments((prev) => (prev.includes(deptKey) ? prev : [...prev, deptKey]));
     }
 
-    setTogglingDept(true);
     try {
-      await API.put('/settings/admin/hiddenDepartments', { value: updated });
-      setHiddenDepartments(updated);
-      const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
-      toast.success(
-        isCurrentlyHidden
-          ? `✨ ${names[deptKey] || deptKey} is now LIVE on store everywhere!`
-          : `🔒 ${names[deptKey] || deptKey} is now HIDDEN from store everywhere.`
-      );
-    } catch {
-      toast.error('Failed to update department visibility');
+      const res = await API.patch(`/categories/admin/department/${deptKey}/toggle`, {
+        isActive: newIsActive
+      });
+      toast.success(res.data?.message || 'Department updated successfully');
+      fetchCategories();
+    } catch (err) {
+      console.error('Error toggling entire department:', err);
+      toast.error(err.response?.data?.message || 'Failed to update department visibility');
+      fetchCategories();
     } finally {
       setTogglingDept(false);
     }
@@ -489,64 +494,173 @@ const CategoryManager = () => {
       {/* Department Tabs & Filter Controls */}
       <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-xs space-y-3.5">
         {/* Department Switcher Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-3">
-          <button
-            onClick={() => setGenderFilter('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              genderFilter === 'all'
-                ? 'bg-neutral-900 text-white shadow-xs'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            All Departments ({safeCategories.length})
-          </button>
-          <button
-            onClick={() => setGenderFilter('women')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              genderFilter === 'women'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            <span>🌸 Women ({womenCount})</span>
-            {hiddenDepartments.includes('women') && (
-              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
-            )}
-          </button>
-          <button
-            onClick={() => setGenderFilter('men')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              genderFilter === 'men'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            <span>👔 Men ({menCount})</span>
-            {hiddenDepartments.includes('men') && (
-              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
-            )}
-          </button>
-          <button
-            onClick={() => setGenderFilter('kids')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              genderFilter === 'kids'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            <span>🧒 Kids ({kidsCount})</span>
-            {hiddenDepartments.includes('kids') && (
-              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
-            )}
-          </button>
-          {unisexCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setGenderFilter('all')}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                genderFilter === 'all'
+                  ? 'bg-neutral-900 text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
             >
-              ✨ Unisex ({unisexCount})
+              All Departments ({safeCategories.length})
             </button>
-          )}
+            <button
+              onClick={() => setGenderFilter('women')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                genderFilter === 'women'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <span>🌸 Women ({womenCount})</span>
+              {hiddenDepartments.includes('women') && (
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+              )}
+            </button>
+            <button
+              onClick={() => setGenderFilter('men')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                genderFilter === 'men'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <span>👔 Men ({menCount})</span>
+              {hiddenDepartments.includes('men') && (
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+              )}
+            </button>
+            <button
+              onClick={() => setGenderFilter('kids')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                genderFilter === 'kids'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <span>🧒 Kids ({kidsCount})</span>
+              {hiddenDepartments.includes('kids') && (
+                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+              )}
+            </button>
+            {unisexCount > 0 && (
+              <button
+                onClick={() => setGenderFilter('all')}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              >
+                ✨ Unisex ({unisexCount})
+              </button>
+            )}
+          </div>
+
+          {/* Master 1-Click Button to Turn Off / Turn On Entire Department */}
+          <div className="flex items-center gap-2">
+            {genderFilter === 'kids' && (
+              <button
+                type="button"
+                disabled={togglingDept}
+                onClick={() => toggleDepartmentVisibility('kids')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
+                  hiddenDepartments.includes('kids')
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
+              >
+                {hiddenDepartments.includes('kids') ? (
+                  <>
+                    <HiOutlineEye className="w-4 h-4" />
+                    <span>✨ Turn ON Entire Kids Department (Show on Store & Navbar)</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineEyeOff className="w-4 h-4" />
+                    <span>🔒 Turn OFF Entire Kids Department (Hide from Store & Navbar)</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {genderFilter === 'women' && (
+              <button
+                type="button"
+                disabled={togglingDept}
+                onClick={() => toggleDepartmentVisibility('women')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
+                  hiddenDepartments.includes('women')
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
+              >
+                {hiddenDepartments.includes('women') ? (
+                  <>
+                    <HiOutlineEye className="w-4 h-4" />
+                    <span>✨ Turn ON Entire Women&apos;s Department</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineEyeOff className="w-4 h-4" />
+                    <span>🔒 Turn OFF Entire Women&apos;s Department (Hide from Store & Navbar)</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {genderFilter === 'men' && (
+              <button
+                type="button"
+                disabled={togglingDept}
+                onClick={() => toggleDepartmentVisibility('men')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
+                  hiddenDepartments.includes('men')
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
+              >
+                {hiddenDepartments.includes('men') ? (
+                  <>
+                    <HiOutlineEye className="w-4 h-4" />
+                    <span>✨ Turn ON Entire Men&apos;s Department</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineEyeOff className="w-4 h-4" />
+                    <span>🔒 Turn OFF Entire Men&apos;s Department (Hide from Store & Navbar)</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {genderFilter === 'all' && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-neutral-400 font-bold hidden sm:inline">Turn Section Off/On:</span>
+                {[
+                  { key: 'women', label: '🌸 Women' },
+                  { key: 'men', label: '👔 Men' },
+                  { key: 'kids', label: '🧒 Kids' }
+                ].map((d) => {
+                  const isH = hiddenDepartments.includes(d.key);
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      disabled={togglingDept}
+                      onClick={() => toggleDepartmentVisibility(d.key)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                        isH
+                          ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                          : 'bg-neutral-100 text-neutral-700 border-neutral-200 hover:bg-red-50 hover:text-red-700'
+                      }`}
+                      title={isH ? `Turn ON ${d.label}` : `Turn OFF ${d.label}`}
+                    >
+                      {d.label}: {isH ? '🔒 Hidden' : '✨ Live'}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Filter controls row */}

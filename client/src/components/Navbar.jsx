@@ -119,18 +119,29 @@ const Navbar = () => {
       });
   }, []);
 
-  // Ensure active mobile gender tab is visible
-  useEffect(() => {
-    if (hiddenDepartments.includes(mobileGenderTab)) {
-      const firstAvailable = ['women', 'men', 'kids'].find((g) => !hiddenDepartments.includes(g));
-      if (firstAvailable) setMobileGenderTab(firstAvailable);
-    }
-  }, [hiddenDepartments, mobileGenderTab]);
-
   // Dynamic categories filtered directly from DB category tree
   const womenCategories = (categoryTree || []).filter((c) => c && (c.gender === 'women' || !c.gender));
   const menCategories = (categoryTree || []).filter((c) => c && c.gender === 'men');
   const kidsCategories = (categoryTree || []).filter((c) => c && c.gender === 'kids');
+
+  // A department is only visible if it is NOT in hiddenDepartments AND has at least 1 active category
+  const isWomenVisible = !hiddenDepartments.includes('women') && womenCategories.length > 0;
+  const isMenVisible = !hiddenDepartments.includes('men') && menCategories.length > 0;
+  const isKidsVisible = !hiddenDepartments.includes('kids') && kidsCategories.length > 0;
+
+  // Ensure active mobile gender tab is visible
+  useEffect(() => {
+    const isTabHidden =
+      (mobileGenderTab === 'women' && !isWomenVisible) ||
+      (mobileGenderTab === 'men' && !isMenVisible) ||
+      (mobileGenderTab === 'kids' && !isKidsVisible);
+
+    if (isTabHidden) {
+      if (isWomenVisible) setMobileGenderTab('women');
+      else if (isMenVisible) setMobileGenderTab('men');
+      else if (isKidsVisible) setMobileGenderTab('kids');
+    }
+  }, [isWomenVisible, isMenVisible, isKidsVisible, mobileGenderTab]);
 
   // Handle smooth mouse enter/leave for mega menu
   const handleMouseEnter = (gender) => {
@@ -217,7 +228,7 @@ const Navbar = () => {
               </Link>
 
               {/* WOMEN - Mega Menu Trigger */}
-              {!hiddenDepartments.includes('women') && (
+              {isWomenVisible && (
                 <div
                   className="relative py-2"
                   onMouseEnter={() => handleMouseEnter('women')}
@@ -245,7 +256,7 @@ const Navbar = () => {
               )}
 
               {/* MEN - Mega Menu Trigger */}
-              {!hiddenDepartments.includes('men') && (
+              {isMenVisible && (
                 <div
                   className="relative py-2"
                   onMouseEnter={() => handleMouseEnter('men')}
@@ -273,7 +284,7 @@ const Navbar = () => {
               )}
 
               {/* KIDS - Mega Menu Trigger */}
-              {!hiddenDepartments.includes('kids') && (
+              {isKidsVisible && (
                 <div
                   className="relative py-2"
                   onMouseEnter={() => handleMouseEnter('kids')}
@@ -732,7 +743,7 @@ const Navbar = () => {
 
               {/* Segmented Women, Men & Kids Switcher for Mobile */}
               <div className="bg-neutral-100 p-1 rounded-xl flex items-center gap-1">
-                {!hiddenDepartments.includes('women') && (
+                {isWomenVisible && (
                   <button
                     type="button"
                     onClick={() => setMobileGenderTab('women')}
@@ -745,7 +756,7 @@ const Navbar = () => {
                     🌸 Women
                   </button>
                 )}
-                {!hiddenDepartments.includes('men') && (
+                {isMenVisible && (
                   <button
                     type="button"
                     onClick={() => setMobileGenderTab('men')}
@@ -758,7 +769,7 @@ const Navbar = () => {
                     👔 Men
                   </button>
                 )}
-                {!hiddenDepartments.includes('kids') && (
+                {isKidsVisible && (
                   <button
                     type="button"
                     onClick={() => setMobileGenderTab('kids')}

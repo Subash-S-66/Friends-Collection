@@ -7,7 +7,8 @@ const {
   createCategory,
   updateCategory,
   deleteCategory,
-  toggleCategoryStatus
+  toggleCategoryStatus,
+  toggleEntireDepartment
 } = require('../controllers/categoryController');
 const { auth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
@@ -19,6 +20,7 @@ const flushCategoryCache = (req, res, next) => {
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       invalidateCache('/api/categories');
+      invalidateCache('/api/categories/tree');
       invalidateCache('/api/products/homepage-bundle');
     }
   });
@@ -34,6 +36,7 @@ router.get('/admin/all', auth, admin, adminGetCategories);
 router.post('/admin', auth, admin, flushCategoryCache, upload.single('image'), createCategory);
 router.put('/admin/:id', auth, admin, flushCategoryCache, upload.single('image'), updateCategory);
 router.patch('/admin/:id/toggle', auth, admin, flushCategoryCache, toggleCategoryStatus);
+router.patch('/admin/department/:gender/toggle', auth, admin, flushCategoryCache, toggleEntireDepartment);
 router.delete('/admin/:id', auth, admin, flushCategoryCache, deleteCategory);
 
 module.exports = router;

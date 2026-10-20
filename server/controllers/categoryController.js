@@ -236,3 +236,77 @@ exports.toggleCategoryStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Toggle or set entire department active status (all categories + hiddenDepartments setting)
+// @route   PATCH /api/categories/admin/department/:gender/toggle
+exports.toggleEntireDepartment = async (req, res, next) => {
+  try {
+    const { gender } = req.params;
+    const g = (gender || '').trim().toLowerCase();
+    if (!['women', 'men', 'kids'].includes(g)) {
+      return res.status(400).json({ message: 'Invalid department' });
+    }
+
+    const Settings = require('../models/Settings');
+    const settingsDoc = await Settings.findOne({ key: 'hiddenDepartments' });
+    let hidden = Array.isArray(settingsDoc?.value) ? settingsDoc.value.map((x) => String(x).toLowerCase()) : [];
+
+    // Optional explicit status override in body: { isActive: boolean }
+    let newIsActive;
+    if (typeof req.body?.isActive === 'boolean') {
+      newIsActive = req.body.isActive;
+    } else {
+      // Toggle based on whether currently in hiddenDepartments
+      const isCurrentlyHidden = hidden.includes(g);
+      newIsActive = isCurrentlyHidden; // If hidden, make active (true); if active, make hidden (false)
+    }
+
+    const newHiddenState = !newIsActive;
+
+    // Safety guard: at least one department must remain visible
+    if (newHiddenState) {
+      const allDepts = ['women', 'men', 'kids'];
+      const activeDepts = allDepts.filter((k) => !hidden.includes(k));
+      if (activeDepts.length <= 1 && activeDepts.includes(g)) {
+        return res.status(400).json({ message: 'At least one department must remain visible on the store.' });
+      }
+      if (!hidden.includes(g)) {
+        hidden.push(g);
+      }
+    } else {
+      hidden = hidden.filter((k) => k !== g);
+    }
+
+    // 1. Update Settings hiddenDepartments
+    await Settings.findOneAndUpdate(
+      { key: 'hiddenDepartments' },
+      { value: hidden },
+      { upsert: true, new: true }
+    );
+
+    // 2. Update ALL categories belonging to this department
+    const catFilter =
+      g === 'women'
+        ? { $or: [{ gender: 'women' }, { gender: null }, { gender: { $exists: false } }] }
+        : { gender: g };
+
+    const updateResult = await Category.updateMany(catFilter, { isActive: newIsActive });
+
+    const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+    const deptName = names[g] || g;
+
+    res.json({
+      success: true,
+      department: g,
+      isHidden: newHiddenState,
+      isActive: newIsActive,
+      hiddenDepartments: hidden,
+      categoriesUpdated: updateResult.modifiedCount || 0,
+      message: newHiddenState
+        ? `Entire ${deptName} (${updateResult.modifiedCount || 0} categories) is now turned OFF and hidden from store & navbar.`
+        : `Entire ${deptName} (${updateResult.modifiedCount || 0} categories) is now turned ON and LIVE on store & navbar.`
+    });
+  } catch (error) {
+    next(error);
+  }
+};

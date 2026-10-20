@@ -280,6 +280,11 @@ const Shop = () => {
   const safeCategoryTree = (Array.isArray(categoryTree) ? categoryTree : []).filter(
     (c) => !c?.gender || !hiddenDepartments.includes(c.gender.toLowerCase())
   );
+
+  const isWomenVisible = !hiddenDepartments.includes('women') && safeCategoryTree.some((c) => c && (c.gender === 'women' || !c.gender));
+  const isMenVisible = !hiddenDepartments.includes('men') && safeCategoryTree.some((c) => c && c.gender === 'men');
+  const isKidsVisible = !hiddenDepartments.includes('kids') && safeCategoryTree.some((c) => c && c.gender === 'kids');
+
   const displayedCategories = selectedGender
     ? safeCategoryTree.filter((c) => c && (c.gender === selectedGender || c.gender === 'all' || !c.gender))
     : safeCategoryTree;
@@ -403,7 +408,7 @@ const Shop = () => {
           >
             ✨ All Departments
           </button>
-          {!hiddenDepartments.includes('women') && (
+          {isWomenVisible && (
             <button
               onClick={() => updateParam('gender', 'women')}
               data-active={selectedGender === 'women' ? 'true' : undefined}
@@ -416,7 +421,7 @@ const Shop = () => {
               🌸 Women's Studio
             </button>
           )}
-          {!hiddenDepartments.includes('men') && (
+          {isMenVisible && (
             <button
               onClick={() => updateParam('gender', 'men')}
               data-active={selectedGender === 'men' ? 'true' : undefined}
@@ -429,7 +434,7 @@ const Shop = () => {
               👔 Men's Studio
             </button>
           )}
-          {!hiddenDepartments.includes('kids') && (
+          {isKidsVisible && (
             <button
               onClick={() => updateParam('gender', 'kids')}
               data-active={selectedGender === 'kids' ? 'true' : undefined}
