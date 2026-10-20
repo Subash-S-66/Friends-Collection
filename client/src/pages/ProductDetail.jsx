@@ -503,6 +503,7 @@ const ProductDetail = () => {
                               <img
                                 src={getImageUrl(colorImg)}
                                 alt={color}
+                                onError={handleImageError}
                                 className="w-full h-full object-cover object-top"
                               />
                             </span>

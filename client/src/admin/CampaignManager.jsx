@@ -19,7 +19,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
-import { getImageUrl } from '../utils/formatters';
+import { getImageUrl, handleImageError } from '../utils/formatters';
 
 // Pre-built Festival and Sale Templates
 const FESTIVAL_TEMPLATES = [
@@ -317,7 +317,14 @@ const CampaignManager = () => {
       toast.success('Hero banner uploaded successfully!', { icon: '🖼️' });
     } catch (err) {
       console.error('Banner upload error:', err);
-      toast.error('Failed to upload banner');
+      const isCloudErr =
+        err.response?.data?.isStorageError ||
+        err.response?.status === 503 ||
+        err.response?.data?.code === 'CLOUDINARY_UNREACHABLE';
+      const msg = isCloudErr
+        ? (err.response?.data?.message || 'Cloud storage (Cloudinary) is currently unreachable. Please try again later.')
+        : (err.response?.data?.message || 'Failed to upload banner');
+      toast.error(msg, { duration: 5000 });
     } finally {
       setBannerUploadLoading(false);
     }
@@ -1020,8 +1027,9 @@ const CampaignManager = () => {
                 {bannerImage && (
                   <div className="rounded-2xl overflow-hidden border border-[#EEDCD0] shadow-xs">
                     <img
-                      src={bannerImage}
+                      src={getImageUrl(bannerImage, '/fallback-banner.jpg')}
                       alt={title}
+                      onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
                       className="w-full max-h-56 object-cover"
                     />
                   </div>

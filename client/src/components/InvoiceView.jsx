@@ -386,6 +386,7 @@ const InvoiceView = ({
               <img
                 src={inv.signatureImage}
                 alt="Authorized Signatory"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 className="max-h-12 max-w-[170px] object-contain"
               />
             </div>

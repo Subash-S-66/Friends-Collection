@@ -49,6 +49,35 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Detect Cloudinary / Cloud Storage failures
+  const isCloudinaryError =
+    err.code === 'CLOUDINARY_UNREACHABLE' ||
+    err.isStorageError === true ||
+    err.http_code === 401 ||
+    err.http_code === 403 ||
+    err.http_code === 404 ||
+    err.http_code === 500 ||
+    err.http_code === 502 ||
+    err.http_code === 503 ||
+    (err.message && (
+      err.message.toLowerCase().includes('cloudinary') ||
+      err.message.toLowerCase().includes('cloud storage') ||
+      err.message.toLowerCase().includes('must supply api_key') ||
+      err.message.toLowerCase().includes('must supply api_secret') ||
+      err.message.toLowerCase().includes('must supply cloud_name')
+    ));
+
+  if (isCloudinaryError) {
+    return res.status(503).json({
+      error: 'CLOUD_STORAGE_UNREACHABLE',
+      isStorageError: true,
+      code: 'CLOUDINARY_UNREACHABLE',
+      retryAfter: 30,
+      message: 'Cloud storage (Cloudinary) is currently unreachable. Please check your connection or try again later.',
+      technicalDetails: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+
   res.status(err.statusCode || 500).json({
     message: err.message || 'Internal Server Error'
   });

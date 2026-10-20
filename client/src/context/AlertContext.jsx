@@ -84,6 +84,29 @@ export const AlertProvider = ({ children }) => {
     });
   }, []);
 
+  const showStorageErrorAlert = useCallback((opts = {}) => {
+    const {
+      title = 'Cloud Storage Unreachable',
+      message = '',
+      retryAfter = 30,
+      onRetry = null
+    } = opts;
+
+    setAlertState({
+      isOpen: true,
+      type: 'storage-error',
+      title,
+      message:
+        message ||
+        'Cloud storage (Cloudinary) is currently unreachable. For your data safety, uploads are paused rather than saved on local backend storage. Please try again in a few moments.',
+      retryAfter: Math.max(5, parseInt(retryAfter, 10) || 30),
+      email: '',
+      actionText: onRetry ? 'Try Again' : 'Understood',
+      onAction: onRetry,
+      secondaryText: 'Dismiss'
+    });
+  }, []);
+
   const showCustomAlert = useCallback((opts = {}) => {
     setAlertState({
       isOpen: true,
@@ -104,6 +127,7 @@ export const AlertProvider = ({ children }) => {
       onRateLimit: (seconds, message) => showRateLimitAlert(seconds, message),
       onOtpError: (opts) => showOtpErrorAlert(opts),
       onMailError: (message) => showMailErrorAlert(message),
+      onStorageError: (opts) => showStorageErrorAlert(opts),
       onNetworkError: (message) =>
         showCustomAlert({
           type: 'network-error',
@@ -113,7 +137,7 @@ export const AlertProvider = ({ children }) => {
             'Unable to reach Friends Collections server. Please check your internet connection and try again.'
         })
     });
-  }, [showRateLimitAlert, showMailErrorAlert, showOtpErrorAlert, showCustomAlert]);
+  }, [showRateLimitAlert, showMailErrorAlert, showOtpErrorAlert, showStorageErrorAlert, showCustomAlert]);
 
   return (
     <AlertContext.Provider
@@ -123,6 +147,7 @@ export const AlertProvider = ({ children }) => {
         showRateLimitAlert,
         showMailErrorAlert,
         showOtpErrorAlert,
+        showStorageErrorAlert,
         showCustomAlert
       }}
     >

@@ -76,7 +76,26 @@ API.interceptors.response.use(
         retryAfter
       });
     }
-    // 4. Network / Offline Error: show connection popup
+    // 4. 503 / Cloud Storage (Cloudinary) Unreachable: show user-friendly storage alert popup
+    else if (
+      error.response?.status === 503 &&
+      (error.response?.data?.isStorageError ||
+       error.response?.data?.code === 'CLOUDINARY_UNREACHABLE' ||
+       error.response?.data?.error === 'CLOUD_STORAGE_UNREACHABLE' ||
+       error.response?.data?.message?.toLowerCase().includes('cloudinary') ||
+       error.response?.data?.message?.toLowerCase().includes('cloud storage'))
+    ) {
+      const message =
+        error.response?.data?.message ||
+        'Cloud storage (Cloudinary) is currently unreachable. Please check your connection or try again later.';
+      const retryAfter = error.response?.data?.retryAfter || 30;
+      globalAlertHandler?.onStorageError?.({
+        title: 'Cloud Storage Unreachable',
+        message,
+        retryAfter
+      });
+    }
+    // 5. Network / Offline Error: show connection popup
     else if (!error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
       globalAlertHandler?.onNetworkError?.(
         'Unable to reach the Friends Collections server. Please check your internet connection or try again shortly.'

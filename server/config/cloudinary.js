@@ -1,7 +1,4 @@
 const cloudinary = require('cloudinary').v2;
-const sharp = require('sharp');
-const path = require('path');
-const fs = require('fs');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -15,116 +12,168 @@ const isCloudinaryConfigured = () => {
   const name = process.env.CLOUDINARY_CLOUD_NAME;
   const key = process.env.CLOUDINARY_API_KEY;
   const secret = process.env.CLOUDINARY_API_SECRET;
-  return Boolean(name && key && secret && !name.includes('your_') && !key.includes('your_'));
+  return Boolean(
+    name &&
+    key &&
+    secret &&
+    !name.includes('your_') &&
+    !key.includes('your_') &&
+    !secret.includes('your_')
+  );
+};
+
+const createStorageUnreachableError = (originalError = null) => {
+  const error = new Error('Cloud storage (Cloudinary) is currently unreachable. Please check your connection or try again later.');
+  error.statusCode = 503;
+  error.code = 'CLOUDINARY_UNREACHABLE';
+  error.isStorageError = true;
+  if (originalError) {
+    error.originalError = originalError;
+  }
+  return error;
 };
 
 /**
- * Upload and process image to enforce EXACT 3:4 portrait ratio (900x1200)
- * Uses Cloudinary with crop 'fill' & gravity 'auto' for best framing,
- * or Sharp locally as high-performance fallback.
+ * Upload and process image exclusively to Cloudinary
+ * Strictly disallows backend local storage.
+ * Enforces folder-specific transformations:
+ * - Banners: up to 1920x1080 limit for wide luxury carousel
+ * - Categories: 800x800 square
+ * - Campaigns: 1200x600 limit
+ * - Products: exact 3:4 portrait ratio (900x1200) with AI framing
  */
 const uploadAndProcessImage = async (fileBuffer, originalName, folder = 'friends_collections') => {
-  // If Cloudinary credentials are fully active:
-  if (isCloudinaryConfigured()) {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: folder,
-          transformation: [
-            {
-              width: 900,
-              height: 1200,
-              crop: 'fill',
-              gravity: 'auto',
-              quality: 'auto:best',
-              fetch_format: 'auto'
-            }
-          ]
-        },
-        (error, result) => {
-          if (error) {
-            console.error('Cloudinary upload error:', error);
-            reject(error);
-          } else {
-            resolve(result.secure_url);
-          }
+  if (!isCloudinaryConfigured()) {
+    throw createStorageUnreachableError();
+  }
+
+  // Determine transformation based on destination folder
+  let transformation;
+  const lowerFolder = (folder || '').toLowerCase();
+  if (lowerFolder.includes('banner')) {
+    transformation = [
+      {
+        width: 1920,
+        height: 1080,
+        crop: 'limit',
+        quality: 'auto:best',
+        fetch_format: 'auto'
+      }
+    ];
+  } else if (lowerFolder.includes('categor')) {
+    transformation = [
+      {
+        width: 800,
+        height: 800,
+        crop: 'fill',
+        gravity: 'auto',
+        quality: 'auto:best',
+        fetch_format: 'auto'
+      }
+    ];
+  } else if (lowerFolder.includes('campaign')) {
+    transformation = [
+      {
+        width: 1200,
+        height: 600,
+        crop: 'limit',
+        quality: 'auto:best',
+        fetch_format: 'auto'
+      }
+    ];
+  } else {
+    // Default: exact 3:4 portrait ratio for product catalog
+    transformation = [
+      {
+        width: 900,
+        height: 1200,
+        crop: 'fill',
+        gravity: 'auto',
+        quality: 'auto:best',
+        fetch_format: 'auto'
+      }
+    ];
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        transformation,
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (settled) return;
+        settled = true;
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          reject(createStorageUnreachableError(error));
+        } else {
+          resolve(result.secure_url);
         }
-      );
-      uploadStream.end(fileBuffer);
+      }
+    );
+
+    uploadStream.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      console.error('Cloudinary upload stream network error:', err);
+      reject(createStorageUnreachableError(err));
     });
-  }
 
-  // Local fallback with Sharp to enforce exact 900x1200 3:4 portrait ratio
-  const uploadsDir = path.join(__dirname, '..', 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
-  const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.webp`;
-  const targetPath = path.join(uploadsDir, filename);
-
-  await sharp(fileBuffer)
-    .resize(900, 1200, {
-      fit: 'cover',
-      position: 'top' // Focus on neckline / top of dress
-    })
-    .webp({ quality: 90 })
-    .toFile(targetPath);
-
-  return `/uploads/${filename}`;
+    uploadStream.end(fileBuffer);
+  });
 };
 
 /**
  * Upload and process signature image:
- * Preserves transparency and natural aspect ratio (fit: 'inside') without aggressive cropping.
+ * Preserves transparency (PNG) and natural aspect ratio (fit: 'limit') without aggressive cropping.
  */
 const uploadSignatureImage = async (fileBuffer, originalName, folder = 'friends_collections/signatures') => {
-  if (isCloudinaryConfigured()) {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          transformation: [
-            {
-              width: 800,
-              height: 260,
-              crop: 'limit',
-              quality: 'auto:best',
-              fetch_format: 'png'
-            }
-          ]
-        },
-        (error, result) => {
-          if (error) {
-            console.error('Cloudinary signature upload error:', error);
-            reject(error);
-          } else {
-            resolve(result.secure_url);
+  if (!isCloudinaryConfigured()) {
+    throw createStorageUnreachableError();
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        transformation: [
+          {
+            width: 800,
+            height: 260,
+            crop: 'limit',
+            quality: 'auto:best',
+            fetch_format: 'png'
           }
+        ],
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (settled) return;
+        settled = true;
+        if (error) {
+          console.error('Cloudinary signature upload error:', error);
+          reject(createStorageUnreachableError(error));
+        } else {
+          resolve(result.secure_url);
         }
-      );
-      uploadStream.end(fileBuffer);
+      }
+    );
+
+    uploadStream.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      console.error('Cloudinary signature stream network error:', err);
+      reject(createStorageUnreachableError(err));
     });
-  }
 
-  // Local fallback with Sharp:
-  const uploadsDir = path.join(__dirname, '..', 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
-  const filename = `signature-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.png`;
-  const targetPath = path.join(uploadsDir, filename);
-
-  await sharp(fileBuffer)
-    .resize(800, 260, {
-      fit: 'inside',
-      withoutEnlargement: true
-    })
-    .png({ quality: 95 })
-    .toFile(targetPath);
-
-  return `/uploads/${filename}`;
+    uploadStream.end(fileBuffer);
+  });
 };
 
 module.exports = {

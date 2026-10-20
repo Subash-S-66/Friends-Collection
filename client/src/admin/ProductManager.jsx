@@ -806,7 +806,14 @@ const ProductManager = () => {
       fetchData(true);
     } catch (err) {
       console.error('Save product error:', err);
-      toast.error(err.response?.data?.message || 'Failed to save product');
+      const isCloudErr =
+        err.response?.data?.isStorageError ||
+        err.response?.status === 503 ||
+        err.response?.data?.code === 'CLOUDINARY_UNREACHABLE';
+      const msg = isCloudErr
+        ? (err.response?.data?.message || 'Cloud storage (Cloudinary) is currently unreachable. Please try again later.')
+        : (err.response?.data?.message || 'Failed to save product');
+      toast.error(msg, { duration: 5000 });
     } finally {
       setSaving(false);
     }
@@ -1265,6 +1272,7 @@ const ProductManager = () => {
                                           <img
                                             src={getImageUrl(variantImg)}
                                             alt={v.color}
+                                            onError={(e) => handleImageError(e, '/fallback-product.png')}
                                             className="w-4 h-5 object-cover object-top rounded shrink-0 border border-neutral-300"
                                           />
                                         )}
@@ -1896,6 +1904,7 @@ const ProductManager = () => {
                               <img
                                 src={getImageUrl(previewUrl)}
                                 alt={colorName}
+                                onError={(e) => handleImageError(e, '/fallback-product.png')}
                                 className="w-full h-full object-cover object-top"
                               />
                             ) : (
@@ -2208,6 +2217,7 @@ const ProductManager = () => {
                                 <img
                                   src={getImageUrl(variantPreviewUrl)}
                                   alt={`${v.color} ${v.size}`}
+                                  onError={(e) => handleImageError(e, '/fallback-product.png')}
                                   className="w-full h-full object-cover object-top"
                                 />
                               ) : (

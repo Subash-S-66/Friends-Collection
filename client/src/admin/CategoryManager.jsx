@@ -317,7 +317,14 @@ const CategoryManager = () => {
       fetchCategories(true);
     } catch (err) {
       console.error('Save category error:', err);
-      toast.error(err.response?.data?.message || 'Failed to save category');
+      const isCloudErr =
+        err.response?.data?.isStorageError ||
+        err.response?.status === 503 ||
+        err.response?.data?.code === 'CLOUDINARY_UNREACHABLE';
+      const msg = isCloudErr
+        ? (err.response?.data?.message || 'Cloud storage (Cloudinary) is currently unreachable. Please try again later.')
+        : (err.response?.data?.message || 'Failed to save category');
+      toast.error(msg, { duration: 5000 });
     } finally {
       setSaving(false);
     }
@@ -1689,7 +1696,12 @@ const CategoryManager = () => {
                 <div className="flex items-center gap-3">
                   {imagePreview && (
                     <div className="w-12 h-12 rounded-xl border border-neutral-200 overflow-hidden shrink-0">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <img
+                        src={getImageUrl(imagePreview, '/fallback-product.png')}
+                        alt="Preview"
+                        onError={(e) => handleImageError(e, '/fallback-product.png')}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   )}
                   <input

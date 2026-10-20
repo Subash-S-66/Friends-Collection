@@ -300,6 +300,7 @@ const ProductCard = ({ product }) => {
                           <img
                             src={getImageUrl(swatch.image)}
                             alt={swatch.color}
+                            onError={handleImageError}
                             className="w-full h-full object-cover object-top"
                           />
                         </span>

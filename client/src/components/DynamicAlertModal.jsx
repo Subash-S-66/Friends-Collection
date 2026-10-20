@@ -10,7 +10,8 @@ import {
   HiOutlineQuestionMarkCircle,
   HiOutlineRefresh,
   HiOutlineShieldCheck,
-  HiOutlineSparkles
+  HiOutlineSparkles,
+  HiOutlineCloud
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAlert } from '../context/AlertContext';
@@ -45,7 +46,11 @@ const DynamicAlertModal = () => {
 
   // Ticking countdown effect
   useEffect(() => {
-    const isTimedType = type === 'rate-limit' || type === 'otp-error' || type === 'otp-verify-error';
+    const isTimedType =
+      type === 'rate-limit' ||
+      type === 'otp-error' ||
+      type === 'otp-verify-error' ||
+      type === 'storage-error';
     if (!isOpen || !isTimedType || secondsLeft <= 0) return;
 
     const timer = setInterval(() => {
@@ -104,6 +109,10 @@ const DynamicAlertModal = () => {
                 : (type === 'otp-error' || type === 'otp-verify-error')
                 ? secondsLeft > 0
                   ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-primary animate-pulse'
+                  : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-primary'
+                : type === 'storage-error'
+                ? secondsLeft > 0
+                  ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-amber-600 animate-pulse'
                   : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-primary'
                 : type === 'mail-error'
                 ? 'bg-gradient-to-r from-primary via-accent to-primary-light'
@@ -488,6 +497,84 @@ const DynamicAlertModal = () => {
                     className="px-5 py-3 rounded-2xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-sm font-medium transition-colors"
                   >
                     {secondaryText || 'I Understand'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ===================== CLOUDINARY STORAGE ERROR POPUP ===================== */}
+            {type === 'storage-error' && (
+              <div className="text-center">
+                {/* Header Badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase mb-4 bg-amber-50 text-amber-800 border border-amber-200/80">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  Cloud Storage Notice
+                </div>
+
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-inner">
+                  <HiOutlineCloud className="w-8 h-8" />
+                </div>
+
+                <h3 className="text-xl font-serif font-bold text-neutral-900 mb-2">
+                  {title || 'Cloud Storage Unreachable'}
+                </h3>
+
+                <p className="text-sm text-neutral-600 leading-relaxed max-w-md mx-auto mb-5">
+                  {message ||
+                    'Cloudinary cloud storage is temporarily unreachable. To keep your store data completely intact, uploads have been paused rather than saved on local backend storage. Please try again later.'}
+                </p>
+
+                {/* Cooldown bar */}
+                {secondsLeft > 0 && (
+                  <div className="mb-5 bg-amber-50/70 border border-amber-200/60 rounded-xl p-3 text-center">
+                    <div className="flex items-center justify-between text-xs text-amber-900 font-semibold mb-1.5">
+                      <span>Service re-check ready in</span>
+                      <span className="font-mono">{formatTime(secondsLeft)}</span>
+                    </div>
+                    <div className="w-full bg-amber-200/50 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Guidance Cards */}
+                <div className="space-y-2 mb-6 text-left">
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 text-xs text-neutral-600">
+                    <span className="font-bold text-amber-600">✦</span>
+                    <span>
+                      <strong>Safe Catalog Protection:</strong> Files are never stored on local backend disks to prevent broken URLs or orphaned files.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 text-xs text-neutral-600">
+                    <span className="font-bold text-amber-600">✦</span>
+                    <span>
+                      <strong>Graceful Fallbacks Active:</strong> If any media is currently missing, the storefront automatically renders our curated high-resolution fallback assets.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      if (onAction) onAction();
+                      closeAlert();
+                    }}
+                    className="px-6 py-3 rounded-2xl bg-primary text-white font-semibold text-sm shadow-md hover:bg-primary-dark transition-all"
+                  >
+                    {actionText || (secondsLeft > 0 ? `Try Again in ${secondsLeft}s` : 'Try Again Now')}
+                  </button>
+                  <button
+                    onClick={closeAlert}
+                    className="px-5 py-3 rounded-2xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-sm font-medium transition-colors"
+                  >
+                    {secondaryText || 'Dismiss'}
                   </button>
                 </div>
               </div>

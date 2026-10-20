@@ -229,7 +229,14 @@ const InvoiceSettingsManager = () => {
       setOtpCode('');
     } catch (err) {
       console.error('Error verifying signature OTP:', err);
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP code.');
+      const isCloudErr =
+        err.response?.data?.isStorageError ||
+        err.response?.status === 503 ||
+        err.response?.data?.code === 'CLOUDINARY_UNREACHABLE';
+      const msg = isCloudErr
+        ? (err.response?.data?.message || 'Cloud storage (Cloudinary) is currently unreachable. Please try again later.')
+        : (err.response?.data?.message || 'Invalid or expired OTP code.');
+      toast.error(msg, { duration: 5000 });
     } finally {
       setVerifyingOtp(false);
     }
