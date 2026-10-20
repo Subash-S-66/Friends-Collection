@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlinePlus,
   HiOutlinePencil,
@@ -7,6 +8,8 @@ import {
   HiOutlineX,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
+  HiChevronLeft,
+  HiChevronRight,
   HiOutlineEye,
   HiOutlineEyeOff,
   HiOutlineArrowUp,
@@ -19,7 +22,8 @@ import {
   HiOutlinePause,
   HiOutlineClock,
   HiOutlineAdjustments,
-  HiOutlineArrowRight
+  HiOutlineArrowRight,
+  HiOutlineLocationMarker
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -36,19 +40,390 @@ const QUICK_LINKS = [
   { label: '✨ Festive Offer', url: '/shop?tag=festive' }
 ];
 
+const defaultHeroBanner = {
+  title: 'Style That Defines You',
+  subtitle:
+    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
+  image: '/fallback-banner.png',
+  ctaText: 'Explore Collection',
+  ctaLink: '/shop'
+};
+
+// 1:1 Exact Storefront Hero Section Replica copied from Home.jsx
+const HeroExactPreview = ({
+  activeBanners = [],
+  activeBannerIdx = 0,
+  setActiveBannerIdx = () => {},
+  carouselType = 'image_box', // 'image_box' (Small Carousel) or 'full' (Big Carousel)
+  isCarouselEnabled = true,
+  carouselTransition = 'fade',
+  isHovered = false,
+  setIsHovered = () => {},
+  storeSettings = {},
+  onPrevBanner = () => {},
+  onNextBanner = () => {},
+  onBannerClick = () => {}
+}) => {
+  const bannersList = activeBanners && activeBanners.length > 0 ? activeBanners : [defaultHeroBanner];
+  const safeIdx = activeBannerIdx < bannersList.length ? activeBannerIdx : 0;
+  const currentBanner = (isCarouselEnabled ? bannersList[safeIdx] : bannersList[0]) || bannersList[0] || defaultHeroBanner;
+
+  return (
+    <section
+      className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[460px] sm:min-h-[520px] flex items-center group select-none rounded-3xl shadow-2xl border border-white/10"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Subtle royal pattern/accents overlay */}
+      <div
+        className="absolute inset-0 opacity-10 [background-size:24px_24px] pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(var(--color-accent, #C88A65) 1px, transparent 1px)' }}
+      />
+
+      {/* Ambient Royal Showroom Background (Silky Layered Crossfade with zero flicker) */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {bannersList.map((b, idx) => (
+          <img
+            key={b._id || idx}
+            src={getImageUrl(b.image, '/fallback-banner.png')}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
+              idx === safeIdx ? 'opacity-25' : 'opacity-0'
+            }`}
+          />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
+      </div>
+
+      {/* Global Slide Arrows (Only shown in 'full' carousel mode when >1 slides) */}
+      {isCarouselEnabled && carouselType === 'full' && bannersList.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={onPrevBanner}
+            aria-label="Previous Banner Slide"
+            className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+            title="Previous Banner Slide"
+          >
+            <HiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onNextBanner}
+            aria-label="Next Banner Slide"
+            className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+            title="Next Banner Slide"
+          >
+            <HiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        </>
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 relative z-10 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          
+          {/* Left Column:
+              MODE A ('image_box', DEFAULT / SMALL CAROUSEL): Stable boutique introduction & primary CTAs. Text stays calm and elegant.
+              MODE B ('full' / BIG CAROUSEL): Fluid editorial crossfade per slide with Framer Motion.
+          */}
+          <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
+            {carouselType === 'full' && isCarouselEnabled ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={safeIdx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="space-y-5 sm:space-y-6"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
+                      <HiOutlineSparkles className="w-4 h-4" />
+                      <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/10 text-neutral-300 border border-white/10 font-numeric">
+                      Slide {safeIdx + 1} of {bannersList.length}
+                    </span>
+                  </div>
+
+                  <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                    {currentBanner?.title || storeSettings.heroTitle || 'Style That Defines You'}
+                  </h1>
+
+                  <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+                    {currentBanner?.subtitle ||
+                      storeSettings.heroDescription ||
+                      'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => onBannerClick(currentBanner)}
+                      className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                      title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
+                    >
+                      <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
+                      <HiOutlineArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onBannerClick({ ctaLink: '/contact' })}
+                      className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    >
+                      <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                      <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
+                    </button>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              /* DEFAULT MODE: Image Box Carousel - Stable, Premium Boutique Presentation */
+              <div className="space-y-5 sm:space-y-6">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
+                    <HiOutlineSparkles className="w-4 h-4" />
+                    <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                  </div>
+
+                  {isCarouselEnabled && bannersList.length > 1 && (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/10 text-accent-200 border border-white/15 font-numeric">
+                      Featured Slide {safeIdx + 1} of {bannersList.length}
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                  {storeSettings.heroTitle || 'Style That Defines You'}
+                </h1>
+
+                <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+                  {storeSettings.heroDescription ||
+                    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onBannerClick(currentBanner)}
+                    className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    title="Explore boutique collection"
+                  >
+                    <span>Explore Collections</span>
+                    <HiOutlineArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onBannerClick({ ctaLink: '/contact' })}
+                    className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                    <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
+                  </button>
+                </div>
+
+                {/* Spotlight Indicator Chip for the currently active rotating image box */}
+                {isCarouselEnabled && bannersList.length > 1 && (
+                  <div className="pt-2 flex items-center gap-2 flex-wrap text-xs">
+                    <span className="text-[11px] text-accent-300 font-medium">Spotlight Look:</span>
+                    <button
+                      type="button"
+                      onClick={() => onBannerClick(currentBanner)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-white font-semibold transition-all cursor-pointer shadow-xs truncate max-w-xs sm:max-w-md group/look"
+                    >
+                      <span className="truncate">{currentBanner?.title || 'Promotional Collection'}</span>
+                      <HiOutlineArrowRight className="w-3.5 h-3.5 text-accent-300 group-hover/look:translate-x-0.5 transition-transform shrink-0" />
+                    </button>
+                    {isHovered && (
+                      <span className="text-[10px] text-accent-300/80 font-mono ml-1">
+                        (Paused on hover)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Slide Navigation Dots (Below left content in 'full' mode) */}
+            {isCarouselEnabled && carouselType === 'full' && bannersList.length > 1 && (
+              <div className="flex items-center gap-2 pt-2">
+                {bannersList.map((b, idx) => (
+                  <button
+                    key={b._id || idx}
+                    type="button"
+                    onClick={() => setActiveBannerIdx(idx)}
+                    aria-label={`Show slide ${idx + 1}`}
+                    className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                      safeIdx === idx
+                        ? 'w-9 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
+                        : 'w-2.5 bg-white/40 hover:bg-white/70'
+                    }`}
+                    title={`Slide ${idx + 1}: ${b.title || 'Promotional Banner'}`}
+                  />
+                ))}
+                {isHovered && (
+                  <span className="text-[10px] text-accent-300 font-medium ml-2 animate-pulse">
+                    (Paused on hover)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column:
+              THE BUTTERY-SMOOTH IMAGE BOX CAROUSEL
+              Layered stacked visuals with GPU acceleration, zero unmounting flicker, and smooth crossfades!
+          */}
+          <div className="lg:col-span-5 flex justify-center">
+            <div
+              onClick={() => onBannerClick(currentBanner)}
+              title={`Click to view: ${currentBanner?.title || 'Collection'} (Redirects within store)`}
+              className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card hover:border-accent-300/80 transition-all duration-500 cursor-pointer transform hover:-translate-y-1"
+            >
+              {/* The Layered Image Container */}
+              <div className="relative w-full h-full rounded-2xl overflow-hidden bg-primary-950">
+                {bannersList.map((banner, idx) => {
+                  const isActive = idx === safeIdx;
+                  let transitionStyle = '';
+                  if (carouselTransition === 'slide') {
+                    transitionStyle = isActive
+                      ? 'opacity-100 translate-x-0 scale-100 z-10'
+                      : idx < safeIdx
+                      ? 'opacity-0 -translate-x-full scale-95 z-0 pointer-events-none'
+                      : 'opacity-0 translate-x-full scale-95 z-0 pointer-events-none';
+                  } else if (carouselTransition === 'zoom') {
+                    transitionStyle = isActive
+                      ? 'opacity-100 scale-100 z-10'
+                      : 'opacity-0 scale-110 z-0 pointer-events-none';
+                  } else {
+                    // 'fade' (Luxury Crossfade - Default)
+                    transitionStyle = isActive
+                      ? 'opacity-100 scale-100 z-10'
+                      : 'opacity-0 scale-104 z-0 pointer-events-none';
+                  }
+
+                  return (
+                    <div
+                      key={banner._id || idx}
+                      className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
+                    >
+                      <img
+                        src={getImageUrl(banner.image, '/fallback-banner.png')}
+                        alt={banner.title || 'Friends Collections'}
+                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                        fetchPriority={idx === 0 ? 'high' : 'auto'}
+                        loading="eager"
+                        decoding="async"
+                        className="w-full h-full object-cover rounded-2xl shadow-inner group-hover/card:scale-103 transition-transform duration-700 ease-out"
+                      />
+                      {/* Subtle luxury inner glow */}
+                      <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20 pointer-events-none" />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Floating Bottom Look Caption Bar */}
+              <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-2 pointer-events-none">
+                <div className="px-3 py-1.5 rounded-full bg-black/65 backdrop-blur-md text-white text-[11px] font-bold border border-white/20 shadow-lg truncate max-w-[68%]">
+                  {currentBanner?.title || 'Boutique Collection'}
+                </div>
+                <div className="px-3 py-1.5 rounded-full bg-accent hover:bg-accent-light text-white text-[11px] font-bold flex items-center gap-1.5 shadow-lg border border-accent-300/40 pointer-events-auto transition-transform active:scale-95">
+                  <span>{currentBanner?.ctaText || 'Shop'}</span>
+                  <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              {/* Direct Image Box Carousel Controls (Previous, Next, and Dots on the box) */}
+              {isCarouselEnabled && bannersList.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onPrevBanner}
+                    aria-label="Previous Slide"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                    title="Previous Image Slide"
+                  >
+                    <HiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onNextBanner}
+                    aria-label="Next Slide"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                    title="Next Image Slide"
+                  >
+                    <HiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+
+                  {/* Integrated Dot Indicators on top-right of the Image Box */}
+                  <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/15">
+                    {bannersList.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveBannerIdx(idx);
+                        }}
+                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                          safeIdx === idx ? 'w-5 bg-accent-400' : 'w-1.5 bg-white/50 hover:bg-white'
+                        }`}
+                        title={`Slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const BannerManager = () => {
   const { confirm } = useConfirm();
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [storeSettings, setStoreSettings] = useState({});
 
-  // Carousel mode & advanced presentation settings
-  const [heroCarouselEnabled, setHeroCarouselEnabled] = useState(true);
-  const [heroCarouselType, setHeroCarouselType] = useState('image_box'); // 'image_box' (Default) | 'full'
-  const [heroCarouselTransition, setHeroCarouselTransition] = useState('fade'); // 'fade' | 'slide' | 'zoom'
-  const [heroCarouselInterval, setHeroCarouselInterval] = useState(4000); // 3000 | 4000 | 6000
-  const [updatingSetting, setUpdatingSetting] = useState(false);
+  // 1. Live Settings (what is currently active in the database)
+  const [liveSettings, setLiveSettings] = useState({
+    enabled: true,
+    type: 'image_box', // 'image_box' (Small Carousel) | 'full' (Big Carousel)
+    transition: 'fade', // 'fade' | 'slide' | 'zoom'
+    interval: 4000 // 3000 | 4000 | 6000
+  });
+
+  // 2. Draft Settings (what the admin is testing and previewing before saving live)
+  const [draftSettings, setDraftSettings] = useState({
+    enabled: true,
+    type: 'image_box',
+    transition: 'fade',
+    interval: 4000
+  });
+
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Check if draft settings differ from live settings
+  const hasUnsavedChanges = useMemo(() => {
+    return (
+      draftSettings.enabled !== liveSettings.enabled ||
+      draftSettings.type !== liveSettings.type ||
+      draftSettings.transition !== liveSettings.transition ||
+      draftSettings.interval !== liveSettings.interval
+    );
+  }, [draftSettings, liveSettings]);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -86,24 +461,15 @@ const BannerManager = () => {
       ]);
       setBanners(Array.isArray(bannersRes.data) ? bannersRes.data : []);
       if (settingsRes?.data) {
-        if (settingsRes.data.heroCarouselEnabled !== undefined) {
-          setHeroCarouselEnabled(Boolean(settingsRes.data.heroCarouselEnabled));
-        } else {
-          setHeroCarouselEnabled(true);
-        }
-        if (settingsRes.data.heroCarouselType) {
-          setHeroCarouselType(settingsRes.data.heroCarouselType);
-        } else {
-          setHeroCarouselType('image_box');
-        }
-        if (settingsRes.data.heroCarouselTransition) {
-          setHeroCarouselTransition(settingsRes.data.heroCarouselTransition);
-        } else {
-          setHeroCarouselTransition('fade');
-        }
-        if (settingsRes.data.heroCarouselInterval) {
-          setHeroCarouselInterval(Number(settingsRes.data.heroCarouselInterval) || 4000);
-        }
+        setStoreSettings(settingsRes.data);
+        const enabled = settingsRes.data.heroCarouselEnabled !== undefined ? Boolean(settingsRes.data.heroCarouselEnabled) : true;
+        const type = settingsRes.data.heroCarouselType || 'image_box';
+        const transition = settingsRes.data.heroCarouselTransition || 'fade';
+        const interval = Number(settingsRes.data.heroCarouselInterval) || 4000;
+
+        const loaded = { enabled, type, transition, interval };
+        setLiveSettings(loaded);
+        setDraftSettings(loaded);
       }
     } catch (err) {
       console.error('Error loading banners or settings:', err);
@@ -132,14 +498,14 @@ const BannerManager = () => {
     }
   }, [activeBanners]);
 
-  // Auto-rotate with pause on hover for the preview
+  // Auto-rotate with pause on hover for the preview (Driven by DRAFT settings so admin can test changes)
   useEffect(() => {
-    if (activeBanners.length <= 1 || previewPaused || !heroCarouselEnabled) return;
+    if (activeBanners.length <= 1 || previewPaused || !draftSettings.enabled) return;
     previewTimerRef.current = setInterval(() => {
       setPreviewIdx((prev) => (prev + 1) % activeBanners.length);
-    }, heroCarouselInterval || 4000);
+    }, draftSettings.interval || 4000);
     return () => clearInterval(previewTimerRef.current);
-  }, [activeBanners.length, previewPaused, heroCarouselEnabled, heroCarouselInterval]);
+  }, [activeBanners.length, previewPaused, draftSettings.enabled, draftSettings.interval]);
 
   // Adjust preview index if active banners count changes
   useEffect(() => {
@@ -148,124 +514,105 @@ const BannerManager = () => {
     }
   }, [activeBanners.length, previewIdx]);
 
-  // Change Carousel Mode (Image Box Carousel [Default], Full Hero Carousel, or Single Banner)
-  const handleSetCarouselMode = async (mode) => {
-    if (updatingSetting) return;
-    setUpdatingSetting(true);
-    clearHomeClientCache();
-
-    if (mode === 'disabled') {
-      setHeroCarouselEnabled(false);
-      try {
-        await API.put('/settings/admin/heroCarouselEnabled', { value: false });
-        toast.success('Single Static Banner mode activated. Storefront displays 1 cover banner.', { icon: '🖼️' });
-      } catch (err) {
-        console.error('Failed to update carousel mode:', err);
-        toast.error('Failed to update carousel mode');
-        setHeroCarouselEnabled(true);
-      } finally {
-        setUpdatingSetting(false);
+  // Handle ESC key to dismiss modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (previewModalOpen) {
+          setPreviewModalOpen(false);
+        } else if (modalOpen) {
+          closeModal();
+        }
       }
-      return;
-    }
-
-    const prevEnabled = heroCarouselEnabled;
-    const prevType = heroCarouselType;
-    setHeroCarouselEnabled(true);
-    setHeroCarouselType(mode);
-
-    try {
-      await Promise.all([
-        API.put('/settings/admin/heroCarouselEnabled', { value: true }),
-        API.put('/settings/admin/heroCarouselType', { value: mode })
-      ]);
-      toast.success(
-        mode === 'image_box'
-          ? '🎠 Image Box Carousel ACTIVATED! (Default: Only promotional visual rotates smoothly, boutique headline stays stable)'
-          : '🌟 Full Hero Carousel ACTIVATED! (Entire banner slides together including headline and CTA button)',
-        { icon: mode === 'image_box' ? '🖼️' : '🌟' }
-      );
-    } catch (err) {
-      console.error('Failed to update carousel mode:', err);
-      toast.error('Failed to update carousel mode');
-      setHeroCarouselEnabled(prevEnabled);
-      setHeroCarouselType(prevType);
-    } finally {
-      setUpdatingSetting(false);
-    }
-  };
-
-  // One-click "Make Image Box Carousel Default" button
-  const handleMakeImageBoxDefault = async () => {
-    if (updatingSetting) return;
-    setUpdatingSetting(true);
-    clearHomeClientCache();
-    setHeroCarouselEnabled(true);
-    setHeroCarouselType('image_box');
-    setHeroCarouselTransition('fade');
-
-    try {
-      await Promise.all([
-        API.put('/settings/admin/heroCarouselEnabled', { value: true }),
-        API.put('/settings/admin/heroCarouselType', { value: 'image_box' }),
-        API.put('/settings/admin/heroCarouselTransition', { value: 'fade' })
-      ]);
-      toast.success(
-        '✨ Image Box Carousel set as DEFAULT! (Stable boutique headline + silky 0.7s crossfade on image box)',
-        { icon: '✨', duration: 4000 }
-      );
-    } catch (err) {
-      console.error('Failed to set default carousel mode:', err);
-      toast.error('Failed to set default carousel mode');
-    } finally {
-      setUpdatingSetting(false);
-    }
-  };
-
-  // Change Transition Animation Motion
-  const handleSetTransition = async (transition) => {
-    if (updatingSetting) return;
-    setUpdatingSetting(true);
-    clearHomeClientCache();
-    const prev = heroCarouselTransition;
-    setHeroCarouselTransition(transition);
-
-    const labels = {
-      fade: 'Luxury Crossfade (Silky Smooth)',
-      slide: 'Cinematic Horizontal Slide',
-      zoom: 'Ken Burns Soft Zoom & Fade'
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewModalOpen, modalOpen]);
 
-    try {
-      await API.put('/settings/admin/heroCarouselTransition', { value: transition });
-      toast.success(`Transition motion updated: ${labels[transition] || transition}`, { icon: '✨' });
-    } catch (err) {
-      console.error('Failed to update transition:', err);
-      toast.error('Failed to update transition');
-      setHeroCarouselTransition(prev);
-    } finally {
-      setUpdatingSetting(false);
+  // Handlers for Testing / Draft Mode (Does NOT touch live database)
+  const handleDraftMode = (mode) => {
+    if (mode === 'disabled') {
+      setDraftSettings((prev) => ({ ...prev, enabled: false }));
+      toast('Testing Single Static Banner mode in preview.', { icon: '🖼️' });
+    } else {
+      setDraftSettings((prev) => ({ ...prev, enabled: true, type: mode }));
+      toast(
+        mode === 'image_box'
+          ? 'Testing Small Carousel (Image Box Only) in preview.'
+          : 'Testing Big Carousel (Full Hero Banner) in preview.',
+        { icon: '👁️' }
+      );
     }
   };
 
-  // Change Auto-Rotation Interval
-  const handleSetInterval = async (ms) => {
-    if (updatingSetting) return;
-    setUpdatingSetting(true);
+  const handleDraftTransition = (transition) => {
+    setDraftSettings((prev) => ({ ...prev, transition }));
+    toast(`Testing transition motion: ${transition}`, { icon: '✨' });
+  };
+
+  const handleDraftInterval = (interval) => {
+    setDraftSettings((prev) => ({ ...prev, interval }));
+    toast(`Testing rotation interval: ${interval / 1000}s`, { icon: '⏱️' });
+  };
+
+  const handleDraftMakeDefault = () => {
+    setDraftSettings((prev) => ({
+      ...prev,
+      enabled: true,
+      type: 'image_box',
+      transition: 'fade'
+    }));
+    toast.success('Configured Image Box Carousel as default in draft mode. Click "Save & Go Live" to publish.', { icon: '✏️' });
+  };
+
+  const handleDiscardChanges = () => {
+    setDraftSettings({ ...liveSettings });
+    toast.info('Discarded draft testing changes. Reverted to currently live storefront settings.', { icon: '↩️' });
+  };
+
+  // Explicit Save & Go Live action (Only then are changes written to database and live storefront)
+  const handleSaveAndGoLive = async () => {
+    if (savingSettings) return;
+    setSavingSettings(true);
     clearHomeClientCache();
-    const prev = heroCarouselInterval;
-    setHeroCarouselInterval(ms);
 
     try {
-      await API.put('/settings/admin/heroCarouselInterval', { value: ms });
-      toast.success(`Rotation speed updated to ${ms / 1000} seconds`, { icon: '⏱️' });
+      await Promise.all([
+        API.put('/settings/admin/heroCarouselEnabled', { value: draftSettings.enabled }),
+        API.put('/settings/admin/heroCarouselType', { value: draftSettings.type }),
+        API.put('/settings/admin/heroCarouselTransition', { value: draftSettings.transition }),
+        API.put('/settings/admin/heroCarouselInterval', { value: draftSettings.interval })
+      ]);
+
+      setLiveSettings({ ...draftSettings });
+      toast.success(
+        `🎉 Carousel changes are now LIVE on the storefront! (${
+          draftSettings.type === 'image_box'
+            ? 'Small Carousel (Image Box Only)'
+            : draftSettings.enabled
+            ? 'Big Carousel (Full Hero)'
+            : 'Single Static Banner'
+        })`,
+        { icon: '🚀', duration: 4500 }
+      );
     } catch (err) {
-      console.error('Failed to update interval:', err);
-      toast.error('Failed to update interval');
-      setHeroCarouselInterval(prev);
+      console.error('Failed to save settings:', err);
+      toast.error('Failed to publish settings to live storefront');
     } finally {
-      setUpdatingSetting(false);
+      setSavingSettings(false);
     }
+  };
+
+  const handlePrevPreviewSlide = (e) => {
+    e?.stopPropagation();
+    if (activeBanners.length <= 1) return;
+    setPreviewIdx((prev) => (prev === 0 ? activeBanners.length - 1 : prev - 1));
+  };
+
+  const handleNextPreviewSlide = (e) => {
+    e?.stopPropagation();
+    if (activeBanners.length <= 1) return;
+    setPreviewIdx((prev) => (prev + 1) % activeBanners.length);
   };
 
   // Open Add modal with max 5 guard
@@ -460,8 +807,8 @@ const BannerManager = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Header & Add Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-neutral-200 shadow-xs">
+      {/* Header & Main Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-neutral-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-accent-100 text-accent-800">
@@ -476,71 +823,145 @@ const BannerManager = () => {
             Homepage Hero Banners & Carousel
           </h1>
           <p className="text-xs text-neutral-500 mt-1 max-w-2xl leading-relaxed">
-            Configure dual-mode promotional carousels (Image-Box-Only or Full Banner), silky transitions, auto-rotation speeds, and same-site destination redirection.
+            Configure dual-mode carousels (Small Image-Box-Only or Big Full Hero), silky transitions, and test them live in draft mode before publishing to your customers.
           </p>
         </div>
 
-        {/* Add Banner Button (Max 5 Limit) */}
-        <button
-          onClick={openAddModal}
-          disabled={banners.length >= MAX_BANNERS}
-          className={`inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold shadow-md transition-all self-start sm:self-auto ${
-            banners.length >= MAX_BANNERS
-              ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
-              : 'bg-primary hover:bg-primary-light text-white active:scale-95 cursor-pointer'
-          }`}
-          title={banners.length >= MAX_BANNERS ? 'Maximum 5 banners reached' : 'Add another slide to carousel'}
-        >
-          <HiOutlinePlus className="w-4 h-4" />
-          <span>
-            {banners.length >= MAX_BANNERS ? 'Max 5 Slides Reached' : 'Add Banner Slide'}
-          </span>
-        </button>
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Pop-up Preview Button */}
+          <button
+            type="button"
+            onClick={() => setPreviewModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-800 border-2 border-accent-300 hover:border-accent-400 font-bold text-xs shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            title="Open full interactive pop-up preview to test carousel behavior"
+          >
+            <HiOutlineEye className="w-4 h-4 text-accent-700" />
+            <span>Preview Storefront Hero (Pop-up)</span>
+          </button>
+
+          {/* Add Banner Button (Max 5 Limit) */}
+          <button
+            onClick={openAddModal}
+            disabled={banners.length >= MAX_BANNERS}
+            className={`inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold shadow-md transition-all ${
+              banners.length >= MAX_BANNERS
+                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                : 'bg-primary hover:bg-primary-light text-white active:scale-95 cursor-pointer'
+            }`}
+            title={banners.length >= MAX_BANNERS ? 'Maximum 5 banners reached' : 'Add another slide to carousel'}
+          >
+            <HiOutlinePlus className="w-4 h-4" />
+            <span>
+              {banners.length >= MAX_BANNERS ? 'Max 5 Slides Reached' : 'Add Banner Slide'}
+            </span>
+          </button>
+        </div>
       </div>
+
+      {/* Testing Mode Save & Go Live Bar (Sticky when changes are made) */}
+      {hasUnsavedChanges ? (
+        <div className="sticky top-4 z-40 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white p-4 sm:p-5 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-2 border-amber-300 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <HiOutlineAdjustments className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm tracking-wide">
+                  Testing Mode Active: You Have Unsaved Carousel Changes
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-amber-900 uppercase">
+                  Draft Testing
+                </span>
+              </div>
+              <p className="text-xs text-amber-100 mt-0.5">
+                The live storefront is <strong>NOT</strong> updated yet. Test your changes in the preview below or pop-up modal, then click <strong>Save & Go Live</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={handleDiscardChanges}
+              className="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all border border-white/25 cursor-pointer active:scale-95"
+            >
+              Discard Changes
+            </button>
+
+            <button
+              type="button"
+              disabled={savingSettings}
+              onClick={handleSaveAndGoLive}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 text-xs font-bold shadow-lg transition-all active:scale-95 cursor-pointer"
+            >
+              {savingSettings ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-amber-900 border-t-transparent rounded-full animate-spin" />
+                  <span>Publishing Live...</span>
+                </>
+              ) : (
+                <>
+                  <HiOutlineCheckCircle className="w-4.5 h-4.5 text-emerald-600" />
+                  <span>Save & Go Live</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Storefront is synced and live with your current settings ({liveSettings.enabled ? (liveSettings.type === 'image_box' ? 'Small Carousel - Image Box Only' : 'Big Carousel - Full Hero') : 'Single Static Banner'}).</span>
+          </div>
+          <span className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider">Live & Active</span>
+        </div>
+      )}
 
       {/* Hero Carousel Mode Studio (2 Carousel Kinds + 1 Static Mode) */}
       <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-accent-700">
-              Storefront Display Mode
+              Carousel Style Configuration
             </span>
             <h2 className="font-serif text-lg font-bold text-neutral-900">
-              Select Carousel Style
+              Select Carousel Style (Testing Mode)
             </h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Choose how your promotional banners appear on the homepage.
+              Select a style to test in the live preview. Click "Save & Go Live" when ready.
             </p>
           </div>
 
           {/* Quick Default Button */}
           <button
             type="button"
-            disabled={updatingSetting || (heroCarouselEnabled && heroCarouselType === 'image_box' && heroCarouselTransition === 'fade')}
-            onClick={handleMakeImageBoxDefault}
+            onClick={handleDraftMakeDefault}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs cursor-pointer border ${
-              heroCarouselEnabled && heroCarouselType === 'image_box' && heroCarouselTransition === 'fade'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 cursor-default'
+              draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                 : 'bg-cream hover:bg-amber-100 text-primary border-accent-300 hover:border-accent-400 active:scale-95'
             }`}
-            title="Make Image Box Carousel the default option"
+            title="Configure Image Box Carousel as default in testing draft"
           >
             <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
-              {heroCarouselEnabled && heroCarouselType === 'image_box' && heroCarouselTransition === 'fade'
-                ? 'Image Box Carousel is Default'
+              {draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
+                ? 'Image Box Carousel Selected (Default)'
                 : 'Set Image Box as Default (Recommended)'}
             </span>
           </button>
         </div>
 
-        {/* 3 Interactive Mode Selection Cards */}
+        {/* 3 Interactive Mode Selection Cards (Modifies Draft) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Mode 1: Image Box Carousel (Default • Recommended) */}
+          {/* Mode 1: Small Carousel (Image Box Only - Default • Recommended) */}
           <div
-            onClick={() => handleSetCarouselMode('image_box')}
+            onClick={() => handleDraftMode('image_box')}
             className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group ${
-              heroCarouselEnabled && heroCarouselType === 'image_box'
+              draftSettings.enabled && draftSettings.type === 'image_box'
                 ? 'border-primary bg-primary-950/5 shadow-md ring-2 ring-primary/20'
                 : 'border-neutral-200 hover:border-accent-300 bg-white hover:bg-cream-light/40'
             }`}
@@ -549,9 +970,9 @@ const BannerManager = () => {
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                   <HiOutlineCheck className="w-3 h-3 text-emerald-700" />
-                  Default • Recommended
+                  Small Carousel • Default
                 </span>
-                {heroCarouselEnabled && heroCarouselType === 'image_box' && (
+                {draftSettings.enabled && draftSettings.type === 'image_box' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
                 )}
               </div>
@@ -559,7 +980,7 @@ const BannerManager = () => {
               <div>
                 <h3 className="font-serif text-base font-bold text-neutral-900 group-hover:text-primary transition-colors flex items-center gap-2">
                   <HiOutlinePhotograph className="w-4 h-4 text-accent-700" />
-                  <span>Image Box Carousel</span>
+                  <span>Small Carousel (Image Box Only)</span>
                 </h3>
                 <p className="text-xs text-neutral-600 mt-1.5 leading-relaxed">
                   <strong>Only the promotional image box rotates smoothly.</strong> Store headlines, boutique introduction, and CTA buttons stay calm and stable (modern boutique lookbook style).
@@ -569,25 +990,25 @@ const BannerManager = () => {
 
             <div className="pt-4 flex items-center justify-between border-t border-neutral-100 mt-4">
               <span className="text-[11px] font-semibold text-neutral-500">
-                Smooth Image Crossfade
+                Smooth Lookbook Box
               </span>
               <span
                 className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
-                  heroCarouselEnabled && heroCarouselType === 'image_box'
+                  draftSettings.enabled && draftSettings.type === 'image_box'
                     ? 'bg-primary text-white'
                     : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
                 }`}
               >
-                {heroCarouselEnabled && heroCarouselType === 'image_box' ? 'Active Mode' : 'Select'}
+                {draftSettings.enabled && draftSettings.type === 'image_box' ? 'Active in Preview' : 'Select to Test'}
               </span>
             </div>
           </div>
 
-          {/* Mode 2: Full Hero Banner Carousel */}
+          {/* Mode 2: Big Carousel (Full Hero Banner Carousel) */}
           <div
-            onClick={() => handleSetCarouselMode('full')}
+            onClick={() => handleDraftMode('full')}
             className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group ${
-              heroCarouselEnabled && heroCarouselType === 'full'
+              draftSettings.enabled && draftSettings.type === 'full'
                 ? 'border-primary bg-primary-950/5 shadow-md ring-2 ring-primary/20'
                 : 'border-neutral-200 hover:border-accent-300 bg-white hover:bg-cream-light/40'
             }`}
@@ -596,9 +1017,9 @@ const BannerManager = () => {
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-accent-100 text-accent-800 border border-accent-200">
                   <HiOutlineSparkles className="w-3 h-3 text-accent-700" />
-                  Editorial Full Slides
+                  Big Carousel • Full Slides
                 </span>
-                {heroCarouselEnabled && heroCarouselType === 'full' && (
+                {draftSettings.enabled && draftSettings.type === 'full' && (
                   <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
                 )}
               </div>
@@ -606,7 +1027,7 @@ const BannerManager = () => {
               <div>
                 <h3 className="font-serif text-base font-bold text-neutral-900 group-hover:text-primary transition-colors flex items-center gap-2">
                   <HiOutlineSparkles className="w-4 h-4 text-accent-700" />
-                  <span>Full Hero Carousel</span>
+                  <span>Big Carousel (Full Hero Banner)</span>
                 </h3>
                 <p className="text-xs text-neutral-600 mt-1.5 leading-relaxed">
                   <strong>The entire hero banner transitions together.</strong> Headline, subtitle description, CTA button, and visual slide simultaneously as full-width promotional slides.
@@ -616,25 +1037,25 @@ const BannerManager = () => {
 
             <div className="pt-4 flex items-center justify-between border-t border-neutral-100 mt-4">
               <span className="text-[11px] font-semibold text-neutral-500">
-                Synchronized Text + Image
+                Synchronized Full Slide
               </span>
               <span
                 className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
-                  heroCarouselEnabled && heroCarouselType === 'full'
+                  draftSettings.enabled && draftSettings.type === 'full'
                     ? 'bg-primary text-white'
                     : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
                 }`}
               >
-                {heroCarouselEnabled && heroCarouselType === 'full' ? 'Active Mode' : 'Select'}
+                {draftSettings.enabled && draftSettings.type === 'full' ? 'Active in Preview' : 'Select to Test'}
               </span>
             </div>
           </div>
 
           {/* Mode 3: Single Static Banner */}
           <div
-            onClick={() => handleSetCarouselMode('disabled')}
+            onClick={() => handleDraftMode('disabled')}
             className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group ${
-              !heroCarouselEnabled
+              !draftSettings.enabled
                 ? 'border-primary bg-primary-950/5 shadow-md ring-2 ring-primary/20'
                 : 'border-neutral-200 hover:border-accent-300 bg-white hover:bg-cream-light/40'
             }`}
@@ -644,7 +1065,7 @@ const BannerManager = () => {
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">
                   Static Cover
                 </span>
-                {!heroCarouselEnabled && (
+                {!draftSettings.enabled && (
                   <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
                 )}
               </div>
@@ -666,19 +1087,19 @@ const BannerManager = () => {
               </span>
               <span
                 className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
-                  !heroCarouselEnabled
+                  !draftSettings.enabled
                     ? 'bg-primary text-white'
                     : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
                 }`}
               >
-                {!heroCarouselEnabled ? 'Active Mode' : 'Select'}
+                {!draftSettings.enabled ? 'Active in Preview' : 'Select to Test'}
               </span>
             </div>
           </div>
         </div>
 
         {/* Advanced Changing Controls (Transition Animation Style & Auto-Slide Speed) */}
-        {heroCarouselEnabled && (
+        {draftSettings.enabled && (
           <div className="pt-4 border-t border-neutral-100 flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-neutral-50/70 p-4.5 rounded-2xl">
             {/* Transition Motion Selector */}
             <div className="space-y-1.5">
@@ -695,10 +1116,9 @@ const BannerManager = () => {
                   <button
                     key={item.id}
                     type="button"
-                    disabled={updatingSetting}
-                    onClick={() => handleSetTransition(item.id)}
+                    onClick={() => handleDraftTransition(item.id)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                      heroCarouselTransition === item.id
+                      draftSettings.transition === item.id
                         ? 'bg-primary text-white border-primary shadow-xs'
                         : 'bg-white text-neutral-700 hover:bg-neutral-100 border-neutral-200'
                     }`}
@@ -725,10 +1145,9 @@ const BannerManager = () => {
                   <button
                     key={item.ms}
                     type="button"
-                    disabled={updatingSetting}
-                    onClick={() => handleSetInterval(item.ms)}
+                    onClick={() => handleDraftInterval(item.ms)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                      heroCarouselInterval === item.ms
+                      draftSettings.interval === item.ms
                         ? 'bg-primary text-white border-primary shadow-xs'
                         : 'bg-white text-neutral-700 hover:bg-neutral-100 border-neutral-200'
                     }`}
@@ -742,300 +1161,236 @@ const BannerManager = () => {
         )}
       </div>
 
-      {/* Live Interactive Carousel Simulation Preview */}
-      {activeBanners.length > 0 && (
-        <div className="bg-gradient-to-br from-primary-950 via-primary-900 to-primary-950 p-6 sm:p-8 rounded-3xl text-white shadow-xl border border-accent-400/30 overflow-hidden space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-b border-white/10 pb-4">
-            <div className="flex items-center gap-2.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${heroCarouselEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span className="font-bold uppercase tracking-wider text-accent-300">
-                {heroCarouselEnabled
-                  ? `Live Simulation: ${heroCarouselType === 'image_box' ? 'Image Box Only Carousel (Default)' : 'Full Hero Banner Carousel'} (${heroCarouselInterval / 1000}s Auto-Slide)`
-                  : 'Live Simulation: Single Static Banner (Carousel Disabled)'}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-neutral-300 text-[11px]">
-              {heroCarouselEnabled && (
-                <span className="hidden sm:inline">
-                  {previewPaused ? '⏸️ Paused (Hovering)' : `▶️ Auto-sliding every ${heroCarouselInterval / 1000}s`}
+      {/* On-Page Exact Storefront Hero Preview (Exact 1:1 Replica Copied from Home.jsx) */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-900 text-white p-4.5 rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div>
+              <h3 className="font-serif text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>Exact Homepage Hero Preview</span>
+                <span className="text-[10px] uppercase font-sans font-bold px-2 py-0.5 rounded-full bg-accent text-white">
+                  1:1 Exact Match
                 </span>
-              )}
-              <span className="px-2.5 py-1 rounded-md bg-white/10 font-mono text-accent-200 border border-white/10">
-                Slide {previewIdx + 1} of {activeBanners.length}
-              </span>
+              </h3>
+              <p className="text-[11px] text-neutral-400">
+                Direct copy from homepage. Test switches between Small and Big Carousel below.
+              </p>
             </div>
           </div>
 
-          {/* Mode 1 Preview: Image Box Carousel (Split Layout) */}
-          {heroCarouselEnabled && heroCarouselType === 'image_box' ? (
-            <div
-              className="relative rounded-2xl overflow-hidden bg-primary-950/80 p-5 sm:p-8 border border-accent-300/20 group"
-              onMouseEnter={() => setPreviewPaused(true)}
-              onMouseLeave={() => setPreviewPaused(false)}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Switcher between Small Carousel and Big Carousel */}
+            <div className="inline-flex rounded-xl bg-white/10 p-1 border border-white/10">
+              <button
+                type="button"
+                onClick={() => handleDraftMode('image_box')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  draftSettings.enabled && draftSettings.type === 'image_box'
+                    ? 'bg-accent text-white shadow-xs'
+                    : 'text-neutral-300 hover:text-white'
+                }`}
+                title="Preview Small Carousel (Image Box Only)"
+              >
+                Small Carousel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDraftMode('full')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  draftSettings.enabled && draftSettings.type === 'full'
+                    ? 'bg-accent text-white shadow-xs'
+                    : 'text-neutral-300 hover:text-white'
+                }`}
+                title="Preview Big Carousel (Full Hero Banner)"
+              >
+                Big Carousel
+              </button>
+            </div>
+
+            {/* Pop-up modal button */}
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 transition-all cursor-pointer active:scale-95"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                {/* Left: Stable boutique content */}
-                <div className="lg:col-span-7 space-y-3.5 text-left">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-[11px] font-semibold tracking-wider uppercase">
-                    <HiOutlineSparkles className="w-3.5 h-3.5" />
-                    <span>Chennai's Trendy Fashion House</span>
-                  </div>
-                  <h3 className="font-serif text-xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
-                    Style That Defines You
+              <HiOutlineEye className="w-4 h-4 text-accent-300" />
+              <span>Pop-up View</span>
+            </button>
+          </div>
+        </div>
+
+        {/* The Exact Component Replica from Home.jsx */}
+        <div className="rounded-3xl overflow-hidden shadow-2xl border border-neutral-200">
+          <HeroExactPreview
+            activeBanners={activeBanners}
+            activeBannerIdx={previewIdx}
+            setActiveBannerIdx={setPreviewIdx}
+            carouselType={draftSettings.type}
+            isCarouselEnabled={draftSettings.enabled}
+            carouselTransition={draftSettings.transition}
+            isHovered={previewPaused}
+            setIsHovered={setPreviewPaused}
+            storeSettings={storeSettings}
+            onPrevBanner={handlePrevPreviewSlide}
+            onNextBanner={handleNextPreviewSlide}
+            onBannerClick={(b) => {
+              toast.info(`Clicked banner destination: ${b?.ctaLink || '/shop'} (Simulated same-site link)`, { icon: '🔗' });
+            }}
+          />
+        </div>
+
+        <p className="text-[11px] text-neutral-500 text-center">
+          💡 Interactive Preview: Hover over the hero to pause the {draftSettings.interval / 1000}s timer. Click left/right arrows to change slides.
+        </p>
+      </div>
+
+      {/* Pop-up Preview Modal */}
+      {previewModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+          onClick={() => setPreviewModalOpen(false)}
+        >
+          <div
+            className="bg-neutral-950 rounded-3xl max-w-6xl w-full border border-white/15 shadow-2xl overflow-hidden flex flex-col max-h-[96vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 bg-neutral-900/90 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                    <span>Storefront Hero Preview (1:1 Replica)</span>
+                    <span className="text-[11px] font-sans font-semibold px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                      Exact Homepage Style
+                    </span>
                   </h3>
-                  <p className="text-xs sm:text-sm text-neutral-300 font-light max-w-lg leading-relaxed">
-                    Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.
+                  <p className="text-[11px] text-neutral-400">
+                    Test live auto-sliding, hover pauses, and switch between Small and Big Carousel in real-time.
                   </p>
-                  <div className="flex flex-wrap items-center gap-3 pt-1">
-                    <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent text-white font-semibold text-xs shadow-md">
-                      <span>Explore Collection</span>
-                      <HiOutlineArrowRight className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-accent-300/40 text-white font-medium text-xs">
-                      <span>Visit Boutique</span>
-                    </span>
-                  </div>
-                  {/* Spotlight indicator for current slide */}
-                  <div className="pt-1 flex items-center gap-2 text-xs">
-                    <span className="text-[11px] text-accent-300 font-medium">Spotlight Look:</span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white font-semibold truncate max-w-xs">
-                      <span className="truncate">{activeBanners[previewIdx]?.title || 'Promotional Collection'}</span>
-                      <HiOutlineArrowRight className="w-3 h-3 text-accent-300 shrink-0" />
-                    </span>
-                    <span className="text-[10px] text-neutral-400 font-mono">
-                      (➔ {activeBanners[previewIdx]?.ctaLink || '/shop'})
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right: The Buttery-Smooth Image Box Carousel */}
-                <div className="lg:col-span-5 flex justify-center">
-                  <div
-                    onClick={() => {
-                      const current = activeBanners[previewIdx];
-                      if (current?.ctaLink) toast.info(`Redirects to: ${current.ctaLink} (within same site)`, { icon: '🔗' });
-                    }}
-                    className="relative w-full max-w-md aspect-[16/10] rounded-2xl p-2 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-xl border border-accent-300/40 overflow-hidden cursor-pointer group/box hover:border-accent-300 transition-all"
-                  >
-                    {/* Layered images for buttery smooth crossfade/slide/zoom */}
-                    <div className="relative w-full h-full rounded-xl overflow-hidden bg-primary-950">
-                      {activeBanners.map((banner, idx) => {
-                        const isActive = idx === previewIdx;
-                        let style = '';
-                        if (heroCarouselTransition === 'slide') {
-                          style = isActive
-                            ? 'opacity-100 translate-x-0 scale-100 z-10'
-                            : idx < previewIdx
-                            ? 'opacity-0 -translate-x-full scale-95 z-0 pointer-events-none'
-                            : 'opacity-0 translate-x-full scale-95 z-0 pointer-events-none';
-                        } else if (heroCarouselTransition === 'zoom') {
-                          style = isActive
-                            ? 'opacity-100 scale-100 z-10'
-                            : 'opacity-0 scale-110 z-0 pointer-events-none';
-                        } else {
-                          // 'fade'
-                          style = isActive
-                            ? 'opacity-100 scale-100 z-10'
-                            : 'opacity-0 scale-104 z-0 pointer-events-none';
-                        }
-
-                        return (
-                          <div
-                            key={banner._id || idx}
-                            className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${style}`}
-                          >
-                            <img
-                              src={getImageUrl(banner.image, '/fallback-banner.png')}
-                              alt={banner.title || 'Banner'}
-                              onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                              className="w-full h-full object-cover rounded-xl"
-                            />
-                            <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20 pointer-events-none" />
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Look Caption Bar */}
-                    <div className="absolute bottom-3.5 left-3.5 right-3.5 z-20 flex items-center justify-between gap-2 pointer-events-none">
-                      <div className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-bold border border-white/20 shadow-md truncate max-w-[70%]">
-                        {activeBanners[previewIdx]?.title || 'Promotional Collection'}
-                      </div>
-                      <div className="px-2.5 py-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center gap-1 shadow-md">
-                        <span>{activeBanners[previewIdx]?.ctaText || 'Shop'}</span>
-                        <HiOutlineArrowRight className="w-3 h-3" />
-                      </div>
-                    </div>
-
-                    {/* Prev / Next Buttons */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPreviewIdx((prev) => (prev === 0 ? activeBanners.length - 1 : prev - 1));
-                      }}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-xs transition-all active:scale-95 cursor-pointer opacity-90 group-hover/box:opacity-100"
-                      title="Previous Slide"
-                    >
-                      <HiOutlineChevronLeft className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPreviewIdx((prev) => (prev + 1) % activeBanners.length);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-xs transition-all active:scale-95 cursor-pointer opacity-90 group-hover/box:opacity-100"
-                      title="Next Slide"
-                    >
-                      <HiOutlineChevronRight className="w-4 h-4" />
-                    </button>
-
-                    {/* Top right dots */}
-                    <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-1 bg-black/55 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20">
-                      {activeBanners.map((_, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewIdx(idx);
-                          }}
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            previewIdx === idx ? 'w-4 bg-accent-400' : 'w-1.5 bg-white/50 hover:bg-white'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
+
+              {/* Quick Carousel Type Switcher Buttons inside the Pop-up Preview */}
+              <div className="flex items-center gap-2 bg-neutral-800/80 p-1 rounded-2xl border border-white/10 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => handleDraftMode('image_box')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    draftSettings.enabled && draftSettings.type === 'image_box'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Small Carousel (Image Box)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDraftMode('full')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    draftSettings.enabled && draftSettings.type === 'full'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Big Carousel (Full Hero)
+                </button>
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(false)}
+                className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 cursor-pointer self-end sm:self-auto"
+                title="Close Preview"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
             </div>
-          ) : (
-            /* Mode 2 Preview: Full Hero Banner Carousel or Single Banner */
-            <div
-              className="relative rounded-2xl overflow-hidden aspect-[16/7] sm:aspect-[21/8] bg-black/40 group cursor-pointer"
-              onMouseEnter={() => setPreviewPaused(true)}
-              onMouseLeave={() => setPreviewPaused(false)}
-              onClick={() => {
-                const current = activeBanners[previewIdx];
-                if (current?.ctaLink) toast.info(`Redirects to: ${current.ctaLink} (within same site)`, { icon: '🔗' });
-              }}
-            >
-              {/* Stacked Images for Buttery-Smooth Crossfade */}
-              {activeBanners.map((banner, idx) => {
-                const isActive = idx === previewIdx;
-                let style = '';
-                if (heroCarouselTransition === 'slide') {
-                  style = isActive
-                    ? 'opacity-100 translate-x-0 scale-100 z-10'
-                    : idx < previewIdx
-                    ? 'opacity-0 -translate-x-full scale-95 z-0 pointer-events-none'
-                    : 'opacity-0 translate-x-full scale-95 z-0 pointer-events-none';
-                } else if (heroCarouselTransition === 'zoom') {
-                  style = isActive
-                    ? 'opacity-100 scale-100 z-10'
-                    : 'opacity-0 scale-110 z-0 pointer-events-none';
-                } else {
-                  // 'fade'
-                  style = isActive
-                    ? 'opacity-100 scale-100 z-10'
-                    : 'opacity-0 scale-104 z-0 pointer-events-none';
-                }
 
-                return (
-                  <div
-                    key={banner._id || idx}
-                    className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${style}`}
-                  >
-                    <img
-                      src={getImageUrl(banner.image, '/fallback-banner.png')}
-                      alt={banner.title || 'Banner'}
-                      onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                      className="w-full h-full object-cover filter brightness-90 group-hover:scale-102 transition-transform duration-700 ease-out"
-                    />
-                  </div>
-                );
-              })}
+            {/* Modal Body: Exact Hero Component */}
+            <div className="overflow-y-auto p-4 sm:p-6 flex-1 bg-neutral-900/40">
+              <HeroExactPreview
+                activeBanners={activeBanners}
+                activeBannerIdx={previewIdx}
+                setActiveBannerIdx={setPreviewIdx}
+                carouselType={draftSettings.type}
+                isCarouselEnabled={draftSettings.enabled}
+                carouselTransition={draftSettings.transition}
+                isHovered={previewPaused}
+                setIsHovered={setPreviewPaused}
+                storeSettings={storeSettings}
+                onPrevBanner={handlePrevPreviewSlide}
+                onNextBanner={handleNextPreviewSlide}
+                onBannerClick={(b) => {
+                  toast.info(`Redirect test: ${b?.ctaLink || '/shop'} (Simulated same-site navigation)`, { icon: '🔗' });
+                }}
+              />
+            </div>
 
-              {/* Gradient Overlay & Content */}
-              <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-black/85 via-black/40 to-transparent flex flex-col justify-end sm:justify-center p-6 sm:p-12 text-white z-20">
-                <div className="max-w-xl space-y-2">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-accent-500/30 text-accent-200 border border-accent-400/40">
-                    Slide #{previewIdx + 1} • {activeBanners[previewIdx]?.priority || 1}
+            {/* Modal Footer Bar with Save & Go Live Button */}
+            <div className="px-6 py-4 bg-neutral-900 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2 text-xs text-neutral-300 flex-wrap">
+                <span className="font-mono text-accent-300 text-[11px]">
+                  Mode: {draftSettings.enabled ? (draftSettings.type === 'image_box' ? 'Small Carousel (Image Box Only)' : 'Big Carousel (Full Hero)') : 'Single Static Banner'}
+                </span>
+                <span>•</span>
+                <span className="font-mono text-neutral-400 text-[11px]">
+                  {draftSettings.transition} ({draftSettings.interval / 1000}s)
+                </span>
+                {hasUnsavedChanges ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Draft Changes (Not Live Yet)
                   </span>
-                  <h3 className="font-serif text-lg sm:text-3xl font-bold leading-tight">
-                    {activeBanners[previewIdx]?.title || 'Promotional Headline'}
-                  </h3>
-                  {activeBanners[previewIdx]?.subtitle && (
-                    <p className="text-xs sm:text-sm text-neutral-200 line-clamp-2 leading-relaxed">
-                      {activeBanners[previewIdx].subtitle}
-                    </p>
-                  )}
-                  <div className="pt-2 flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-white text-xs font-bold shadow-lg">
-                      <span>{activeBanners[previewIdx]?.ctaText || 'Shop Now'}</span>
-                      <HiOutlineChevronRight className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="text-[11px] text-neutral-300 font-mono">
-                      ➔ {activeBanners[previewIdx]?.ctaLink || '/shop'}
-                    </span>
-                  </div>
-                </div>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Current Live Settings
+                  </span>
+                )}
               </div>
 
-              {/* Prev/Next arrows if enabled */}
-              {heroCarouselEnabled && activeBanners.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPreviewIdx((prev) => (prev === 0 ? activeBanners.length - 1 : prev - 1));
-                    }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
-                    title="Previous Slide"
-                  >
-                    <HiOutlineChevronLeft className="w-5 h-5" />
-                  </button>
+              <div className="flex items-center gap-3 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-white/20 text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  Close Preview
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPreviewIdx((prev) => (prev + 1) % activeBanners.length);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs transition-all opacity-80 group-hover:opacity-100 cursor-pointer"
-                    title="Next Slide"
-                  >
-                    <HiOutlineChevronRight className="w-5 h-5" />
-                  </button>
-
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-30">
-                    {activeBanners.map((_, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewIdx(idx);
-                        }}
-                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                          previewIdx === idx ? 'w-7 bg-accent-400' : 'w-2 bg-white/50 hover:bg-white'
-                        }`}
-                        title={`Jump to slide ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+                <button
+                  type="button"
+                  disabled={savingSettings || !hasUnsavedChanges}
+                  onClick={handleSaveAndGoLive}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md ${
+                    hasUnsavedChanges
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 cursor-pointer shadow-emerald-900/50'
+                      : 'bg-neutral-800 text-neutral-500 border border-white/10 cursor-not-allowed'
+                  }`}
+                  title={hasUnsavedChanges ? 'Publish your draft changes to the live storefront' : 'No changes to publish'}
+                >
+                  {savingSettings ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Publishing Live...</span>
+                    </>
+                  ) : hasUnsavedChanges ? (
+                    <>
+                      <HiOutlineCheckCircle className="w-4 h-4 text-white" />
+                      <span>Save & Go Live</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineCheck className="w-4 h-4 text-emerald-400" />
+                      <span>Live on Storefront</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          )}
-
-          <p className="text-[11px] text-neutral-400 text-center">
-            💡 Real-time simulation reflects your chosen mode ({heroCarouselType === 'image_box' ? 'Image Box Only' : heroCarouselEnabled ? 'Full Hero Banner' : 'Single Static'}), {heroCarouselInterval / 1000}s timing, and {heroCarouselTransition} transition. Hover pauses the timer.
-          </p>
+          </div>
         </div>
       )}
 
