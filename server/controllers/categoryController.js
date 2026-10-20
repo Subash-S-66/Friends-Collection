@@ -21,10 +21,20 @@ exports.getCategories = async (req, res, next) => {
     }
 
     const categories = await Category.find(filter)
-      .populate('parent', 'name slug gender')
+      .populate('parent', 'name slug gender isActive')
       .sort({ priority: 1, createdAt: -1 })
       .lean();
-    res.json(categories);
+
+    // Filter out any subcategory whose parent is inactive or in a hidden department
+    const activeCategories = categories.filter((c) => {
+      if (c.parent) {
+        if (c.parent.isActive === false) return false;
+        if (c.parent.gender && hiddenDepartments.includes(c.parent.gender.toLowerCase())) return false;
+      }
+      return true;
+    });
+
+    res.json(activeCategories);
   } catch (error) {
     next(error);
   }
@@ -156,7 +166,17 @@ exports.updateCategory = async (req, res, next) => {
     if (gender !== undefined) category.gender = gender;
     if (description !== undefined) category.description = description;
     if (priority !== undefined) category.priority = Number(priority);
-    if (isActive !== undefined) category.isActive = isActive === 'true' || isActive === true;
+    if (isActive !== undefined) {
+      const nextActive = isActive === 'true' || isActive === true;
+      category.isActive = nextActive;
+      // If this is a main category, cascade active status to all child subcategories
+      if (!category.parent) {
+        await Category.updateMany(
+          { parent: category._id },
+          { isActive: nextActive }
+        );
+      }
+    }
     
     if (req.file) {
       category.image = await uploadAndProcessImage(req.file.buffer, req.file.originalname, 'friends_collections/categories');
@@ -194,10 +214,23 @@ exports.toggleCategoryStatus = async (req, res, next) => {
     category.isActive = !category.isActive;
     await category.save();
 
+    let cascadeCount = 0;
+    // If this is a main category, cascade to all child subcategories!
+    if (!category.parent) {
+      const cascadeResult = await Category.updateMany(
+        { parent: category._id },
+        { isActive: category.isActive }
+      );
+      cascadeCount = cascadeResult.modifiedCount || 0;
+    }
+
     const populated = await Category.findById(category._id).populate('parent', 'name slug gender');
     res.json({
-      message: `Category is now ${category.isActive ? 'visible' : 'hidden'} on storefront`,
-      category: populated
+      message: `Category "${category.name}" is now ${category.isActive ? 'visible' : 'hidden'} on storefront${
+        cascadeCount > 0 ? ` (along with ${cascadeCount} sub-categories)` : ''
+      }`,
+      category: populated,
+      cascadeCount
     });
   } catch (error) {
     next(error);

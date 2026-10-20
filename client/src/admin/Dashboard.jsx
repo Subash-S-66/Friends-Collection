@@ -9,7 +9,9 @@ import {
   HiOutlineArrowRight,
   HiOutlinePhone,
   HiOutlineRefresh,
-  HiOutlineSparkles
+  HiOutlineSparkles,
+  HiOutlineEye,
+  HiOutlineEyeOff
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -19,16 +21,26 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenDepartments, setHiddenDepartments] = useState([]);
+  const [togglingDept, setTogglingDept] = useState(false);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [statsRes, ordersRes] = await Promise.all([
+      const [statsRes, ordersRes, settingsRes] = await Promise.all([
         API.get('/orders/admin/stats'),
-        API.get('/orders/admin/all?limit=6')
+        API.get('/orders/admin/all?limit=6'),
+        API.get('/settings').catch(() => ({ data: {} }))
       ]);
       setStats(statsRes?.data || null);
       setRecentOrders(Array.isArray(ordersRes.data?.orders) ? ordersRes.data.orders : (Array.isArray(ordersRes.data) ? ordersRes.data : []));
+      if (Array.isArray(settingsRes?.data?.hiddenDepartments)) {
+        setHiddenDepartments(
+          settingsRes.data.hiddenDepartments
+            .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+            .filter(Boolean)
+        );
+      }
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -39,6 +51,38 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const handleToggleDepartment = async (deptKey) => {
+    const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
+    let updated;
+    if (isCurrentlyHidden) {
+      updated = hiddenDepartments.filter((k) => k !== deptKey);
+    } else {
+      const allDepts = ['women', 'men', 'kids'];
+      const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
+      if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
+        toast.error('At least one department must remain visible on the store.');
+        return;
+      }
+      updated = [...hiddenDepartments, deptKey];
+    }
+
+    setTogglingDept(true);
+    try {
+      await API.put('/settings/admin/hiddenDepartments', { value: updated });
+      setHiddenDepartments(updated);
+      const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+      toast.success(
+        isCurrentlyHidden
+          ? `✨ ${names[deptKey] || deptKey} is now LIVE on store everywhere!`
+          : `🔒 ${names[deptKey] || deptKey} is now HIDDEN from storefront.`
+      );
+    } catch {
+      toast.error('Failed to update department visibility');
+    } finally {
+      setTogglingDept(false);
+    }
+  };
 
   const handleQuickStatusChange = async (orderId, newStatus) => {
     try {
@@ -93,6 +137,81 @@ const Dashboard = () => {
             <HiOutlinePlus className="w-4 h-4" />
             <span>Add New Dress</span>
           </Link>
+        </div>
+      </div>
+
+      {/* Quick Department / Section Storefront Visibility Master Control */}
+      <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 rounded-3xl p-5 sm:p-6 text-white shadow-md border border-accent-400/20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-white/10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-accent-400 animate-pulse" />
+              <h2 className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
+                Storefront Department Visibility Control
+              </h2>
+            </div>
+            <p className="text-xs text-neutral-300 mt-1">
+              Toggle any entire department (Kids, Men, Women) on/off. When hidden, it instantly disappears from customer navigation, catalog, filters, and search.
+            </p>
+          </div>
+          <Link
+            to="/admin/settings?tab=departments"
+            className="text-xs text-accent-300 hover:text-white font-bold flex items-center gap-1 self-start md:self-auto hover:underline"
+          >
+            <span>Full Settings</span>
+            <HiOutlineArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {[
+            { key: 'women', name: "Women's Studio", emoji: '🌸', subtitle: 'Sarees, Kurtis, Lehengas' },
+            { key: 'men', name: "Men's Studio", emoji: '👔', subtitle: 'Shirts, Kurtas, Trousers' },
+            { key: 'kids', name: "Kids' Studio", emoji: '🧒', subtitle: 'Boys Ethnic, Girls Pavadai' }
+          ].map((dept) => {
+            const isHidden = hiddenDepartments.includes(dept.key);
+            return (
+              <div
+                key={dept.key}
+                className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                  isHidden
+                    ? 'bg-white/5 border-white/10 opacity-75'
+                    : 'bg-white/10 border-accent-300/30 shadow-inner'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl shrink-0">{dept.emoji}</span>
+                  <div className="truncate">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white truncate">{dept.name}</span>
+                      <span
+                        className={`text-[9px] uppercase px-2 py-0.5 rounded-full font-extrabold ${
+                          isHidden ? 'bg-neutral-800 text-neutral-300 border border-white/10' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        }`}
+                      >
+                        {isHidden ? 'Hidden' : 'Live'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-neutral-400 block truncate">{dept.subtitle}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={togglingDept}
+                  onClick={() => handleToggleDepartment(dept.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isHidden
+                      ? 'bg-accent-500 hover:bg-accent-400 text-primary-950 shadow-sm'
+                      : 'bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-neutral-300 border border-white/20'
+                  }`}
+                  title={isHidden ? 'Click to Show on Customer Storefront' : 'Click to Hide from Customer Storefront'}
+                >
+                  {isHidden ? 'Show on Store' : 'Hide Section'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 

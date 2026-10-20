@@ -149,29 +149,36 @@ const CategoryManager = () => {
     setTogglingId(cat._id);
     const updatedStatus = !cat.isActive;
 
-    // Optimistic UI update
+    // Optimistic UI update: cascade to child subcategories if toggling a main category
     setCategories((prev) =>
-      prev.map((c) => (c._id === cat._id ? { ...c, isActive: updatedStatus } : c))
+      prev.map((c) => {
+        if (c._id === cat._id) return { ...c, isActive: updatedStatus };
+        if (!cat.parent && c.parent && ((c.parent._id || c.parent) === cat._id)) {
+          return { ...c, isActive: updatedStatus };
+        }
+        return c;
+      })
     );
 
     try {
-      // Try dedicated toggle endpoint or fallback to update
+      let res;
       try {
-        await API.patch(`/categories/admin/${cat._id}/toggle`);
+        res = await API.patch(`/categories/admin/${cat._id}/toggle`);
       } catch {
-        await API.put(`/categories/admin/${cat._id}`, { isActive: updatedStatus });
+        res = await API.put(`/categories/admin/${cat._id}`, { isActive: updatedStatus });
       }
+      const cascadeCount = res?.data?.cascadeCount || 0;
       toast.success(
-        `"${cat.name}" is now ${updatedStatus ? 'VISIBLE' : 'HIDDEN'} on store`,
+        cascadeCount > 0
+          ? `"${cat.name}" and ${cascadeCount} subcategories are now ${updatedStatus ? 'VISIBLE' : 'HIDDEN'} on store`
+          : `"${cat.name}" is now ${updatedStatus ? 'VISIBLE' : 'HIDDEN'} on store`,
         { icon: updatedStatus ? '👁️' : '🙈' }
       );
+      fetchCategories();
     } catch (err) {
       console.error('Toggle error:', err);
       toast.error('Failed to update visibility');
-      // Revert on error
-      setCategories((prev) =>
-        prev.map((c) => (c._id === cat._id ? { ...c, isActive: cat.isActive } : c))
-      );
+      fetchCategories();
     } finally {
       setTogglingId(null);
     }
@@ -398,135 +405,84 @@ const CategoryManager = () => {
         </div>
       </div>
 
-      {/* Summary KPI Badges */}
-      {/* Summary KPI Badges with Department Store Visibility Controls */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        {/* Women's Department Card */}
-        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
-          hiddenDepartments.includes('women') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
-        }`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold text-sm">
-                🌸
-              </div>
-              <div>
-                <span className="text-xl font-bold text-neutral-900">{womenCount}</span>
-                <p className="text-xs text-neutral-500">Women's Studio</p>
-              </div>
-            </div>
-            {hiddenDepartments.includes('women') ? (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
-                Hidden
-              </span>
-            ) : (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Live
-              </span>
-            )}
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
-            <span className="text-neutral-400">Store Visibility:</span>
-            <button
-              type="button"
-              disabled={togglingDept}
-              onClick={() => toggleDepartmentVisibility('women')}
-              className={`font-bold hover:underline cursor-pointer ${
-                hiddenDepartments.includes('women') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-            >
-              {hiddenDepartments.includes('women') ? 'Show on Store' : 'Hide from Store'}
-            </button>
-          </div>
-        </div>
-
-        {/* Men's Department Card */}
-        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
-          hiddenDepartments.includes('men') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
-        }`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm">
-                👔
-              </div>
-              <div>
-                <span className="text-xl font-bold text-neutral-900">{menCount}</span>
-                <p className="text-xs text-neutral-500">Men's Studio</p>
-              </div>
-            </div>
-            {hiddenDepartments.includes('men') ? (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
-                Hidden
-              </span>
-            ) : (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Live
-              </span>
-            )}
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
-            <span className="text-neutral-400">Store Visibility:</span>
-            <button
-              type="button"
-              disabled={togglingDept}
-              onClick={() => toggleDepartmentVisibility('men')}
-              className={`font-bold hover:underline cursor-pointer ${
-                hiddenDepartments.includes('men') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-            >
-              {hiddenDepartments.includes('men') ? 'Show on Store' : 'Hide from Store'}
-            </button>
-          </div>
-        </div>
-
-        {/* Kids' Department Card */}
-        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
-          hiddenDepartments.includes('kids') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
-        }`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
-                🧒
-              </div>
-              <div>
-                <span className="text-xl font-bold text-neutral-900">{kidsCount}</span>
-                <p className="text-xs text-neutral-500">Kids' Studio</p>
-              </div>
-            </div>
-            {hiddenDepartments.includes('kids') ? (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
-                Hidden
-              </span>
-            ) : (
-              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Live
-              </span>
-            )}
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
-            <span className="text-neutral-400">Store Visibility:</span>
-            <button
-              type="button"
-              disabled={togglingDept}
-              onClick={() => toggleDepartmentVisibility('kids')}
-              className={`font-bold hover:underline cursor-pointer ${
-                hiddenDepartments.includes('kids') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-            >
-              {hiddenDepartments.includes('kids') ? 'Show on Store' : 'Hide from Store'}
-            </button>
-          </div>
-        </div>
-
-        {/* Total Main Categories Card */}
-        <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-            <HiOutlineFolder className="w-5 h-5" />
-          </div>
+      {/* Storefront Department Visibility Master Control Panel */}
+      <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 rounded-3xl p-5 sm:p-6 text-white shadow-md border border-accent-400/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-white/10">
           <div>
-            <span className="text-xl font-bold text-neutral-900">{parentCategories.length}</span>
-            <p className="text-xs text-neutral-500">Main Categories ({safeCategories.length} Total)</p>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-accent-400 animate-pulse" />
+              <h2 className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
+                Storefront Department Visibility Control
+              </h2>
+            </div>
+            <p className="text-xs text-neutral-300 mt-1">
+              Turn OFF any section below to immediately hide it everywhere (Navigation, Shop catalog, filters, search, trending) from customers.
+            </p>
           </div>
+          <div className="flex items-center gap-2">
+            {hiddenDepartments.length > 0 ? (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                🔒 {hiddenDepartments.length} Section{hiddenDepartments.length > 1 ? 's' : ''} Hidden
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/40">
+                ✨ All Departments Live
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {[
+            { key: 'women', name: "Women's Studio", emoji: '🌸', count: womenCount, desc: 'Sarees, Kurtis, Lehengas' },
+            { key: 'men', name: "Men's Studio", emoji: '👔', count: menCount, desc: 'Shirts, Kurtas, Trousers' },
+            { key: 'kids', name: "Kids' Studio", emoji: '🧒', count: kidsCount, desc: 'Boys Ethnic, Girls Pavadai' }
+          ].map((dept) => {
+            const isHidden = hiddenDepartments.includes(dept.key);
+            return (
+              <div
+                key={dept.key}
+                className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                  isHidden
+                    ? 'bg-white/5 border-white/10 opacity-75'
+                    : 'bg-white/10 border-accent-300/30 shadow-inner'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-3xl shrink-0">{dept.emoji}</span>
+                  <div className="truncate">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white truncate">{dept.name}</span>
+                      <span
+                        className={`text-[9px] uppercase px-2 py-0.5 rounded-full font-extrabold ${
+                          isHidden ? 'bg-neutral-800 text-neutral-300 border border-white/10' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        }`}
+                      >
+                        {isHidden ? 'Hidden' : 'Live'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-neutral-300 block truncate">
+                      {dept.count} categories • {dept.desc}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={togglingDept}
+                  onClick={() => toggleDepartmentVisibility(dept.key)}
+                  className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isHidden
+                      ? 'bg-accent-500 hover:bg-accent-400 text-primary-950 shadow-md active:scale-95'
+                      : 'bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-neutral-200 border border-white/20 active:scale-95'
+                  }`}
+                  title={isHidden ? `Click to Show ${dept.name} on storefront` : `Click to Hide ${dept.name} from storefront`}
+                >
+                  {isHidden ? 'Show on Store' : 'Hide Section'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -797,31 +753,50 @@ const CategoryManager = () => {
 
                         {/* Interactive Visibility Toggle */}
                         <td className="py-3 px-4 text-center">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(cat)}
-                              disabled={isToggling}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
-                                isVisible ? 'bg-emerald-500' : 'bg-neutral-300'
-                              } ${isToggling ? 'opacity-50' : ''}`}
-                              aria-label={`Toggle visibility for ${cat.name}`}
-                              title={isVisible ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                  isVisible ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                            <span
-                              className={`text-[11px] font-bold ${
-                                isVisible ? 'text-emerald-700' : 'text-neutral-400'
-                              }`}
-                            >
-                              {isVisible ? 'Visible' : 'Hidden'}
-                            </span>
-                          </div>
+                          {(() => {
+                            const parentCat = cat.parent
+                              ? safeCategories.find((p) => p._id === (cat.parent?._id || cat.parent))
+                              : null;
+                            const isParentInactive = Boolean(parentCat && parentCat.isActive === false);
+
+                            return (
+                              <div className="inline-flex flex-col items-center gap-1">
+                                <div className="inline-flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleStatus(cat)}
+                                    disabled={isToggling}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                      isVisible ? 'bg-emerald-500' : 'bg-neutral-300'
+                                    } ${isToggling ? 'opacity-50' : ''}`}
+                                    aria-label={`Toggle visibility for ${cat.name}`}
+                                    title={isVisible ? 'Click to HIDE from storefront' : 'Click to MAKE VISIBLE on storefront'}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                        isVisible ? 'translate-x-5' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                  <span
+                                    className={`text-[11px] font-bold ${
+                                      isVisible ? 'text-emerald-700' : 'text-neutral-400'
+                                    }`}
+                                  >
+                                    {isVisible ? 'Visible' : 'Hidden'}
+                                  </span>
+                                </div>
+                                {isParentInactive && (
+                                  <span
+                                    className="text-[9px] uppercase px-1.5 py-0.5 rounded font-extrabold bg-amber-100 text-amber-800 border border-amber-300"
+                                    title="This subcategory is automatically hidden because its parent main category is hidden."
+                                  >
+                                    Parent Hidden
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Action Buttons (Add Sub, Edit, Delete) */}

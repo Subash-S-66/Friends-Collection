@@ -15,7 +15,8 @@ import {
   HiOutlineMail,
   HiOutlineDocumentText,
   HiOutlineChevronDoubleLeft,
-  HiOutlineChevronDoubleRight
+  HiOutlineChevronDoubleRight,
+  HiOutlineEyeOff
 } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -89,6 +90,7 @@ const AdminLayout = () => {
       title: 'CATALOG & INVENTORY',
       items: [
         { name: 'Categories & Hierarchy', path: '/admin/categories', icon: HiOutlineTag, desc: 'Women, Men, Kids departments' },
+        { name: 'Department Visibility', path: '/admin/settings?tab=departments', icon: HiOutlineEyeOff, badge: 'Live / Hide', desc: 'Hide or show entire Kids/Men/Women' },
         { name: 'Items & Products', path: '/admin/products', icon: HiOutlineShoppingBag, desc: 'All dresses organized by category' },
       ],
     },

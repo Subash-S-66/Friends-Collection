@@ -22,23 +22,62 @@ exports.getProducts = async (req, res, next) => {
       query.gender = { $nin: hiddenDepartments };
     }
 
+    // Collect all inactive categories and categories belonging to hidden departments
+    const excludedCats = await Category.find({
+      $or: [
+        { isActive: false },
+        ...(hiddenDepartments.length > 0 ? [{ gender: { $in: hiddenDepartments } }] : [])
+      ]
+    }).select('_id parent isActive').lean();
+    const excludedCatIds = excludedCats.map((c) => c._id.toString());
+    const inactiveParentIds = excludedCats.filter((c) => !c.parent).map((c) => c._id);
+    if (inactiveParentIds.length > 0) {
+      const childSubs = await Category.find({ parent: { $in: inactiveParentIds } }).select('_id').lean();
+      childSubs.forEach((s) => excludedCatIds.push(s._id.toString()));
+    }
+
     // Category filter
     if (category) {
       const cat = await Category.findOne({ slug: category });
       if (cat) {
-        if (cat.gender && hiddenDepartments.includes(cat.gender.toLowerCase())) {
+        if (
+          cat.isActive === false ||
+          (cat.gender && hiddenDepartments.includes(cat.gender.toLowerCase())) ||
+          excludedCatIds.includes(cat._id.toString())
+        ) {
           return res.json({ products: [], page: 1, pages: 0, total: 0 });
         }
         query.category = cat._id;
+      } else if (category.match(/^[0-9a-fA-F]{24}$/)) {
+        if (excludedCatIds.includes(category)) {
+          return res.json({ products: [], page: 1, pages: 0, total: 0 });
+        }
+        query.category = category;
       }
-      else if (category.match(/^[0-9a-fA-F]{24}$/)) query.category = category;
+    } else if (excludedCatIds.length > 0) {
+      query.category = { $nin: excludedCatIds };
     }
 
     // Subcategory filter
     if (subcategory) {
       const sub = await Category.findOne({ slug: subcategory });
-      if (sub) query.subcategory = sub._id;
-      else if (subcategory.match(/^[0-9a-fA-F]{24}$/)) query.subcategory = subcategory;
+      if (sub) {
+        if (
+          sub.isActive === false ||
+          (sub.gender && hiddenDepartments.includes(sub.gender.toLowerCase())) ||
+          excludedCatIds.includes(sub._id.toString())
+        ) {
+          return res.json({ products: [], page: 1, pages: 0, total: 0 });
+        }
+        query.subcategory = sub._id;
+      } else if (subcategory.match(/^[0-9a-fA-F]{24}$/)) {
+        if (excludedCatIds.includes(subcategory)) {
+          return res.json({ products: [], page: 1, pages: 0, total: 0 });
+        }
+        query.subcategory = subcategory;
+      }
+    } else if (excludedCatIds.length > 0) {
+      query.subcategory = { $nin: excludedCatIds };
     }
 
     // In-Stock only filter (Flipkart style)
@@ -129,11 +168,29 @@ exports.getSearchSuggestions = async (req, res, next) => {
       .filter((s) => !hiddenDepartments.includes(s.gender))
       .map((s) => s.text);
 
+    // Collect inactive category IDs
+    const excludedCats = await Category.find({
+      $or: [
+        { isActive: false },
+        ...(hiddenDepartments.length > 0 ? [{ gender: { $in: hiddenDepartments } }] : [])
+      ]
+    }).select('_id parent').lean();
+    const excludedCatIds = excludedCats.map((c) => c._id.toString());
+    const inactiveParentIds = excludedCats.filter((c) => !c.parent).map((c) => c._id);
+    if (inactiveParentIds.length > 0) {
+      const childSubs = await Category.find({ parent: { $in: inactiveParentIds } }).select('_id').lean();
+      childSubs.forEach((s) => excludedCatIds.push(s._id.toString()));
+    }
+
     if (!q) {
       // Return popular trending dresses when search is focused but empty
       const trendingQuery = { isActive: true, stock: { $gt: 0 } };
       if (hiddenDepartments.length > 0) {
         trendingQuery.gender = { $nin: hiddenDepartments };
+      }
+      if (excludedCatIds.length > 0) {
+        trendingQuery.category = { $nin: excludedCatIds };
+        trendingQuery.subcategory = { $nin: excludedCatIds };
       }
 
       const trending = await Product.find(trendingQuery)
@@ -167,6 +224,10 @@ exports.getSearchSuggestions = async (req, res, next) => {
     if (hiddenDepartments.length > 0) {
       productQuery.gender = { $nin: hiddenDepartments };
     }
+    if (excludedCatIds.length > 0) {
+      productQuery.category = { $nin: excludedCatIds };
+      productQuery.subcategory = { $nin: excludedCatIds };
+    }
 
     const categoryQuery = {
       isActive: true,
@@ -174,6 +235,9 @@ exports.getSearchSuggestions = async (req, res, next) => {
     };
     if (hiddenDepartments.length > 0) {
       categoryQuery.gender = { $nin: hiddenDepartments };
+    }
+    if (excludedCatIds.length > 0) {
+      categoryQuery._id = { $nin: excludedCatIds };
     }
 
     const [products, categories, totalCount] = await Promise.all([
@@ -223,8 +287,8 @@ exports.getProduct = async (req, res, next) => {
   try {
     const hiddenDepartments = await getHiddenDepartments();
     const product = await Product.findOne({ slug: req.params.slug, isActive: true })
-      .populate('category', 'name slug gender')
-      .populate('subcategory', 'name slug');
+      .populate('category', 'name slug gender isActive parent')
+      .populate('subcategory', 'name slug gender isActive parent');
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
@@ -233,6 +297,17 @@ exports.getProduct = async (req, res, next) => {
     // If product belongs to a hidden department, deny public access with 404
     if (product.gender && hiddenDepartments.includes(product.gender.toLowerCase())) {
       return res.status(404).json({ message: 'This collection/section is currently unavailable' });
+    }
+    if (product.category?.gender && hiddenDepartments.includes(product.category.gender.toLowerCase())) {
+      return res.status(404).json({ message: 'This collection/section is currently unavailable' });
+    }
+
+    // If category or subcategory is inactive, deny public access with 404
+    if (product.category && product.category.isActive === false) {
+      return res.status(404).json({ message: 'This category is currently unavailable' });
+    }
+    if (product.subcategory && product.subcategory.isActive === false) {
+      return res.status(404).json({ message: 'This subcategory is currently unavailable' });
     }
 
     // Increment views asynchronously without blocking response
@@ -254,24 +329,24 @@ exports.getHomepageBundle = async (req, res, next) => {
     const [categories, featured, newArrivals, settingsRaw, banners] = await Promise.all([
       // 1. Categories
       Category.find({ isActive: true })
-        .populate('parent', 'name slug gender')
+        .populate('parent', 'name slug gender isActive')
         .sort({ priority: 1, createdAt: -1 })
         .lean(),
 
       // 2. Featured / Trending Products
       Product.find({ isActive: true, isFeatured: true })
-        .populate('category', 'name slug gender')
-        .populate('subcategory', 'name slug')
+        .populate('category', 'name slug gender isActive parent')
+        .populate('subcategory', 'name slug gender isActive parent')
         .sort({ createdAt: -1 })
-        .limit(12)
+        .limit(16)
         .lean(),
 
       // 3. New Arrivals Products
       Product.find({ isActive: true })
-        .populate('category', 'name slug gender')
-        .populate('subcategory', 'name slug')
+        .populate('category', 'name slug gender isActive parent')
+        .populate('subcategory', 'name slug gender isActive parent')
         .sort({ createdAt: -1 })
-        .limit(12)
+        .limit(16)
         .lean(),
 
       // 4. Settings
@@ -294,15 +369,33 @@ exports.getHomepageBundle = async (req, res, next) => {
       ? settings.hiddenDepartments.map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : '')).filter(Boolean)
       : [];
 
-    const filteredCategories = (categories || []).filter(
-      (c) => !c.gender || !hiddenDepartments.includes(c.gender.toLowerCase())
-    );
-    const filteredFeatured = (featured || []).filter(
-      (p) => !p.gender || !hiddenDepartments.includes(p.gender.toLowerCase())
-    );
-    const filteredNewArrivals = (newArrivals || []).filter(
-      (p) => !p.gender || !hiddenDepartments.includes(p.gender.toLowerCase())
-    );
+    const isDeptHidden = (gender) => gender && hiddenDepartments.includes(gender.toLowerCase());
+
+    const filteredCategories = (categories || []).filter((c) => {
+      if (isDeptHidden(c.gender)) return false;
+      if (c.parent) {
+        if (c.parent.isActive === false) return false;
+        if (isDeptHidden(c.parent.gender)) return false;
+      }
+      return true;
+    });
+
+    const isProductVisible = (p) => {
+      if (isDeptHidden(p.gender)) return false;
+      if (p.category) {
+        if (p.category.isActive === false) return false;
+        if (isDeptHidden(p.category.gender)) return false;
+        if (p.category.parent && p.category.parent.isActive === false) return false;
+      }
+      if (p.subcategory) {
+        if (p.subcategory.isActive === false) return false;
+        if (isDeptHidden(p.subcategory.gender)) return false;
+      }
+      return true;
+    };
+
+    const filteredFeatured = (featured || []).filter(isProductVisible).slice(0, 12);
+    const filteredNewArrivals = (newArrivals || []).filter(isProductVisible).slice(0, 12);
 
     res.json({
       categories: filteredCategories,
