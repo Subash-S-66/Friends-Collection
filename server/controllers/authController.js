@@ -434,29 +434,29 @@ exports.requestVerificationToken = async (req, res, next) => {
 
     console.log(`🔑 [AUTH OTP] 6-digit login token for ${cleanEmail}: ${token}`);
 
-    // Send the gorgeous branded email via Nodemailer
+    // Dispatch branded email via Email Service (HTTP API or Nodemailer SMTP)
     try {
       await sendVerificationTokenEmail({
         to: cleanEmail,
         token,
         name: existingUser?.name || cleanEmail.split('@')[0]
       });
+      res.json({
+        success: true,
+        message: `A 6-digit verification code has been sent to ${cleanEmail}`,
+        isExistingUser: Boolean(existingUser)
+      });
     } catch (mailError) {
       console.error('Mail dispatch error in requestVerificationToken:', mailError.message);
-      return res.status(502).json({
-        error: 'MAIL_DELIVERY_FAILED',
-        isMailError: true,
-        isOtpError: true,
-        email: cleanEmail,
-        retryAfter: 30,
-        message: `Could not dispatch 6-digit email code to ${cleanEmail}. Please sign in using your Password or check your email settings.`
+      // Even if SMTP times out (e.g. Render Free Tier port block), the token is valid in MongoDB for 10 mins!
+      // Return success so the user can enter the 6-digit OTP code rather than being blocked with a 502 error.
+      res.json({
+        success: true,
+        message: `A 6-digit verification code was generated for ${cleanEmail}. (Check server console or inbox).`,
+        isExistingUser: Boolean(existingUser),
+        mailWarning: true
       });
     }
-
-    res.json({
-      message: `A 6-digit verification code has been sent to ${cleanEmail}`,
-      isExistingUser: Boolean(existingUser)
-    });
   } catch (error) {
     next(error);
   }
@@ -599,18 +599,18 @@ exports.resendVerification = async (req, res, next) => {
         verifyUrl,
         name: user.name
       });
+      res.json({
+        success: true,
+        message: `A fresh 6-digit verification code has been sent to ${cleanEmail}`
+      });
     } catch (mailError) {
       console.error('Mail dispatch error during resend:', mailError.message);
-      return res.status(502).json({
-        isMailError: true,
-        message: `Unable to dispatch email to ${cleanEmail} right now. Please check your spam folder or contact us directly on WhatsApp (+91 95007 57024) for instant assistance.`
+      res.json({
+        success: true,
+        message: `A fresh 6-digit verification code was generated for ${cleanEmail}. Check server console or inbox.`,
+        mailWarning: true
       });
     }
-
-    res.json({
-      success: true,
-      message: `A fresh 6-digit verification code has been sent to ${cleanEmail}`
-    });
   } catch (error) {
     next(error);
   }
@@ -650,18 +650,18 @@ exports.forgotPasswordRequest = async (req, res, next) => {
         token,
         name: user.name
       });
+      res.json({
+        success: true,
+        message: `A 6-digit password reset code has been sent to ${cleanEmail}`
+      });
     } catch (mailError) {
       console.error('Mail dispatch error during forgot password:', mailError.message);
-      return res.status(502).json({
-        isMailError: true,
-        message: `Could not send password reset OTP to ${cleanEmail} due to a temporary mail server issue. Please connect with our team on WhatsApp (+91 95007 57024) for immediate recovery.`
+      res.json({
+        success: true,
+        message: `A 6-digit password reset code has been generated for ${cleanEmail}. Check server console or inbox.`,
+        mailWarning: true
       });
     }
-
-    res.json({
-      success: true,
-      message: `A 6-digit password reset code has been sent to ${cleanEmail}`
-    });
   } catch (error) {
     next(error);
   }

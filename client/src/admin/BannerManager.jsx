@@ -414,16 +414,6 @@ const BannerManager = () => {
 
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Check if draft settings differ from live settings
-  const hasUnsavedChanges = useMemo(() => {
-    return (
-      draftSettings.enabled !== liveSettings.enabled ||
-      draftSettings.type !== liveSettings.type ||
-      draftSettings.transition !== liveSettings.transition ||
-      draftSettings.interval !== liveSettings.interval
-    );
-  }, [draftSettings, liveSettings]);
-
   // Form states
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
@@ -658,71 +648,61 @@ const BannerManager = () => {
     }
   };
 
-  // Handlers for Carousel Mode (Stages in draftSettings without auto-saving live)
-  const handleDraftMode = (mode) => {
-    let nextSettings;
-    if (mode === 'disabled') {
-      nextSettings = { ...draftSettings, enabled: false };
-    } else {
-      nextSettings = { ...draftSettings, enabled: true, type: mode };
-    }
+  // Save carousel settings directly to DB and activate live on storefront
+  const updateCarouselSettings = async (nextSettings) => {
+    setSavingSettings(true);
     setDraftSettings(nextSettings);
+    setLiveSettings(nextSettings);
+    clearHomeClientCache();
+
+    try {
+      await Promise.all([
+        API.put('/settings/admin/heroCarouselEnabled', { value: nextSettings.enabled }),
+        API.put('/settings/admin/heroCarouselType', { value: nextSettings.type }),
+        API.put('/settings/admin/heroCarouselTransition', { value: nextSettings.transition }),
+        API.put('/settings/admin/heroCarouselInterval', { value: nextSettings.interval })
+      ]);
+      toast.success(
+        `🎉 Carousel updated: ${
+          !nextSettings.enabled
+            ? 'Single Static Banner'
+            : nextSettings.type === 'image_box'
+            ? 'Small Carousel (Image Box Only)'
+            : 'Big Carousel (Full Hero)'
+        }!`,
+        { icon: '🚀', duration: 3000 }
+      );
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      toast.error('Failed to update carousel settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleDraftMode = (mode) => {
+    const nextSettings =
+      mode === 'disabled'
+        ? { ...draftSettings, enabled: false }
+        : { ...draftSettings, enabled: true, type: mode };
+    updateCarouselSettings(nextSettings);
   };
 
   const handleDraftTransition = (transition) => {
-    setDraftSettings((prev) => ({ ...prev, transition }));
+    updateCarouselSettings({ ...draftSettings, transition });
   };
 
   const handleDraftInterval = (interval) => {
-    setDraftSettings((prev) => ({ ...prev, interval }));
+    updateCarouselSettings({ ...draftSettings, interval });
   };
 
   const handleDraftMakeDefault = () => {
-    setDraftSettings({
+    updateCarouselSettings({
       ...draftSettings,
       enabled: true,
       type: 'image_box',
       transition: 'fade'
     });
-    toast('Small Carousel (Image Box) selected in draft. Click "Preview" or "Go Live" to publish.', { icon: '✏️' });
-  };
-
-  const handleDiscardChanges = () => {
-    setDraftSettings({ ...liveSettings });
-    toast.info('Reverted to currently live storefront settings.', { icon: '↩️' });
-  };
-
-  // Explicit Save & Go Live action (Only then are changes written to database and live storefront)
-  const handleSaveAndGoLive = async () => {
-    if (savingSettings) return;
-    setSavingSettings(true);
-    clearHomeClientCache();
-
-    try {
-      await Promise.all([
-        API.put('/settings/admin/heroCarouselEnabled', { value: draftSettings.enabled }),
-        API.put('/settings/admin/heroCarouselType', { value: draftSettings.type }),
-        API.put('/settings/admin/heroCarouselTransition', { value: draftSettings.transition }),
-        API.put('/settings/admin/heroCarouselInterval', { value: draftSettings.interval })
-      ]);
-
-      setLiveSettings({ ...draftSettings });
-      toast.success(
-        `🎉 Carousel changes are now LIVE on the storefront! (${
-          draftSettings.type === 'image_box'
-            ? 'Small Carousel (Image Box Only)'
-            : draftSettings.enabled
-            ? 'Big Carousel (Full Hero)'
-            : 'Single Static Banner'
-        })`,
-        { icon: '🚀', duration: 4500 }
-      );
-    } catch (err) {
-      console.error('Failed to save settings:', err);
-      toast.error('Failed to publish settings to live storefront');
-    } finally {
-      setSavingSettings(false);
-    }
   };
 
   const handlePrevPreviewSlide = (e) => {

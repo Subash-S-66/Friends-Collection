@@ -4,10 +4,133 @@ const fs = require('fs');
 
 let transporter = null;
 
+// HTTP-based Email Sender via Brevo REST API (HTTPS Port 443 - 100% reliable on Render Free Tier)
+const sendViaBrevo = async ({ from, to, subject, html, text, attachments }) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.SMTP_USER || process.env.ADMIN_EMAIL || 'friends.collection06@gmail.com';
+  const senderName = process.env.BUSINESS_NAME || 'Friends Collections';
+
+  const toList = Array.isArray(to)
+    ? to.map((e) => (typeof e === 'string' ? { email: e } : e))
+    : [{ email: to }];
+
+  const payload = {
+    sender: { name: senderName, email: senderEmail },
+    to: toList,
+    subject,
+    htmlContent: html,
+    ...(text ? { textContent: text } : {})
+  };
+
+  if (attachments && attachments.length > 0) {
+    payload.attachment = attachments
+      .map((att) => {
+        let contentBase64 = '';
+        if (att.content) {
+          contentBase64 = Buffer.isBuffer(att.content)
+            ? att.content.toString('base64')
+            : Buffer.from(att.content).toString('base64');
+        } else if (att.path && fs.existsSync(att.path)) {
+          contentBase64 = fs.readFileSync(att.path).toString('base64');
+        }
+        return {
+          name: att.filename || 'attachment',
+          content: contentBase64
+        };
+      })
+      .filter((a) => a.content);
+  }
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Brevo HTTP API error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  console.log('✅ [Email Service] Successfully sent via Brevo HTTP API:', data.messageId);
+  return { messageId: data.messageId || 'brevo-' + Date.now() };
+};
+
+// HTTP-based Email Sender via Resend REST API (HTTPS Port 443 - 100% reliable on Render Free Tier)
+const sendViaResend = async ({ from, to, subject, html, text, attachments }) => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromAddress = process.env.EMAIL_FROM || 'Friends Collections <onboarding@resend.dev>';
+  const toList = Array.isArray(to) ? to : [to];
+
+  const payload = {
+    from: fromAddress,
+    to: toList,
+    subject,
+    html,
+    ...(text ? { text } : {})
+  };
+
+  if (attachments && attachments.length > 0) {
+    payload.attachments = attachments
+      .map((att) => {
+        let contentBase64 = '';
+        if (att.content) {
+          contentBase64 = Buffer.isBuffer(att.content)
+            ? att.content.toString('base64')
+            : Buffer.from(att.content).toString('base64');
+        } else if (att.path && fs.existsSync(att.path)) {
+          contentBase64 = fs.readFileSync(att.path).toString('base64');
+        }
+        return {
+          filename: att.filename || 'attachment',
+          content: contentBase64
+        };
+      })
+      .filter((a) => a.content);
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Resend HTTP API error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  console.log('✅ [Email Service] Successfully sent via Resend HTTP API:', data.id);
+  return { messageId: data.id || 'resend-' + Date.now() };
+};
+
 // Initialize or get the transporter
 const getTransporter = async () => {
   if (transporter) return transporter;
 
+  // 1. Check HTTP-based APIs first (Port 443 - Immune to cloud PaaS SMTP blocking)
+  if (process.env.BREVO_API_KEY) {
+    console.log('🚀 [Email Service] Initialized Brevo HTTP API (Port 443)');
+    transporter = { sendMail: sendViaBrevo };
+    return transporter;
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    console.log('🚀 [Email Service] Initialized Resend HTTP API (Port 443)');
+    transporter = { sendMail: sendViaResend };
+    return transporter;
+  }
+
+  // 2. Standard SMTP (Localhost or VPS/Cloud with outbound port 465/587 open)
   const smtpUser = process.env.SMTP_USER || process.env.ADMIN_EMAIL || 'friends.collection06@gmail.com';
   const smtpPass = process.env.SMTP_PASS;
 
@@ -20,9 +143,9 @@ const getTransporter = async () => {
         user: smtpUser,
         pass: smtpPass
       },
-      connectionTimeout: 10000, // 10 seconds timeout
-      greetingTimeout: 8000,    // 8 seconds timeout
-      socketTimeout: 15000      // 15 seconds socket timeout
+      connectionTimeout: 6000, // 6s connection timeout to fail fast if blocked
+      greetingTimeout: 5000,
+      socketTimeout: 8000
     });
   } else {
     // Development / fallback: Create Ethereal test account or console logger
