@@ -70,7 +70,7 @@ const HeroExactPreview = ({
 
   return (
     <section
-      className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[460px] sm:min-h-[520px] flex items-center group select-none rounded-3xl shadow-2xl border border-white/10"
+      className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[320px] sm:min-h-[360px] flex items-center group select-none rounded-2xl shadow-xl border border-white/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -90,7 +90,9 @@ const HeroExactPreview = ({
             aria-hidden="true"
             onError={(e) => handleImageError(e, '/fallback-banner.png')}
             className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
-              idx === safeIdx ? 'opacity-25' : 'opacity-0'
+              (carouselType === 'full' && isCarouselEnabled ? idx === safeIdx : idx === 0)
+                ? 'opacity-25'
+                : 'opacity-0'
             }`}
           />
         ))}
@@ -104,32 +106,33 @@ const HeroExactPreview = ({
             type="button"
             onClick={onPrevBanner}
             aria-label="Previous Banner Slide"
-            className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+            className="hidden sm:inline-flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
             title="Previous Banner Slide"
           >
-            <HiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            <HiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           <button
             type="button"
             onClick={onNextBanner}
             aria-label="Next Banner Slide"
-            className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+            className="hidden sm:inline-flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
             title="Next Banner Slide"
           >
-            <HiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+            <HiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 relative z-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 relative z-10 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-center">
           
           {/* Left Column:
               MODE A ('image_box', DEFAULT / SMALL CAROUSEL): Stable boutique introduction & primary CTAs. Text stays calm and elegant.
               MODE B ('full' / BIG CAROUSEL): Fluid editorial crossfade per slide with Framer Motion.
+              MODE C ('none' / !isCarouselEnabled): Single static banner displaying Slide #1's content.
           */}
-          <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
+          <div className="lg:col-span-7 space-y-3 sm:space-y-4 text-left">
             {carouselType === 'full' && isCarouselEnabled ? (
               <AnimatePresence mode="wait">
                 <motion.div
@@ -138,82 +141,121 @@ const HeroExactPreview = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
-                  className="space-y-5 sm:space-y-6"
+                  className="space-y-3 sm:space-y-4"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
-                      <HiOutlineSparkles className="w-4 h-4" />
-                      <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-[11px] font-semibold tracking-wider uppercase">
+                      <HiOutlineSparkles className="w-3.5 h-3.5" />
+                      <span>{currentBanner?.badge || storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                     </div>
                   </div>
 
-                  <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                  <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight">
                     {currentBanner?.title || storeSettings.heroTitle || 'Style That Defines You'}
                   </h1>
 
-                  <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+                  <p className="text-xs sm:text-sm text-neutral-300 font-light max-w-lg leading-relaxed line-clamp-2 sm:line-clamp-3">
                     {currentBanner?.subtitle ||
                       storeSettings.heroDescription ||
                       'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
                     <button
                       type="button"
                       onClick={() => onBannerClick(currentBanner)}
-                      className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
                       title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
                     >
                       <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
-                      <HiOutlineArrowRight className="w-4 h-4" />
+                      <HiOutlineArrowRight className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => onBannerClick({ ctaLink: '/contact' })}
-                      className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
                     >
-                      <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                      <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-300 shrink-0" />
                       <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
                     </button>
                   </div>
                 </motion.div>
               </AnimatePresence>
-            ) : (
-              /* DEFAULT MODE / SINGLE BANNER MODE: Display active banner content in side content instead of pre-entered defaults */
-              <div className="space-y-5 sm:space-y-6">
+            ) : !isCarouselEnabled ? (
+              /* MODE C: SINGLE STATIC BANNER (NOT CAROUSEL) - Displays primary cover banner (Slide #1) content */
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
-                    <HiOutlineSparkles className="w-4 h-4" />
-                    <span>{currentBanner?.badge || storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-[11px] font-semibold tracking-wider uppercase">
+                    <HiOutlineSparkles className="w-3.5 h-3.5" />
+                    <span>{bannersList[0]?.badge || storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                   </div>
                 </div>
 
-                <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                  {currentBanner?.title || storeSettings.heroTitle || 'Style That Defines You'}
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight">
+                  {bannersList[0]?.title || storeSettings.heroTitle || 'Style That Defines You'}
                 </h1>
 
-                <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
-                  {currentBanner?.subtitle ||
+                <p className="text-xs sm:text-sm text-neutral-300 font-light max-w-lg leading-relaxed line-clamp-2 sm:line-clamp-3">
+                  {bannersList[0]?.subtitle ||
                     storeSettings.heroDescription ||
                     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
                   <button
                     type="button"
-                    onClick={() => onBannerClick(currentBanner)}
-                    className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
-                    title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
+                    onClick={() => onBannerClick(bannersList[0])}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    title={`Redirects to ${bannersList[0]?.ctaLink || '/shop'}`}
                   >
-                    <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
-                    <HiOutlineArrowRight className="w-4 h-4" />
+                    <span>{bannersList[0]?.ctaText || 'Explore Collection'}</span>
+                    <HiOutlineArrowRight className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => onBannerClick({ ctaLink: '/contact' })}
-                    className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
                   >
-                    <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                    <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-300 shrink-0" />
+                    <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* MODE A: SMALL CAROUSEL (IMAGE BOX ONLY) - Store headlines, boutique introduction, and CTA buttons stay calm, stable, and elegant! */
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-[11px] font-semibold tracking-wider uppercase">
+                    <HiOutlineSparkles className="w-3.5 h-3.5" />
+                    <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                  </div>
+                </div>
+
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight">
+                  {storeSettings.heroTitle || 'Style That Defines You'}
+                </h1>
+
+                <p className="text-xs sm:text-sm text-neutral-300 font-light max-w-lg leading-relaxed line-clamp-2 sm:line-clamp-3">
+                  {storeSettings.heroDescription ||
+                    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onBannerClick({ ctaLink: storeSettings.heroCtaLink || '/shop' })}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    title={`Redirects to ${storeSettings.heroCtaLink || '/shop'}`}
+                  >
+                    <span>{storeSettings.heroCtaText || 'Explore Collection'}</span>
+                    <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onBannerClick({ ctaLink: '/contact' })}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-300 shrink-0" />
                     <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
                   </button>
                 </div>
@@ -222,17 +264,17 @@ const HeroExactPreview = ({
 
             {/* Slide Navigation Dots (Below left content in 'full' mode) */}
             {isCarouselEnabled && carouselType === 'full' && bannersList.length > 1 && (
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-1">
                 {bannersList.map((b, idx) => (
                   <button
                     key={b._id || idx}
                     type="button"
                     onClick={() => setActiveBannerIdx(idx)}
                     aria-label={`Show slide ${idx + 1}`}
-                    className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                       safeIdx === idx
-                        ? 'w-9 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
-                        : 'w-2.5 bg-white/40 hover:bg-white/70'
+                        ? 'w-7 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
+                        : 'w-2 bg-white/40 hover:bg-white/70'
                     }`}
                     title={`Slide ${idx + 1}: ${b.title || 'Promotional Banner'}`}
                   />
@@ -249,10 +291,10 @@ const HeroExactPreview = ({
             <div
               onClick={() => onBannerClick(currentBanner)}
               title={`Click to view: ${currentBanner?.title || 'Collection'} (Redirects within store)`}
-              className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card hover:border-accent-300/80 transition-all duration-500 cursor-pointer transform hover:-translate-y-1"
+              className="relative w-full max-w-sm sm:max-w-md aspect-[16/10] rounded-2xl p-2 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card hover:border-accent-300/80 transition-all duration-500 cursor-pointer transform hover:-translate-y-0.5"
             >
               {/* The Layered Image Container */}
-              <div className="relative w-full h-full rounded-2xl overflow-hidden bg-primary-950">
+              <div className="relative w-full h-full rounded-xl overflow-hidden bg-primary-950">
                 {bannersList.map((banner, idx) => {
                   const isActive = idx === safeIdx;
                   let transitionStyle = '';
@@ -301,7 +343,7 @@ const HeroExactPreview = ({
                     type="button"
                     onClick={onPrevBanner}
                     aria-label="Previous Slide"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                    className="hidden sm:inline-flex absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                     title="Previous Image Slide"
                   >
                     <HiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -311,7 +353,7 @@ const HeroExactPreview = ({
                     type="button"
                     onClick={onNextBanner}
                     aria-label="Next Slide"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                    className="hidden sm:inline-flex absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                     title="Next Image Slide"
                   >
                     <HiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -394,6 +436,21 @@ const BannerManager = () => {
   const [saving, setSaving] = useState(false);
   const [togglingBannerId, setTogglingBannerId] = useState(null);
   const [reordering, setReordering] = useState(false);
+
+  // Pop-up modal state for Homepage Hero Headline & Copy (and single static cover image)
+  const [heroModalOpen, setHeroModalOpen] = useState(false);
+  const [savingHeroSection, setSavingHeroSection] = useState(false);
+  const [modalHeroBadge, setModalHeroBadge] = useState('');
+  const [modalHeroTitle, setModalHeroTitle] = useState('');
+  const [modalHeroDescription, setModalHeroDescription] = useState('');
+  const [modalHeroCtaText, setModalHeroCtaText] = useState('Explore Collection');
+  const [modalHeroCtaLink, setModalHeroCtaLink] = useState('/shop');
+  const [modalStoreVisitText, setModalStoreVisitText] = useState('Visit Store');
+
+  // Single static banner cover image in the modal
+  const [staticCoverFile, setStaticCoverFile] = useState(null);
+  const [staticCoverPreview, setStaticCoverPreview] = useState('');
+  const staticFileInputRef = useRef(null);
 
   // Live preview slider states (auto-rotate with pause on hover)
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -478,54 +535,213 @@ const BannerManager = () => {
       if (e.key === 'Escape') {
         if (previewModalOpen) {
           setPreviewModalOpen(false);
+        } else if (heroModalOpen) {
+          setHeroModalOpen(false);
         } else if (modalOpen) {
-          closeModal();
+          setModalOpen(false);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewModalOpen, modalOpen]);
+  }, [previewModalOpen, heroModalOpen, modalOpen]);
 
-  // Handlers for Testing / Draft Mode (Does NOT touch live database)
-  const handleDraftMode = (mode) => {
-    if (mode === 'disabled') {
-      setDraftSettings((prev) => ({ ...prev, enabled: false }));
-      toast('Testing Single Static Banner mode in preview.', { icon: '🖼️' });
-    } else {
-      setDraftSettings((prev) => ({ ...prev, enabled: true, type: mode }));
-      toast(
-        mode === 'image_box'
-          ? 'Testing Small Carousel (Image Box Only) in preview.'
-          : 'Testing Big Carousel (Full Hero Banner) in preview.',
-        { icon: '👁️' }
+  // Open Pop-up Modal for Homepage Hero Headline & Copy (and single static banner image)
+  const openHeroContentModal = () => {
+    setModalHeroBadge(storeSettings.heroBadge || "Chennai's Trendy Fashion House");
+    setModalHeroTitle(storeSettings.heroTitle || 'Style That Defines You');
+    setModalHeroDescription(
+      storeSettings.heroDescription ||
+        'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'
+    );
+    setModalHeroCtaText(storeSettings.heroCtaText || 'Explore Collection');
+    setModalHeroCtaLink(storeSettings.heroCtaLink || '/shop');
+    setModalStoreVisitText(storeSettings.storeVisitText || 'Visit Store');
+
+    // If single static mode, populate current cover image from slide #1
+    if (!draftSettings.enabled) {
+      setStaticCoverFile(null);
+      setStaticCoverPreview(banners[0]?.image || '');
+      if (staticFileInputRef.current) staticFileInputRef.current.value = '';
+    }
+
+    setHeroModalOpen(true);
+  };
+
+  const handleDeleteStaticCover = () => {
+    setStaticCoverFile(null);
+    setStaticCoverPreview('');
+    if (staticFileInputRef.current) {
+      staticFileInputRef.current.value = '';
+    }
+    toast.success('Cover image removed. You can now choose or upload a new image.', { icon: '🗑️' });
+  };
+
+  const handleSaveHeroContent = async (e) => {
+    e.preventDefault();
+    if (savingHeroSection) return;
+
+    if (!modalHeroTitle.trim()) {
+      toast.error('Please enter a headline title');
+      return;
+    }
+
+    // In Single Static Banner mode: cover image is strictly required!
+    if (!draftSettings.enabled && !staticCoverPreview && !staticCoverFile) {
+      toast.error('A cover banner image is required. Please upload an image before saving.');
+      return;
+    }
+
+    setSavingHeroSection(true);
+    clearHomeClientCache();
+
+    try {
+      // 1. Save Hero section settings to DB
+      await API.put('/settings/admin/heroSection', {
+        value: {
+          heroBadge: modalHeroBadge.trim(),
+          heroTitle: modalHeroTitle.trim(),
+          heroDescription: modalHeroDescription.trim(),
+          heroCtaText: modalHeroCtaText.trim(),
+          heroCtaLink: modalHeroCtaLink.trim(),
+          storeVisitText: modalStoreVisitText.trim(),
+        }
+      });
+
+      // 2. If Single Static Banner mode, also update/save Slide #1
+      if (!draftSettings.enabled) {
+        const formData = new FormData();
+        formData.append('title', modalHeroTitle.trim());
+        formData.append('subtitle', modalHeroDescription.trim());
+        formData.append('ctaText', modalHeroCtaText.trim());
+        formData.append('ctaLink', modalHeroCtaLink.trim());
+        formData.append('priority', '1');
+        formData.append('isActive', 'true');
+        if (staticCoverFile) {
+          formData.append('image', staticCoverFile);
+        }
+
+        if (banners.length > 0 && banners[0]?._id) {
+          await API.put(`/banners/admin/${banners[0]._id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } else {
+          await API.post('/banners/admin', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        }
+      }
+
+      setStoreSettings((prev) => ({
+        ...prev,
+        heroBadge: modalHeroBadge.trim(),
+        heroTitle: modalHeroTitle.trim(),
+        heroDescription: modalHeroDescription.trim(),
+        heroCtaText: modalHeroCtaText.trim(),
+        heroCtaLink: modalHeroCtaLink.trim(),
+        storeVisitText: modalStoreVisitText.trim(),
+      }));
+
+      setHeroModalOpen(false);
+      await fetchBannersAndSettings(true);
+      toast.success(
+        !draftSettings.enabled
+          ? '🎉 Single Static Cover Banner & Content updated live!'
+          : '🎉 Homepage Hero Headline & Copy updated live!',
+        { icon: '🚀', duration: 4000 }
       );
+    } catch (err) {
+      console.error('Failed to save hero content:', err);
+      toast.error('Failed to save homepage content');
+    } finally {
+      setSavingHeroSection(false);
     }
   };
 
-  const handleDraftTransition = (transition) => {
-    setDraftSettings((prev) => ({ ...prev, transition }));
-    toast(`Testing transition motion: ${transition}`, { icon: '✨' });
+  // Handlers for Carousel Mode (Instantly updates storefront and preview)
+  const handleDraftMode = async (mode) => {
+    let nextSettings;
+    if (mode === 'disabled') {
+      nextSettings = { ...draftSettings, enabled: false };
+    } else {
+      nextSettings = { ...draftSettings, enabled: true, type: mode };
+    }
+    setDraftSettings(nextSettings);
+    clearHomeClientCache();
+
+    try {
+      await Promise.all([
+        API.put('/settings/admin/heroCarouselEnabled', { value: nextSettings.enabled }),
+        API.put('/settings/admin/heroCarouselType', { value: nextSettings.type })
+      ]);
+      setLiveSettings((prev) => ({ ...prev, enabled: nextSettings.enabled, type: nextSettings.type }));
+      toast.success(
+        mode === 'image_box'
+          ? '✨ Small Carousel (Image Box Only) is active & live on storefront!'
+          : mode === 'full'
+          ? '🌟 Big Carousel (Full Hero Banner) is active & live on storefront!'
+          : '🖼️ Single Static Banner is active & live on storefront!',
+        { duration: 3500 }
+      );
+    } catch (err) {
+      console.error('Failed to auto-save carousel style:', err);
+      toast('Applied to preview. Click "Save & Go Live" to publish.', { icon: '👁️' });
+    }
   };
 
-  const handleDraftInterval = (interval) => {
-    setDraftSettings((prev) => ({ ...prev, interval }));
-    toast(`Testing rotation interval: ${interval / 1000}s`, { icon: '⏱️' });
+  const handleDraftTransition = async (transition) => {
+    const nextSettings = { ...draftSettings, transition };
+    setDraftSettings(nextSettings);
+    clearHomeClientCache();
+    try {
+      await API.put('/settings/admin/heroCarouselTransition', { value: transition });
+      setLiveSettings((prev) => ({ ...prev, transition }));
+      toast.success(`Transition motion: ${transition}`, { icon: '✨' });
+    } catch {
+      toast(`Applied transition to preview: ${transition}`, { icon: '✨' });
+    }
   };
 
-  const handleDraftMakeDefault = () => {
-    setDraftSettings((prev) => ({
-      ...prev,
+  const handleDraftInterval = async (interval) => {
+    const nextSettings = { ...draftSettings, interval };
+    setDraftSettings(nextSettings);
+    clearHomeClientCache();
+    try {
+      await API.put('/settings/admin/heroCarouselInterval', { value: interval });
+      setLiveSettings((prev) => ({ ...prev, interval }));
+      toast.success(`Rotation speed: ${interval / 1000}s`, { icon: '⏱️' });
+    } catch {
+      toast(`Applied speed to preview: ${interval / 1000}s`, { icon: '⏱️' });
+    }
+  };
+
+  const handleDraftMakeDefault = async () => {
+    const nextSettings = {
+      ...draftSettings,
       enabled: true,
       type: 'image_box',
       transition: 'fade'
-    }));
-    toast.success('Configured Image Box Carousel as default in draft mode. Click "Save & Go Live" to publish.', { icon: '✏️' });
+    };
+    setDraftSettings(nextSettings);
+    clearHomeClientCache();
+
+    try {
+      await Promise.all([
+        API.put('/settings/admin/heroCarouselEnabled', { value: true }),
+        API.put('/settings/admin/heroCarouselType', { value: 'image_box' }),
+        API.put('/settings/admin/heroCarouselTransition', { value: 'fade' })
+      ]);
+      setLiveSettings((prev) => ({ ...prev, enabled: true, type: 'image_box', transition: 'fade' }));
+      toast.success('🎉 Small Carousel (Image Box Only) set as default and live on storefront!', { icon: '🚀', duration: 4000 });
+    } catch (err) {
+      console.error('Failed to auto-save default:', err);
+      toast.info('Configured in preview. Click "Save & Go Live" to publish.', { icon: '✏️' });
+    }
   };
 
   const handleDiscardChanges = () => {
     setDraftSettings({ ...liveSettings });
-    toast.info('Discarded draft testing changes. Reverted to currently live storefront settings.', { icon: '↩️' });
+    toast.info('Reverted to currently live storefront settings.', { icon: '↩️' });
   };
 
   // Explicit Save & Go Live action (Only then are changes written to database and live storefront)
@@ -580,9 +796,9 @@ const BannerManager = () => {
       return;
     }
     setEditingBanner(null);
-    setTitle('');
-    setSubtitle('');
-    setCtaText('Shop Collection');
+    setTitle(draftSettings.type === 'image_box' ? `Lookbook Slide ${banners.length + 1}` : '');
+    setSubtitle(draftSettings.type === 'image_box' ? (storeSettings.heroDescription || '') : '');
+    setCtaText(draftSettings.type === 'image_box' ? (storeSettings.heroCtaText || 'Explore Collection') : 'Shop Collection');
     setCtaLink('/shop');
     setPriority((banners.length + 1).toString());
     setIsActive(true);
@@ -594,7 +810,7 @@ const BannerManager = () => {
 
   const openEditModal = (b) => {
     setEditingBanner(b);
-    setTitle(b.title || '');
+    setTitle(b.title || (draftSettings.type === 'image_box' ? `Lookbook Slide ${b.priority || '1'}` : ''));
     setSubtitle(b.subtitle || '');
     setCtaText(b.ctaText || 'Shop Now');
     setCtaLink(b.ctaLink || '/shop');
@@ -687,16 +903,26 @@ const BannerManager = () => {
     if (saving) return;
 
     if (!imagePreview && !imageFile) {
-      toast.error('Please choose or upload a banner image before saving');
+      toast.error('A banner image is required. Please choose or upload an image before saving.');
       return;
     }
 
     setSaving(true);
     try {
+      const finalTitle = draftSettings.type === 'image_box'
+        ? (title.trim() || `Lookbook Slide ${priority}`)
+        : title.trim();
+      const finalSubtitle = draftSettings.type === 'image_box'
+        ? (subtitle.trim() || storeSettings.heroDescription || '')
+        : subtitle.trim();
+      const finalCtaText = draftSettings.type === 'image_box'
+        ? (ctaText.trim() || storeSettings.heroCtaText || 'Explore Collection')
+        : ctaText.trim();
+
       const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('subtitle', subtitle.trim());
-      formData.append('ctaText', ctaText.trim());
+      formData.append('title', finalTitle);
+      formData.append('subtitle', finalSubtitle);
+      formData.append('ctaText', finalCtaText);
       formData.append('ctaLink', ctaLink.trim());
       formData.append('priority', priority);
       formData.append('isActive', String(isActive));
@@ -708,7 +934,7 @@ const BannerManager = () => {
       const ok = await confirm({
         title: isEditing ? 'Save Banner Changes?' : 'Publish Homepage Banner?',
         message: isEditing
-          ? `Save changes to "${title.trim() || 'this slide'}"?`
+          ? `Save changes to "${finalTitle || 'this slide'}"?`
           : `Add this slide to the hero carousel? (Redirects to: ${ctaLink.trim()})`,
         type: 'save',
         confirmText: isEditing ? 'Save Banner' : 'Publish Banner',
@@ -798,29 +1024,50 @@ const BannerManager = () => {
           <button
             type="button"
             onClick={() => setPreviewModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-800 border-2 border-accent-300 hover:border-accent-400 font-bold text-xs shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-800 border-2 border-accent-300 hover:border-accent-400 font-bold text-xs shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
             title="Open full interactive pop-up preview to test carousel behavior"
           >
             <HiOutlineEye className="w-4 h-4 text-accent-700" />
             <span>Preview Storefront Hero (Pop-up)</span>
           </button>
 
-          {/* Add Banner Button (Max 5 Limit) */}
-          <button
-            onClick={openAddModal}
-            disabled={banners.length >= MAX_BANNERS}
-            className={`inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold shadow-md transition-all ${
-              banners.length >= MAX_BANNERS
-                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
-                : 'bg-primary hover:bg-primary-light text-white active:scale-95 cursor-pointer'
-            }`}
-            title={banners.length >= MAX_BANNERS ? 'Maximum 5 banners reached' : 'Add another slide to carousel'}
-          >
-            <HiOutlinePlus className="w-4 h-4" />
-            <span>
-              {banners.length >= MAX_BANNERS ? 'Max 5 Slides Reached' : 'Add Banner Slide'}
-            </span>
-          </button>
+          {/* Edit Hero Copy Pop-up Button (for Small Carousel or Single Static Banner) */}
+          {(draftSettings.type === 'image_box' || !draftSettings.enabled) && (
+            <button
+              type="button"
+              onClick={openHeroContentModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-300 hover:border-amber-400 font-bold text-xs shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+              title="Edit headline title, boutique description, and buttons in a pop-up"
+            >
+              <HiOutlinePencil className="w-4 h-4 text-amber-800" />
+              <span>
+                {!draftSettings.enabled ? 'Edit Static Cover & Copy' : 'Edit Hero Headline & Copy'}
+              </span>
+            </button>
+          )}
+
+          {/* Add Banner Button (Only shown in carousel modes; single static cover is edited via pop-up) */}
+          {draftSettings.enabled && (
+            <button
+              onClick={openAddModal}
+              disabled={banners.length >= MAX_BANNERS}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl text-xs font-semibold shadow-md transition-all ${
+                banners.length >= MAX_BANNERS
+                  ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                  : 'bg-primary hover:bg-primary-light text-white active:scale-95 cursor-pointer'
+              }`}
+              title={banners.length >= MAX_BANNERS ? 'Maximum 5 banners reached' : 'Add another slide to carousel'}
+            >
+              <HiOutlinePlus className="w-4 h-4" />
+              <span>
+                {banners.length >= MAX_BANNERS
+                  ? 'Max 5 Slides Reached'
+                  : draftSettings.type === 'image_box'
+                  ? 'Add Lookbook Photo'
+                  : 'Add Full Banner Slide'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -903,10 +1150,10 @@ const BannerManager = () => {
               Carousel Style Configuration
             </span>
             <h2 className="font-serif text-lg font-bold text-neutral-900">
-              Select Carousel Style (Testing Mode)
+              Select Carousel Style
             </h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Select a style to test in the pop-up preview. Click "Save & Go Live" when ready.
+              Click a style to activate it live on your storefront. You can also preview it at 95% scale.
             </p>
           </div>
 
@@ -916,10 +1163,10 @@ const BannerManager = () => {
               type="button"
               onClick={() => setPreviewModalOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-800 border-2 border-accent-300 hover:border-accent-400 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
-              title="Open 95% full interactive storefront preview"
+              title="Open interactive storefront carousel preview"
             >
               <HiOutlineEye className="w-4 h-4 text-accent-700" />
-              <span>Preview Pop-up (95%)</span>
+              <span>Preview Carousel</span>
             </button>
 
             {/* Quick Default Button */}
@@ -931,19 +1178,19 @@ const BannerManager = () => {
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                   : 'bg-cream hover:bg-amber-100 text-primary border-accent-300 hover:border-accent-400 active:scale-95'
               }`}
-              title="Configure Image Box Carousel as default in testing draft"
+              title="Configure Image Box Carousel as default and activate live"
             >
               <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
                 {draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
-                  ? 'Image Box Selected (Default)'
+                  ? 'Image Box Active (Default)'
                   : 'Set Image Box as Default'}
               </span>
             </button>
           </div>
         </div>
 
-        {/* 3 Interactive Mode Selection Cards (Modifies Draft) */}
+        {/* 3 Interactive Mode Selection Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Mode 1: Small Carousel (Image Box Only - Default • Recommended) */}
           <div
@@ -976,19 +1223,34 @@ const BannerManager = () => {
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-neutral-100 mt-4">
-              <span className="text-[11px] font-semibold text-neutral-500">
-                Smooth Lookbook Box
-              </span>
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
-                  draftSettings.enabled && draftSettings.type === 'image_box'
-                    ? 'bg-primary text-white'
-                    : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
-                }`}
-              >
-                {draftSettings.enabled && draftSettings.type === 'image_box' ? 'Active in Preview' : 'Select to Test'}
-              </span>
+            <div className="pt-4 flex flex-col gap-2.5 border-t border-neutral-100 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-neutral-500">
+                  Smooth Lookbook Box
+                </span>
+                <span
+                  className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
+                    draftSettings.enabled && draftSettings.type === 'image_box'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
+                  }`}
+                >
+                  {draftSettings.enabled && draftSettings.type === 'image_box' ? 'Active & Live' : 'Select Style'}
+                </span>
+              </div>
+              {draftSettings.enabled && draftSettings.type === 'image_box' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openHeroContentModal();
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold border border-amber-300 transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  <HiOutlinePencil className="w-3.5 h-3.5 text-amber-800" />
+                  <span>Edit Hero Headline & Copy</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1030,11 +1292,11 @@ const BannerManager = () => {
               <span
                 className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
                   draftSettings.enabled && draftSettings.type === 'full'
-                    ? 'bg-primary text-white'
+                    ? 'bg-primary text-white shadow-xs'
                     : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
                 }`}
               >
-                {draftSettings.enabled && draftSettings.type === 'full' ? 'Active in Preview' : 'Select to Test'}
+                {draftSettings.enabled && draftSettings.type === 'full' ? 'Active & Live' : 'Select Style'}
               </span>
             </div>
           </div>
@@ -1069,19 +1331,34 @@ const BannerManager = () => {
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-neutral-100 mt-4">
-              <span className="text-[11px] font-semibold text-neutral-500">
-                1 Hero Visual Only
-              </span>
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
-                  !draftSettings.enabled
-                    ? 'bg-primary text-white'
-                    : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
-                }`}
-              >
-                {!draftSettings.enabled ? 'Active in Preview' : 'Select to Test'}
-              </span>
+            <div className="pt-4 flex flex-col gap-2.5 border-t border-neutral-100 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-neutral-500">
+                  1 Hero Visual Only
+                </span>
+                <span
+                  className={`text-xs font-bold px-3 py-1 rounded-xl transition-colors ${
+                    !draftSettings.enabled
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'bg-neutral-100 text-neutral-700 group-hover:bg-accent group-hover:text-white'
+                  }`}
+                >
+                  {!draftSettings.enabled ? 'Active & Live' : 'Select Style'}
+                </span>
+              </div>
+              {!draftSettings.enabled && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openHeroContentModal();
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  <HiOutlinePencil className="w-3.5 h-3.5 text-white" />
+                  <span>Edit Cover Banner & Content</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1149,39 +1426,39 @@ const BannerManager = () => {
         )}
       </div>
 
-      {/* Pop-up Preview Modal (95% Screen View) */}
+      {/* Pop-up Preview Modal (Compact Height, Responsive View) */}
       {previewModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 bg-black/90 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in"
           onClick={() => setPreviewModalOpen(false)}
         >
           <div
-            className="bg-neutral-950 rounded-3xl w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh] border border-white/15 shadow-2xl overflow-hidden flex flex-col"
+            className="bg-neutral-950 rounded-3xl w-full max-w-5xl max-h-[85vh] my-auto border border-white/15 shadow-2xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-8 py-3.5 sm:py-4 bg-neutral-900/95 border-b border-white/10 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-6 py-3 bg-neutral-900/95 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <div>
-                  <h3 className="font-serif text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <span>Storefront Hero Preview (1:1 Replica)</span>
-                    <span className="text-[10px] sm:text-[11px] font-sans font-semibold px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
-                      Exact Homepage Style
+                  <h3 className="font-serif text-base font-bold text-white flex items-center gap-2">
+                    <span>Storefront Carousel Live Preview</span>
+                    <span className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                      1:1 Preview
                     </span>
                   </h3>
                   <p className="text-[11px] text-neutral-400">
-                    Full 95% screen view. Switch between Small and Big Carousel in real-time below.
+                    Switch styles in real-time or pause on hover.
                   </p>
                 </div>
               </div>
 
               {/* Quick Carousel Type Switcher Buttons inside the Pop-up Preview */}
-              <div className="flex items-center gap-2 bg-neutral-800/80 p-1 rounded-2xl border border-white/10 self-start sm:self-auto">
+              <div className="flex items-center gap-2 bg-neutral-800/80 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => handleDraftMode('image_box')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     draftSettings.enabled && draftSettings.type === 'image_box'
                       ? 'bg-accent text-white shadow-xs'
                       : 'text-neutral-300 hover:text-white hover:bg-white/10'
@@ -1194,7 +1471,7 @@ const BannerManager = () => {
                 <button
                   type="button"
                   onClick={() => handleDraftMode('full')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     draftSettings.enabled && draftSettings.type === 'full'
                       ? 'bg-accent text-white shadow-xs'
                       : 'text-neutral-300 hover:text-white hover:bg-white/10'
@@ -1209,16 +1486,16 @@ const BannerManager = () => {
               <button
                 type="button"
                 onClick={() => setPreviewModalOpen(false)}
-                className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 cursor-pointer self-end sm:self-auto"
+                className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 cursor-pointer self-end sm:self-auto"
                 title="Close Preview (ESC or click outside)"
               >
                 <HiOutlineX className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body: Exact Hero Component filling 95% screen */}
-            <div className="overflow-y-auto p-2 sm:p-5 flex-1 bg-neutral-900/60 flex items-center justify-center">
-              <div className="w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            {/* Modal Body: Exact Hero Component */}
+            <div className="overflow-y-auto p-3 sm:p-5 bg-neutral-900/60 flex items-center justify-center">
+              <div className="w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10">
                 <HeroExactPreview
                   activeBanners={activeBanners}
                   activeBannerIdx={previewIdx}
@@ -1239,7 +1516,7 @@ const BannerManager = () => {
             </div>
 
             {/* Modal Footer Bar with Save & Go Live Button */}
-            <div className="px-6 py-4 bg-neutral-900 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+            <div className="px-5 py-3 bg-neutral-900 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2 text-xs text-neutral-300 flex-wrap">
                 <span className="font-mono text-accent-300 text-[11px]">
                   Mode: {draftSettings.enabled ? (draftSettings.type === 'image_box' ? 'Small Carousel (Image Box Only)' : 'Big Carousel (Full Hero)') : 'Single Static Banner'}
@@ -1259,11 +1536,11 @@ const BannerManager = () => {
                 )}
               </div>
 
-              <div className="flex items-center gap-3 self-end sm:self-auto">
+              <div className="flex items-center gap-2.5 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setPreviewModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-white/20 text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl border border-white/20 text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 >
                   Close Preview
                 </button>
@@ -1272,7 +1549,7 @@ const BannerManager = () => {
                   type="button"
                   disabled={savingSettings || !hasUnsavedChanges}
                   onClick={handleSaveAndGoLive}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md ${
+                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
                     hasUnsavedChanges
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 cursor-pointer shadow-emerald-900/50'
                       : 'bg-neutral-800 text-neutral-500 border border-white/10 cursor-not-allowed'
@@ -1302,203 +1579,336 @@ const BannerManager = () => {
         </div>
       )}
 
-      {/* Banners List / Grid with Reordering & Priority */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-serif text-lg font-bold text-neutral-900">
-            Configured Carousel Slides ({banners.length} of {MAX_BANNERS})
-          </h2>
-          <span className="text-xs text-neutral-500">
-            Use ▲ / ▼ buttons to adjust presentation sequence
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="py-20 text-center text-neutral-400 bg-white rounded-3xl border border-neutral-200">
-            <div className="w-8 h-8 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-neutral-500 mt-3 font-medium">Loading hero banners...</p>
-          </div>
-        ) : banners.length === 0 ? (
-          <div className="py-16 text-center text-neutral-400 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-3">
-            <HiOutlinePhotograph className="w-12 h-12 text-neutral-300 mx-auto" />
-            <p className="text-sm font-semibold text-neutral-700">No Hero Banners Uploaded</p>
-            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Add up to 5 promotional banners to create an Amazon/Flipkart style auto-rotating hero slider.
-            </p>
+      {/* Banners List / Grid / Single Static Banner View */}
+      {!draftSettings.enabled ? (
+        /* Single Static Banner Dedicated View */
+        <div className="bg-white rounded-3xl border-2 border-primary/20 p-6 sm:p-8 shadow-xs space-y-5 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-800 border border-neutral-200">
+                Single Static Banner Mode (Active)
+              </span>
+              <h3 className="font-serif text-xl font-bold text-neutral-900 mt-1">
+                Primary Storefront Cover Banner & Copy
+              </h3>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Carousel slide rotation is disabled. The storefront displays 1 static primary cover visual with headline, description, and CTA.
+              </p>
+            </div>
             <button
-              onClick={openAddModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md cursor-pointer"
+              type="button"
+              onClick={openHeroContentModal}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer self-start sm:self-auto"
             >
-              <HiOutlinePlus className="w-4 h-4" />
-              <span>Add First Banner</span>
+              <HiOutlinePencil className="w-4 h-4" />
+              <span>Edit Cover Banner & Content</span>
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {banners.map((b, index) => {
-              const isFirst = index === 0;
-              const isLast = index === banners.length - 1;
-              const isTogglingThis = togglingBannerId === b._id;
 
-              return (
-                <div
-                  key={b._id}
-                  className={`bg-white rounded-2xl border transition-all p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs ${
-                    b.isActive === false ? 'opacity-65 border-neutral-200 bg-neutral-50/50' : 'border-neutral-200 hover:border-accent-300'
-                  }`}
-                >
-                  {/* Left: Reorder Controls & Slide Badge */}
-                  <div className="flex items-center gap-3">
-                    {/* Up / Down Reorder Arrows */}
-                    <div className="flex flex-col gap-1">
-                      <button
-                        type="button"
-                        disabled={isFirst || reordering}
-                        onClick={() => handleMoveSlide(index, -1)}
-                        className={`p-1.5 rounded-lg border transition-all ${
-                          isFirst
-                            ? 'text-neutral-300 border-neutral-200 cursor-not-allowed bg-neutral-50'
-                            : 'text-neutral-700 hover:text-primary hover:bg-neutral-100 border-neutral-200 cursor-pointer active:scale-95'
-                        }`}
-                        title="Move Slide Earlier (Higher Priority)"
-                      >
-                        <HiOutlineArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isLast || reordering}
-                        onClick={() => handleMoveSlide(index, 1)}
-                        className={`p-1.5 rounded-lg border transition-all ${
-                          isLast
-                            ? 'text-neutral-300 border-neutral-200 cursor-not-allowed bg-neutral-50'
-                            : 'text-neutral-700 hover:text-primary hover:bg-neutral-100 border-neutral-200 cursor-pointer active:scale-95'
-                        }`}
-                        title="Move Slide Later (Lower Priority)"
-                      >
-                        <HiOutlineArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Sequence Badge */}
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-neutral-100 text-neutral-800 border border-neutral-200 font-bold shrink-0">
-                      <span className="text-[10px] uppercase text-neutral-400 font-semibold">Slide</span>
-                      <span className="text-base leading-none">#{index + 1}</span>
-                    </div>
-
-                    {/* Thumbnail */}
-                    <div className="relative w-28 h-18 sm:w-36 sm:h-20 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-200 shrink-0">
-                      <img
-                        src={getImageUrl(b.image, '/fallback-banner.png')}
-                        alt={b.title}
-                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                        className="w-full h-full object-cover"
-                      />
-                      {b.isActive === false && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                          Hidden
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Slide Information */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-serif text-sm sm:text-base font-bold text-neutral-900 truncate">
-                          {b.title || 'Untitled Slide'}
-                        </h3>
-                        {index === 0 && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            Primary Cover
-                          </span>
-                        )}
-                        {b.isActive !== false ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Live
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-500 border border-neutral-300">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-neutral-500 line-clamp-1 mt-0.5">
-                        {b.subtitle || 'No subtitle description'}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
-                        <span className="inline-flex items-center gap-1 font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
-                          <span>Button:</span>
-                          <strong className="text-primary">{b.ctaText || 'Shop Now'}</strong>
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-accent-700 bg-accent-50 px-2 py-0.5 rounded-md">
-                          <HiOutlineLink className="w-3.5 h-3.5 text-accent-600" />
-                          <span>{b.ctaLink || '/shop'}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Quick Action Controls */}
-                  <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                    {/* Live / Hidden Toggle Button */}
-                    <button
-                      type="button"
-                      disabled={isTogglingThis}
-                      onClick={() => handleToggleActive(b)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                        isTogglingThis
-                          ? 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-wait'
-                          : b.isActive !== false
-                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
-                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border-neutral-300'
-                      }`}
-                      title={b.isActive !== false ? 'Hide from storefront' : 'Make visible on storefront'}
-                    >
-                      {isTogglingThis ? (
-                        <>
-                          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          <span>Saving...</span>
-                        </>
-                      ) : b.isActive !== false ? (
-                        <>
-                          <HiOutlineEye className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Live</span>
-                        </>
-                      ) : (
-                        <>
-                          <HiOutlineEyeOff className="w-3.5 h-3.5 text-neutral-400" />
-                          <span>Hidden</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Edit Button */}
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(b)}
-                      className="p-2 text-neutral-600 hover:text-primary hover:bg-neutral-100 rounded-xl border border-neutral-200 transition-colors"
-                      title="Edit Banner Content"
-                    >
-                      <HiOutlinePencil className="w-4 h-4" />
-                    </button>
-
-                    {/* Delete Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(b._id, b.title)}
-                      className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-neutral-200 transition-colors cursor-pointer"
-                      title="Delete Slide"
-                    >
-                      <HiOutlineTrash className="w-4 h-4" />
-                    </button>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Cover Image Preview */}
+            <div className="lg:col-span-5">
+              <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-neutral-950 border border-neutral-200 shadow-sm">
+                <img
+                  src={getImageUrl(banners[0]?.image, '/fallback-banner.png')}
+                  alt="Single Cover Banner"
+                  onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20">
+                  Primary Cover Visual
                 </div>
-              );
-            })}
+              </div>
+            </div>
+
+            {/* Copy Details */}
+            <div className="lg:col-span-7 space-y-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-50 text-accent-800 border border-accent-200 text-xs font-bold tracking-wider uppercase">
+                <HiOutlineSparkles className="w-3.5 h-3.5 text-accent-700" />
+                <span>{storeSettings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+              </div>
+
+              <h4 className="font-serif text-2xl font-bold text-neutral-900">
+                {banners[0]?.title || storeSettings.heroTitle || 'Style That Defines You'}
+              </h4>
+
+              <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed max-w-xl">
+                {banners[0]?.subtitle || storeSettings.heroDescription || 'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold shadow-xs">
+                  <span>{banners[0]?.ctaText || storeSettings.heroCtaText || 'Explore Collection'}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({banners[0]?.ctaLink || storeSettings.heroCtaLink || '/shop'})</span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 text-neutral-700 text-xs font-medium">
+                  <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-700" />
+                  <span>{storeSettings.storeVisitText || 'Visit Store'}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Carousel Slides List (When mode is image_box or full) */
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-lg font-bold text-neutral-900">
+                {draftSettings.type === 'image_box'
+                  ? `Small Carousel Lookbook Photos (${banners.length} of ${MAX_BANNERS})`
+                  : `Big Carousel Full Slides (${banners.length} of ${MAX_BANNERS})`}
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                {draftSettings.type === 'image_box'
+                  ? 'Only these promotional photos rotate in the lookbook box. Store headlines stay calm and stable.'
+                  : 'The entire hero banner transitions together. Each slide has its own full-width headline, description, and image.'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              {draftSettings.type === 'image_box' && (
+                <button
+                  type="button"
+                  onClick={openHeroContentModal}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-2xs"
+                >
+                  <HiOutlinePencil className="w-3.5 h-3.5 text-amber-800" />
+                  <span>Edit Hero Headline & Copy</span>
+                </button>
+              )}
+              <button
+                onClick={openAddModal}
+                disabled={banners.length >= MAX_BANNERS}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm disabled:opacity-50"
+              >
+                <HiOutlinePlus className="w-4 h-4" />
+                <span>{draftSettings.type === 'image_box' ? 'Add Lookbook Photo' : 'Add Banner Slide'}</span>
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="py-20 text-center text-neutral-400 bg-white rounded-3xl border border-neutral-200">
+              <div className="w-8 h-8 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-neutral-500 mt-3 font-medium">Loading hero banners...</p>
+            </div>
+          ) : banners.length === 0 ? (
+            <div className="py-16 text-center text-neutral-400 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-3">
+              <HiOutlinePhotograph className="w-12 h-12 text-neutral-300 mx-auto" />
+              <p className="text-sm font-semibold text-neutral-700">No Hero Banners Uploaded</p>
+              <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+                Add up to 5 promotional banners to create an Amazon/Flipkart style auto-rotating hero slider.
+              </p>
+              <button
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md cursor-pointer"
+              >
+                <HiOutlinePlus className="w-4 h-4" />
+                <span>Add First Banner</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {banners.map((b, index) => {
+                const isFirst = index === 0;
+                const isLast = index === banners.length - 1;
+                const isTogglingThis = togglingBannerId === b._id;
+
+                // In static mode: find the very first active banner — only THAT slide is shown live
+                const isStaticMode = !draftSettings.enabled;
+                const firstActiveIndex = banners.findIndex((x) => x.isActive !== false);
+                const isStaticCoverSlide = isStaticMode && index === firstActiveIndex && b.isActive !== false;
+
+                return (
+                  <div
+                    key={b._id}
+                    className={`bg-white rounded-2xl border transition-all p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs ${
+                      b.isActive === false ? 'opacity-65 border-neutral-200 bg-neutral-50/50' : 'border-neutral-200 hover:border-accent-300'
+                    }`}
+                  >
+                    {/* Left: Reorder Controls & Slide Badge */}
+                    <div className="flex items-center gap-3">
+                      {/* Up / Down Reorder Arrows */}
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          disabled={isFirst || reordering}
+                          onClick={() => handleMoveSlide(index, -1)}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            isFirst
+                              ? 'text-neutral-300 border-neutral-200 cursor-not-allowed bg-neutral-50'
+                              : 'text-neutral-700 hover:text-primary hover:bg-neutral-100 border-neutral-200 cursor-pointer active:scale-95'
+                          }`}
+                          title="Move Slide Earlier (Higher Priority)"
+                        >
+                          <HiOutlineArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLast || reordering}
+                          onClick={() => handleMoveSlide(index, 1)}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            isLast
+                              ? 'text-neutral-300 border-neutral-200 cursor-not-allowed bg-neutral-50'
+                              : 'text-neutral-700 hover:text-primary hover:bg-neutral-100 border-neutral-200 cursor-pointer active:scale-95'
+                          }`}
+                          title="Move Slide Later (Lower Priority)"
+                        >
+                          <HiOutlineArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Sequence Badge */}
+                      <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-neutral-100 text-neutral-800 border border-neutral-200 font-bold shrink-0">
+                        <span className="text-[10px] uppercase text-neutral-400 font-semibold">Slide</span>
+                        <span className="text-base leading-none">#{index + 1}</span>
+                      </div>
+
+                      {/* Thumbnail */}
+                      <div className="relative w-28 h-18 sm:w-36 sm:h-20 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-200 shrink-0">
+                        <img
+                          src={getImageUrl(b.image, '/fallback-banner.png')}
+                          alt={b.title}
+                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          className="w-full h-full object-cover"
+                        />
+                        {b.isActive === false && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                            Hidden
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Slide Information */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-serif text-sm sm:text-base font-bold text-neutral-900 truncate">
+                            {draftSettings.type === 'image_box'
+                              ? `Lookbook Photo #${index + 1}`
+                              : (b.title || 'Untitled Slide')}
+                          </h3>
+                          {/* Primary Cover badge: only on the first ACTIVE banner */}
+                          {firstActiveIndex === index && b.isActive !== false && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              Primary Cover
+                            </span>
+                          )}
+                          {/* Live / Not Shown / Inactive — context-aware badge per mode */}
+                          {isStaticMode ? (
+                            isStaticCoverSlide ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Live on Screen
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-500 border border-neutral-300">
+                                {b.isActive !== false ? 'Not Shown (Static)' : 'Inactive'}
+                              </span>
+                            )
+                          ) : b.isActive !== false ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Live
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-500 border border-neutral-300">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        {draftSettings.type !== 'image_box' && (
+                          <p className="text-xs text-neutral-500 line-clamp-1 mt-0.5">
+                            {b.subtitle || 'No subtitle description'}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+                          {draftSettings.type !== 'image_box' && (
+                            <span className="inline-flex items-center gap-1 font-semibold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-md">
+                              <span>Button:</span>
+                              <strong className="text-primary">{b.ctaText || 'Shop Now'}</strong>
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 font-mono text-[11px] text-accent-700 bg-accent-50 px-2 py-0.5 rounded-md">
+                            <HiOutlineLink className="w-3.5 h-3.5 text-accent-600" />
+                            <span>Redirects to: {b.ctaLink || '/shop'}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Quick Action Controls */}
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                      {/* Live / Hidden Toggle Button
+                          In Static mode: non-cover active slides get a disabled pill with info tooltip */}
+                      {isStaticMode && !isStaticCoverSlide && b.isActive !== false ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-neutral-50 text-neutral-400 border-neutral-200 cursor-help select-none"
+                          title="In Static mode only the Primary Cover slide is shown. Hide the current cover or switch to Carousel mode to use this slide."
+                        >
+                          <HiOutlineEyeOff className="w-3.5 h-3.5 text-neutral-300" />
+                          <span>Not Active</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isTogglingThis}
+                          onClick={() => handleToggleActive(b)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                            isTogglingThis
+                              ? 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-wait'
+                              : b.isActive !== false
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
+                              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border-neutral-300'
+                          }`}
+                          title={b.isActive !== false ? 'Hide from storefront' : 'Make visible on storefront'}
+                        >
+                          {isTogglingThis ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              <span>Saving...</span>
+                            </>
+                          ) : b.isActive !== false ? (
+                            <>
+                              <HiOutlineEye className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{isStaticCoverSlide ? 'Live on Screen' : 'Live'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <HiOutlineEyeOff className="w-3.5 h-3.5 text-neutral-400" />
+                              <span>Hidden</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* Edit Button */}
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(b)}
+                        className="p-2 text-neutral-600 hover:text-primary hover:bg-neutral-100 rounded-xl border border-neutral-200 transition-colors cursor-pointer"
+                        title={draftSettings.type === 'image_box' ? 'Edit Lookbook Photo' : 'Edit Slide Content'}
+                      >
+                        <HiOutlinePencil className="w-4 h-4" />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(b._id, b.title)}
+                        className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-neutral-200 transition-colors cursor-pointer"
+                        title="Delete Slide"
+                      >
+                        <HiOutlineTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add / Edit Banner Slide Modal */}
       {modalOpen && (
@@ -1508,10 +1918,14 @@ const BannerManager = () => {
             <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
               <div>
                 <span className="text-[11px] uppercase font-bold text-accent-700 tracking-wider">
-                  Carousel Slide Studio
+                  {draftSettings.type === 'image_box'
+                    ? 'Lookbook Photo Studio (Small Carousel)'
+                    : 'Carousel Slide Studio (Big Carousel)'}
                 </span>
                 <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
-                  {editingBanner ? 'Edit Hero Banner Slide' : 'Add New Carousel Slide'}
+                  {draftSettings.type === 'image_box'
+                    ? (editingBanner ? 'Edit Lookbook Photo' : 'Add Lookbook Photo')
+                    : (editingBanner ? 'Edit Hero Banner Slide' : 'Add New Carousel Slide')}
                 </h3>
               </div>
               <button
@@ -1527,63 +1941,78 @@ const BannerManager = () => {
             {/* Scrollable Form Body */}
             <div className="overflow-y-auto p-6 sm:p-8 space-y-5 flex-1">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Headline */}
+                {/* In Small Carousel mode: Store headlines are static, only the photo rotates in the image box */}
+                {draftSettings.type === 'image_box' ? (
+                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
+                    <HiOutlinePhotograph className="w-5 h-5 text-accent-700 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-neutral-900">Small Carousel (Image Box Only)</h4>
+                      <p className="text-[11px] text-neutral-600 mt-0.5 leading-relaxed">
+                        In this mode, store headlines and introduction remain calm and static on the storefront.
+                        Only this promotional photo will rotate smoothly in the right-hand lookbook box.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Headline */}
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 mb-1">
+                        Headline Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="e.g. Royal Maroon Silk Anarkali Collection"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    {/* Subtitle */}
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 mb-1">
+                        Slide Description / Subtitle
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={subtitle}
+                        onChange={(e) => setSubtitle(e.target.value)}
+                        placeholder="e.g. Handcrafted festive silks with bespoke zari borders, now trending in our Jamalia boutique."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary leading-relaxed resize-y"
+                      />
+                    </div>
+
+                    {/* Button Text */}
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 mb-1">
+                        Slide Button Text
+                      </label>
+                      <input
+                        type="text"
+                        value={ctaText}
+                        onChange={(e) => setCtaText(e.target.value)}
+                        placeholder="Shop Collection"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Target Redirect Link */}
                 <div>
                   <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Headline Title *
+                    Target Redirect Link (When customer clicks photo/button) *
                   </label>
                   <input
                     type="text"
                     required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Royal Maroon Silk Anarkali Collection"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                    value={ctaLink}
+                    onChange={(e) => setCtaLink(e.target.value)}
+                    placeholder="/shop?category=sarees"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-mono text-[11px]"
                   />
-                </div>
-
-                {/* Subtitle */}
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    Slide Description / Subtitle
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={subtitle}
-                    onChange={(e) => setSubtitle(e.target.value)}
-                    placeholder="e.g. Handcrafted festive silks with bespoke zari borders, now trending in our Jamalia boutique."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary leading-relaxed resize-y"
-                  />
-                </div>
-
-                {/* Button Text & Redirect Link */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Button Text
-                    </label>
-                    <input
-                      type="text"
-                      value={ctaText}
-                      onChange={(e) => setCtaText(e.target.value)}
-                      placeholder="Shop Collection"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Target Redirect Link *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={ctaLink}
-                      onChange={(e) => setCtaLink(e.target.value)}
-                      placeholder="/shop?category=sarees"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-mono text-[11px]"
-                    />
-                  </div>
                 </div>
 
                 {/* Quick Link Chips */}
@@ -1612,11 +2041,11 @@ const BannerManager = () => {
                   </p>
                 </div>
 
-                {/* Banner Image Upload & Live Preview */}
+                {/* Banner Image Upload & Live Preview (Strict Delete-First & Required-Image Rules) */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-bold text-neutral-700">
-                      Hero Banner Image <span className="text-red-500">*</span>
+                      {draftSettings.type === 'image_box' ? 'Lookbook Image' : 'Hero Banner Image'} <span className="text-red-500">*</span>
                     </label>
                     {imagePreview && (
                       <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
@@ -1626,7 +2055,7 @@ const BannerManager = () => {
                     )}
                   </div>
 
-                  {/* Hidden File Input for triggering via click */}
+                  {/* Hidden File Input */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1635,9 +2064,9 @@ const BannerManager = () => {
                     className="hidden"
                   />
 
-                  {/* When imagePreview exists: SHOW ONLY the image and the Delete/Replace buttons, NO file chooser */}
+                  {/* When imagePreview exists: SHOW ONLY the preview and the Delete button. NO upload/replace allowed without deleting first! */}
                   {imagePreview ? (
-                    <div className="space-y-3 animate-fade-in">
+                    <div className="space-y-2 animate-fade-in">
                       <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
                         <img
                           src={getImageUrl(imagePreview, '/fallback-banner.png')}
@@ -1646,7 +2075,7 @@ const BannerManager = () => {
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
                         />
 
-                        {/* Top Badges */}
+                        {/* Top Badge */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xs text-white border border-white/20 shadow-sm flex items-center gap-1">
                             <HiOutlinePhotograph className="w-3.5 h-3.5 text-accent-300" />
@@ -1656,65 +2085,62 @@ const BannerManager = () => {
 
                         {/* Bottom Overlay Action Bar with Delete Button */}
                         <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex items-center justify-between gap-2 z-10">
-                          <span className="text-[11px] text-white/90 font-medium truncate hidden sm:inline">
+                          <span className="text-[11px] text-white/90 font-medium truncate">
                             {imageFile ? imageFile.name : (editingBanner?.title || 'Promotional Banner')}
                           </span>
 
-                          <div className="flex items-center gap-2 ml-auto">
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-neutral-900 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95 border border-neutral-200"
-                              title="Replace with another image"
-                            >
-                              <HiOutlinePhotograph className="w-3.5 h-3.5 text-primary" />
-                              <span>Replace</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={handleDeleteImage}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
-                              title="Delete this banner image"
-                            >
-                              <HiOutlineTrash className="w-4 h-4" />
-                              <span>Delete Image</span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={handleDeleteImage}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                            title="Delete this banner image"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                            <span>Delete Image</span>
+                          </button>
                         </div>
                       </div>
+                      <p className="text-[11px] text-neutral-500 font-medium">
+                        🔒 Image is attached. Click <strong>Delete Image</strong> to remove it before selecting or uploading a new file.
+                      </p>
                     </div>
                   ) : (
-                    /* When there is NO image or when its deleted: SHOW the Choose Image / Upload Dropzone */
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-accent-300 hover:border-primary rounded-2xl p-6 sm:p-8 bg-neutral-50/70 hover:bg-cream/60 transition-all text-center flex flex-col items-center justify-center gap-3 cursor-pointer group shadow-2xs animate-fade-in"
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-accent-100/70 group-hover:bg-primary/10 text-primary flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
-                        <HiOutlinePhotograph className="w-7 h-7 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs sm:text-sm font-bold text-neutral-800 group-hover:text-primary transition-colors">
-                          Click to Choose or Upload Banner Image
-                        </p>
-                        <p className="text-[11px] text-neutral-500 font-medium">
-                          Supports JPG, PNG, WEBP (Landscape recommended)
-                        </p>
-                        <p className="text-[10px] text-accent-800 font-semibold pt-0.5">
-                          Exact banner size: <strong className="text-primary font-bold">1920 × 1080 px</strong> (16:9 ratio) or <strong className="text-primary font-bold">1920 × 1200 px</strong> (16:10 ratio) for crisp luxury clarity on all devices.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          fileInputRef.current?.click();
-                        }}
-                        className="mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    /* When image is NOT attached or DELETED: SHOW the upload dropzone */
+                    <div className="space-y-2">
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-accent-300 hover:border-primary rounded-2xl p-6 sm:p-8 bg-neutral-50/70 hover:bg-cream/60 transition-all text-center flex flex-col items-center justify-center gap-3 cursor-pointer group shadow-2xs animate-fade-in"
                       >
-                        <HiOutlinePhotograph className="w-4 h-4" />
-                        <span>Choose Image</span>
-                      </button>
+                        <div className="w-14 h-14 rounded-2xl bg-accent-100/70 group-hover:bg-primary/10 text-primary flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                          <HiOutlinePhotograph className="w-7 h-7 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs sm:text-sm font-bold text-neutral-800 group-hover:text-primary transition-colors">
+                            Click to Choose or Upload Banner Image *
+                          </p>
+                          <p className="text-[11px] text-neutral-500 font-medium">
+                            Supports JPG, PNG, WEBP (Landscape recommended)
+                          </p>
+                          <p className="text-[10px] text-accent-800 font-semibold pt-0.5">
+                            Exact banner size: <strong className="text-primary font-bold">1920 × 1080 px</strong> (16:9 ratio) or <strong className="text-primary font-bold">1920 × 1200 px</strong> (16:10 ratio)
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                          className="mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        >
+                          <HiOutlinePhotograph className="w-4 h-4" />
+                          <span>Choose Image</span>
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+                        <span>⚠️ A banner image is required. Please upload an image before saving.</span>
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1762,8 +2188,8 @@ const BannerManager = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={saving}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md disabled:opacity-50 cursor-pointer"
+                      disabled={saving || (!imagePreview && !imageFile)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {saving ? (
                         <>
@@ -1778,6 +2204,284 @@ const BannerManager = () => {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP MODAL: Homepage Hero Headline & Copy (and Cover Image for Single Static Banner) */}
+      {heroModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xs animate-fade-in"
+          onClick={() => setHeroModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] border border-neutral-200 shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50/70 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-accent-100/70 text-accent-700 flex items-center justify-center shadow-xs">
+                  <HiOutlineSparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg sm:text-xl font-bold text-neutral-900">
+                    {!draftSettings.enabled
+                      ? 'Single Static Hero Banner & Content'
+                      : 'Homepage Hero Headline & Copy'}
+                  </h3>
+                  <p className="text-xs text-neutral-500">
+                    {!draftSettings.enabled
+                      ? 'Configure the headline, copy, and cover photo for your static storefront banner'
+                      : 'Configure the boutique headline, badge, and CTA buttons that stay calm & stable'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHeroModalOpen(false)}
+                className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-xl transition-all cursor-pointer"
+                title="Close (ESC)"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSaveHeroContent} className="overflow-y-auto p-6 space-y-4 flex-1">
+              {/* Hero Badge */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Top Boutique Badge / Accent Tag
+                </label>
+                <input
+                  type="text"
+                  value={modalHeroBadge}
+                  onChange={(e) => setModalHeroBadge(e.target.value)}
+                  placeholder="e.g. Chennai's Trendy Fashion House"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Hero Title */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Main Headline Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={modalHeroTitle}
+                  onChange={(e) => setModalHeroTitle(e.target.value)}
+                  placeholder="e.g. Style That Defines You"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs font-serif font-bold text-neutral-900 focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Hero Description */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Boutique Introduction / Subtitle
+                </label>
+                <textarea
+                  rows={3}
+                  value={modalHeroDescription}
+                  onChange={(e) => setModalHeroDescription(e.target.value)}
+                  placeholder="e.g. Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary leading-relaxed resize-y"
+                />
+              </div>
+
+              {/* Buttons & Links */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">
+                    Primary Button Text
+                  </label>
+                  <input
+                    type="text"
+                    value={modalHeroCtaText}
+                    onChange={(e) => setModalHeroCtaText(e.target.value)}
+                    placeholder="Explore Collection"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">
+                    Primary Button Redirect Link <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={modalHeroCtaLink}
+                    onChange={(e) => setModalHeroCtaLink(e.target.value)}
+                    placeholder="/shop"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs font-mono text-[11px] focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Link Chips for Modal */}
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-400 mb-1 uppercase tracking-wider">
+                  Quick Link Presets:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_LINKS.map((item) => (
+                    <button
+                      key={item.url}
+                      type="button"
+                      onClick={() => setModalHeroCtaLink(item.url)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-colors cursor-pointer ${
+                        modalHeroCtaLink === item.url
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100 border-neutral-200'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Store Visit Secondary Button */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Secondary Button Text (Boutique Visit)
+                </label>
+                <input
+                  type="text"
+                  value={modalStoreVisitText}
+                  onChange={(e) => setModalStoreVisitText(e.target.value)}
+                  placeholder="Visit Store"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Single Static Cover Banner Image (Shown strictly when !draftSettings.enabled) */}
+              {!draftSettings.enabled && (
+                <div className="pt-3 border-t border-neutral-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-neutral-900">
+                      Single Cover Banner Image <span className="text-red-500">*</span>
+                    </label>
+                    {staticCoverPreview && (
+                      <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                        <HiOutlineCheck className="w-3.5 h-3.5" />
+                        Cover Image Attached
+                      </span>
+                    )}
+                  </div>
+
+                  <input
+                    ref={staticFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        if (!f.type.startsWith('image/')) {
+                          toast.error('Please select an image file (JPG, PNG, WEBP)');
+                          return;
+                        }
+                        setStaticCoverFile(f);
+                        setStaticCoverPreview(URL.createObjectURL(f));
+                        toast.success('Cover image selected!');
+                      }
+                    }}
+                    className="hidden"
+                  />
+
+                  {staticCoverPreview ? (
+                    <div className="space-y-2">
+                      <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
+                        <img
+                          src={getImageUrl(staticCoverPreview, '/fallback-banner.png')}
+                          alt="Static Banner Preview"
+                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex items-center justify-between gap-2 z-10">
+                          <span className="text-[11px] text-white/90 font-medium truncate">
+                            {staticCoverFile ? staticCoverFile.name : 'Current Cover Banner'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleDeleteStaticCover}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md cursor-pointer active:scale-95"
+                            title="Delete current cover image"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                            <span>Delete Image</span>
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 font-medium">
+                        🔒 Cover image is attached. Click <strong>Delete Image</strong> above to remove it before selecting a new one.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div
+                        onClick={() => staticFileInputRef.current?.click()}
+                        className="border-2 border-dashed border-accent-300 hover:border-primary rounded-2xl p-6 bg-neutral-50/70 hover:bg-cream/60 transition-all text-center flex flex-col items-center justify-center gap-2 cursor-pointer group shadow-2xs"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-accent-100/70 text-primary flex items-center justify-center shadow-xs">
+                          <HiOutlinePhotograph className="w-6 h-6 text-primary" />
+                        </div>
+                        <p className="text-xs font-bold text-neutral-800 group-hover:text-primary transition-colors">
+                          Click to Upload Single Static Cover Image *
+                        </p>
+                        <p className="text-[11px] text-neutral-500">
+                          Recommended size: 1920 × 1080 px or 1920 × 1200 px (JPG, PNG, WEBP)
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            staticFileInputRef.current?.click();
+                          }}
+                          className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs cursor-pointer"
+                        >
+                          <HiOutlinePhotograph className="w-4 h-4" />
+                          <span>Choose Cover Image</span>
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+                        <span>⚠️ A cover image is required for Single Static Banner mode. Please upload an image before saving.</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setHeroModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHeroSection || (!draftSettings.enabled && !staticCoverPreview && !staticCoverFile)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {savingHeroSection ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Content...</span>
+                    </>
+                  ) : (
+                    <span>Save & Publish Content</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

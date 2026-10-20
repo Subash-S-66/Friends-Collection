@@ -114,7 +114,8 @@ const enrichItemsWithLiveStock = async (items) => {
       image: resolvedImage,
       slug: prod.slug || item.slug || '',
       stock: currentStock,
-      isOutOfStock
+      isOutOfStock,
+      acceptCashOnDelivery: prod.acceptCashOnDelivery !== false
     });
   }
 
@@ -140,7 +141,8 @@ exports.getCart = async (req, res, next) => {
       quantity: i.quantity,
       image: i.image,
       slug: i.slug,
-      stock: i.stock
+      stock: i.stock,
+      acceptCashOnDelivery: i.acceptCashOnDelivery !== false
     }));
     await user.save().catch(() => {});
 
@@ -209,7 +211,8 @@ exports.syncCart = async (req, res, next) => {
       quantity: i.quantity,
       image: i.image,
       slug: i.slug,
-      stock: i.stock
+      stock: i.stock,
+      acceptCashOnDelivery: i.acceptCashOnDelivery !== false
     }));
     await user.save().catch(() => {});
 
@@ -243,7 +246,8 @@ exports.updateCart = async (req, res, next) => {
       quantity: i.quantity,
       image: i.image,
       slug: i.slug,
-      stock: i.stock
+      stock: i.stock,
+      acceptCashOnDelivery: i.acceptCashOnDelivery !== false
     }));
     await user.save().catch(() => {});
 

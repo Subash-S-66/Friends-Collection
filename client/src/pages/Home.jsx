@@ -390,7 +390,9 @@ const Home = () => {
               aria-hidden="true"
               onError={(e) => handleImageError(e, '/fallback-banner.png')}
               className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
-                idx === activeBannerIdx ? 'opacity-25' : 'opacity-0'
+                (carouselType === 'full' && isCarouselEnabled ? idx === activeBannerIdx : idx === 0)
+                  ? 'opacity-25'
+                  : 'opacity-0'
               }`}
             />
           ))}
@@ -404,7 +406,7 @@ const Home = () => {
               type="button"
               onClick={handlePrevBanner}
               aria-label="Previous Banner Slide"
-              className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+              className="hidden sm:inline-flex absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
               title="Previous Banner Slide"
             >
               <HiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -414,7 +416,7 @@ const Home = () => {
               type="button"
               onClick={handleNextBanner}
               aria-label="Next Banner Slide"
-              className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+              className="hidden sm:inline-flex absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
               title="Next Banner Slide"
             >
               <HiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -426,8 +428,9 @@ const Home = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
             {/* Left Column:
-                MODE A ('image_box', DEFAULT): Stable boutique introduction & primary CTAs. Text stays calm and elegant.
-                MODE B ('full'): Fluid editorial crossfade per slide with Framer Motion.
+                MODE A ('image_box', DEFAULT / SMALL CAROUSEL): Stable boutique introduction & primary CTAs. Text stays calm and stable.
+                MODE B ('full' / BIG CAROUSEL): Fluid editorial crossfade per slide with Framer Motion.
+                MODE C ('none' / !isCarouselEnabled): Single static banner displaying Slide #1's content.
             */}
             <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
               {carouselType === 'full' && isCarouselEnabled ? (
@@ -443,7 +446,7 @@ const Home = () => {
                     <div className="flex items-center gap-2">
                       <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
                         <HiOutlineSparkles className="w-4 h-4" />
-                        <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                        <span>{currentBanner?.badge || settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                       </div>
                     </div>
 
@@ -478,22 +481,22 @@ const Home = () => {
                     </div>
                   </motion.div>
                 </AnimatePresence>
-              ) : (
-                /* DEFAULT MODE / SINGLE BANNER MODE: Display active banner content in side content instead of pre-entered defaults */
+              ) : !isCarouselEnabled ? (
+                /* MODE C: SINGLE STATIC BANNER (NOT CAROUSEL) - Displays primary cover banner (Slide #1) content */
                 <div className="space-y-5 sm:space-y-6">
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
                       <HiOutlineSparkles className="w-4 h-4" />
-                      <span>{currentBanner?.badge || settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                      <span>{activeBanners[0]?.badge || settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
                     </div>
                   </div>
 
                   <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                    {currentBanner?.title || settings.heroTitle || 'Style That Defines You'}
+                    {activeBanners[0]?.title || settings.heroTitle || 'Style That Defines You'}
                   </h1>
 
                   <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
-                    {currentBanner?.subtitle ||
+                    {activeBanners[0]?.subtitle ||
                       settings.heroDescription ||
                       'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
                   </p>
@@ -501,11 +504,50 @@ const Home = () => {
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
                     <button
                       type="button"
-                      onClick={() => handleBannerClick(currentBanner)}
+                      onClick={() => handleBannerClick(activeBanners[0])}
                       className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
-                      title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
+                      title={`Redirects to ${activeBanners[0]?.ctaLink || '/shop'}`}
                     >
-                      <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
+                      <span>{activeBanners[0]?.ctaText || 'Explore Collection'}</span>
+                      <HiOutlineArrowRight className="w-4 h-4" />
+                    </button>
+                    <Link
+                      to="/contact"
+                      title="Visit our physical boutique store in Jamalia, Chennai"
+                      className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full border border-accent-300/40 hover:bg-white/10 hover:border-accent-300/70 text-white font-medium text-sm transition-all transform hover:-translate-y-0.5"
+                    >
+                      <HiOutlineLocationMarker className="w-4 h-4 text-accent-300 shrink-0" />
+                      <span>{settings.storeVisitText || 'Visit Store'}</span>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                /* MODE A: SMALL CAROUSEL (IMAGE BOX ONLY) - Store headlines, boutique introduction, and CTA buttons stay calm, stable, and elegant! */
+                <div className="space-y-5 sm:space-y-6">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
+                      <HiOutlineSparkles className="w-4 h-4" />
+                      <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                    </div>
+                  </div>
+
+                  <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                    {settings.heroTitle || 'Style That Defines You'}
+                  </h1>
+
+                  <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+                    {settings.heroDescription ||
+                      'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleBannerClick({ ctaLink: settings.heroCtaLink || '/shop' })}
+                      className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                      title={`Redirects to ${settings.heroCtaLink || '/shop'}`}
+                    >
+                      <span>{settings.heroCtaText || 'Explore Collection'}</span>
                       <HiOutlineArrowRight className="w-4 h-4" />
                     </button>
                     <Link
@@ -600,7 +642,7 @@ const Home = () => {
                       type="button"
                       onClick={handlePrevBanner}
                       aria-label="Previous Slide"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                      className="hidden sm:inline-flex absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                       title="Previous Image Slide"
                     >
                       <HiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -610,7 +652,7 @@ const Home = () => {
                       type="button"
                       onClick={handleNextBanner}
                       aria-label="Next Slide"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+                      className="hidden sm:inline-flex absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                       title="Next Image Slide"
                     >
                       <HiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />

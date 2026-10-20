@@ -16,9 +16,38 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
   const isBanner =
     fallback === '/fallback-banner.png' ||
     fallback === '/fallback-banner.jpg' ||
+    (typeof fallback === 'string' && fallback.toLowerCase().includes('banner')) ||
     (typeof path === 'string' && path.toLowerCase().includes('banner'));
 
-  const effectiveFallback = isBanner ? BANNER_FALLBACK : fallback;
+  // Strict enforcement: For banners, ALWAYS use /fallback-banner.png when image is missing or invalid.
+  // Never use product fallbacks or anything else under any circumstance.
+  if (isBanner) {
+    if (!path || typeof path !== 'string' || !path.trim() || path === 'null' || path === 'undefined') {
+      return BANNER_FALLBACK;
+    }
+    const cleanBanner = path.trim();
+    if (
+      cleanBanner === '/fallback-banner.png' ||
+      cleanBanner === '/fallback-banner.jpg' ||
+      cleanBanner.includes('fallback-product') ||
+      cleanBanner.includes('card.png') ||
+      cleanBanner.includes('logo.png') ||
+      cleanBanner.includes('fallback-na')
+    ) {
+      return BANNER_FALLBACK;
+    }
+    if (cleanBanner.startsWith('http://') || cleanBanner.startsWith('https://')) return cleanBanner;
+
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (apiUrl && cleanBanner.startsWith('/uploads')) {
+      const backendOrigin = apiUrl.replace(/\/api\/?$/, '');
+      return `${backendOrigin}${cleanBanner}`;
+    }
+
+    return cleanBanner;
+  }
+
+  const effectiveFallback = fallback;
 
   if (!path || typeof path !== 'string' || !path.trim() || path === 'null' || path === 'undefined') {
     return effectiveFallback;
@@ -27,11 +56,8 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
   if (clean === '/uploads/card.png' || clean === '/card.png' || clean === '/fallback-product.png') {
     return effectiveFallback;
   }
-  if (clean === '/fallback-banner.png' || clean === '/fallback-banner.jpg') {
-    return BANNER_FALLBACK;
-  }
-  if (clean.includes('fallback-na-1')) return isBanner ? BANNER_FALLBACK : '/fallback-product-1.png';
-  if (clean.includes('fallback-na-2')) return isBanner ? BANNER_FALLBACK : '/fallback-product-2.png';
+  if (clean.includes('fallback-na-1')) return '/fallback-product-1.png';
+  if (clean.includes('fallback-na-2')) return '/fallback-product-2.png';
   // Prevent store logo from being used as a product photo or banner
   if (clean.includes('logo.png') && !fallback.includes('logo')) {
     return effectiveFallback;
@@ -55,13 +81,15 @@ export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
     const alt = (e.currentTarget.alt || '').toLowerCase();
     const className = (e.currentTarget.className || '').toLowerCase();
 
-    // Contextual autodetection: banners strictly use fallback-banner.png, never product fallbacks
+    // Contextual autodetection: banners strictly use /fallback-banner.png, never anything else!
     if (
       fallback === '/fallback-banner.jpg' ||
       fallback === '/fallback-banner.png' ||
+      (typeof fallback === 'string' && fallback.toLowerCase().includes('banner')) ||
       currentSrc.includes('banner') ||
       alt.includes('banner') ||
-      className.includes('banner')
+      className.includes('banner') ||
+      (e.currentTarget.closest && e.currentTarget.closest('[data-banner], .hero-banner, .banner-container, header, section[aria-label*="banner" i]'))
     ) {
       chosenFallback = BANNER_FALLBACK;
     } else if (fallback === '/fallback-product-1.png') {

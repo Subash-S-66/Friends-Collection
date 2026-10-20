@@ -22,7 +22,8 @@ const cartItemSchema = new mongoose.Schema({
   quantity: { type: Number, default: 1, min: 1 },
   image: { type: String, default: '' },
   slug: { type: String, default: '' },
-  stock: { type: Number, default: 99 }
+  stock: { type: Number, default: 99 },
+  acceptCashOnDelivery: { type: Boolean, default: true }
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({

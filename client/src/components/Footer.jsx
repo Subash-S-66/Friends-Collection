@@ -166,6 +166,11 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
           <p>© {new Date().getFullYear()} {storeName}. All Rights Reserved.</p>
+          <div className="flex items-center gap-4 text-xs text-neutral-400">
+            <Link to="/privacy" className="hover:text-accent-300 transition-colors">Privacy Policy</Link>
+            <span>•</span>
+            <Link to="/terms" className="hover:text-accent-300 transition-colors">Terms of Service</Link>
+          </div>
           <p className="flex items-center gap-1.5">
             Designed with <span className="text-red-400">♥</span> in Chennai for effortless shopping
           </p>

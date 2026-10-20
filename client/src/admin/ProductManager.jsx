@@ -68,6 +68,8 @@ const ProductManager = () => {
   const [description, setDescription] = useState('');
   const [gender, setGender] = useState('women');
   const [isActive, setIsActive] = useState(true);
+  const [acceptCashOnDelivery, setAcceptCashOnDelivery] = useState(true);
+  const [togglingCodProductId, setTogglingCodProductId] = useState(null);
   const [selectedGenderFilter, setSelectedGenderFilter] = useState('all');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -231,6 +233,7 @@ const ProductManager = () => {
     setImagePreviews([]);
     setExistingImages([]);
     setIsActive(true);
+    setAcceptCashOnDelivery(true);
     setModalOpen(true);
   };
 
@@ -239,6 +242,7 @@ const ProductManager = () => {
     setTitle(prod.title);
     setDescription(prod.description || '');
     setIsActive(prod.isActive !== false);
+    setAcceptCashOnDelivery(prod.acceptCashOnDelivery !== false);
     const prodGender = prod.gender || 'women';
     setGender(prodGender);
     setCategory(prod.category?._id || prod.category || '');
@@ -778,6 +782,7 @@ const ProductManager = () => {
       formData.append('variants', JSON.stringify(sanitizedVariants));
       formData.append('tags', JSON.stringify(tags));
       formData.append('isActive', String(isActive));
+      formData.append('acceptCashOnDelivery', String(acceptCashOnDelivery));
 
       const calculatedTotalStock = sanitizedVariants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
       formData.append('stock', calculatedTotalStock);
@@ -852,6 +857,31 @@ const ProductManager = () => {
       fetchData(true);
     } finally {
       setTogglingProductId(null);
+    }
+  };
+
+  // 1-Click COD acceptance toggle for individual product
+  const handleToggleCod = async (prod) => {
+    const updatedStatus = prod.acceptCashOnDelivery === false ? true : false;
+    setTogglingCodProductId(prod._id);
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((p) => (p._id === prod._id ? { ...p, acceptCashOnDelivery: updatedStatus } : p))
+    );
+
+    try {
+      const res = await API.patch(`/products/admin/${prod._id}/toggle-cod`);
+      toast.success(
+        res.data?.message || `Cash on Delivery is now ${updatedStatus ? 'ACCEPTED' : 'DISABLED'} for "${prod.title}"`,
+        { icon: updatedStatus ? '💵' : '🚫' }
+      );
+      fetchData(true);
+    } catch (err) {
+      console.error('Error toggling product COD:', err);
+      toast.error('Failed to update Cash on Delivery setting');
+      fetchData(true);
+    } finally {
+      setTogglingCodProductId(null);
     }
   };
 
@@ -1113,19 +1143,20 @@ const ProductManager = () => {
                 <th className="py-3.5 px-6">Total Stock</th>
                 <th className="py-3.5 px-6">Variants & Stocks</th>
                 <th className="py-3.5 px-6 text-center">Visibility</th>
+                <th className="py-3.5 px-6 text-center">COD</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-neutral-700">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-neutral-400">
+                  <td colSpan="8" className="py-12 text-center text-neutral-400">
                     <div className="w-8 h-8 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-neutral-400">
+                  <td colSpan="8" className="py-12 text-center text-neutral-400">
                     No dresses found matching &ldquo;{searchTerm}&rdquo;.
                   </td>
                 </tr>
@@ -1329,6 +1360,38 @@ const ProductManager = () => {
                           )}
                         </button>
                       </td>
+                      <td className="py-4 px-6 text-center">
+                        <button
+                          type="button"
+                          disabled={togglingCodProductId === prod._id}
+                          onClick={() => handleToggleCod(prod)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            togglingCodProductId === prod._id
+                              ? 'bg-neutral-100 text-neutral-400 cursor-wait'
+                              : prod.acceptCashOnDelivery !== false
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-300'
+                          }`}
+                          title={prod.acceptCashOnDelivery !== false ? 'Click to DISABLE Cash on Delivery' : 'Click to ENABLE Cash on Delivery'}
+                        >
+                          {togglingCodProductId === prod._id ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              <span>Saving...</span>
+                            </>
+                          ) : prod.acceptCashOnDelivery !== false ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>COD Allowed</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              <span>No COD</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -1487,20 +1550,48 @@ const ProductManager = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
                     />
                   </div>
-                  <div className="shrink-0">
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">Store Visibility</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsActive(!isActive)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                          : 'bg-neutral-100 text-neutral-600 border-neutral-300 hover:bg-neutral-200'
-                      }`}
-                    >
-                      {isActive ? <HiOutlineEye className="w-4 h-4 text-emerald-600" /> : <HiOutlineEyeOff className="w-4 h-4 text-neutral-400" />}
-                      <span>{isActive ? 'Live on Store' : 'Hidden from Store'}</span>
-                    </button>
+                  <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 mb-1">Store Visibility</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsActive(!isActive)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                          isActive
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-neutral-100 text-neutral-600 border-neutral-300 hover:bg-neutral-200'
+                        }`}
+                      >
+                        {isActive ? <HiOutlineEye className="w-4 h-4 text-emerald-600" /> : <HiOutlineEyeOff className="w-4 h-4 text-neutral-400" />}
+                        <span>{isActive ? 'Live on Store' : 'Hidden from Store'}</span>
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 mb-1">Accept Cash on Delivery</label>
+                      <button
+                        type="button"
+                        onClick={() => setAcceptCashOnDelivery(!acceptCashOnDelivery)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          acceptCashOnDelivery
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-neutral-100 text-neutral-600 border-neutral-300 hover:bg-neutral-200'
+                        }`}
+                      >
+                        <span
+                          className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                            acceptCashOnDelivery ? 'bg-emerald-600' : 'bg-neutral-400'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              acceptCashOnDelivery ? 'translate-x-3' : 'translate-x-0'
+                            }`}
+                          />
+                        </span>
+                        <span>{acceptCashOnDelivery ? 'Accept COD (ON)' : 'COD Disabled (OFF)'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 

@@ -113,10 +113,31 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   maxAge: '7d',
   etag: true
 }));
-app.use('/uploads', (req, res) => {
-  const isBanner = req.path && req.path.toLowerCase().includes('banner');
-  const fallbackFile = isBanner ? 'banner.jpg' : 'card.png';
-  res.sendFile(path.join(__dirname, 'uploads', fallbackFile));
+app.use('/uploads', async (req, res) => {
+  const reqPath = req.path || '';
+  const referer = req.headers.referer || '';
+  const isBannerPath =
+    reqPath.toLowerCase().includes('banner') ||
+    referer.toLowerCase().includes('banner');
+
+  let isBanner = isBannerPath;
+  if (!isBanner) {
+    try {
+      const Banner = require('./models/Banner');
+      const cleanPath = reqPath.replace(/^\//, '');
+      if (cleanPath) {
+        const existsInBanners = await Banner.exists({ image: { $regex: cleanPath } });
+        if (existsInBanners) isBanner = true;
+      }
+    } catch (e) {}
+  }
+
+  const fallbackFile = isBanner ? 'fallback-banner.png' : 'card.png';
+  const filePath = path.join(__dirname, 'uploads', fallbackFile);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.status(404).send('Not found');
 });
 
 // API Routes

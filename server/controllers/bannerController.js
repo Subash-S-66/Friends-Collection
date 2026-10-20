@@ -1,12 +1,49 @@
+const fs = require('fs');
+const path = require('path');
 const Banner = require('../models/Banner');
 const { uploadAndProcessImage } = require('../config/cloudinary');
+
+const sanitizeBannerImage = (bannerDoc) => {
+  const b = bannerDoc.toObject ? bannerDoc.toObject() : { ...bannerDoc };
+  let img = b.image;
+  let needFix = false;
+
+  if (!img || typeof img !== 'string' || !img.trim() || img === 'null' || img === 'undefined') {
+    needFix = true;
+  } else {
+    const clean = img.trim();
+    if (
+      clean.includes('card.png') ||
+      clean.includes('fallback-product') ||
+      clean.includes('fallback-na') ||
+      clean.includes('logo.png')
+    ) {
+      needFix = true;
+    } else if (clean.startsWith('/uploads/')) {
+      const localFile = path.join(__dirname, '..', clean);
+      if (!fs.existsSync(localFile)) {
+        needFix = true;
+      }
+    }
+  }
+
+  if (needFix) {
+    b.image = '/fallback-banner.png';
+    if (b._id) {
+      Banner.findByIdAndUpdate(b._id, { image: '/fallback-banner.png' }).exec().catch(() => {});
+    }
+  }
+
+  return b;
+};
 
 // @desc    Get active banners (public)
 // @route   GET /api/banners
 exports.getBanners = async (req, res, next) => {
   try {
     const banners = await Banner.find({ isActive: true }).sort({ priority: 1 });
-    res.json(banners);
+    const sanitized = banners.map(sanitizeBannerImage);
+    res.json(sanitized);
   } catch (error) {
     next(error);
   }
@@ -17,7 +54,8 @@ exports.getBanners = async (req, res, next) => {
 exports.adminGetBanners = async (req, res, next) => {
   try {
     const banners = await Banner.find().sort({ priority: 1 });
-    res.json(banners);
+    const sanitized = banners.map(sanitizeBannerImage);
+    res.json(sanitized);
   } catch (error) {
     next(error);
   }

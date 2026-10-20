@@ -512,7 +512,7 @@ const resolveImageRef = (ref, images) => {
 // @route   POST /api/products/admin
 exports.createProduct = async (req, res, next) => {
   try {
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, acceptCashOnDelivery } = req.body;
 
     // Process uploaded images with Cloudinary / Sharp (3:4 ratio - 900x1200)
     const uploadedImages = [];
@@ -576,7 +576,8 @@ exports.createProduct = async (req, res, next) => {
       colorImages: parsedColorImages,
       stock: calculatedStock,
       tags: tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [],
-      isFeatured: isFeatured === 'true' || isFeatured === true
+      isFeatured: isFeatured === 'true' || isFeatured === true,
+      acceptCashOnDelivery: acceptCashOnDelivery !== undefined ? (acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true) : true
     });
 
     const populated = await Product.findById(product._id)
@@ -596,7 +597,7 @@ exports.updateProduct = async (req, res, next) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     const prevStock = product.stock || 0;
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, existingImages } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, acceptCashOnDelivery, existingImages } = req.body;
 
     if (title) product.title = title;
     if (description !== undefined) product.description = description;
@@ -657,6 +658,9 @@ exports.updateProduct = async (req, res, next) => {
     if (tags) product.tags = typeof tags === 'string' ? JSON.parse(tags) : tags;
     if (isFeatured !== undefined) product.isFeatured = isFeatured === 'true' || isFeatured === true;
     if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
+    if (acceptCashOnDelivery !== undefined) {
+      product.acceptCashOnDelivery = acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true;
+    }
 
     await product.save();
 
@@ -756,3 +760,25 @@ exports.toggleProductStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Toggle product cash on delivery acceptance (admin)
+// @route   PATCH /api/products/admin/:id/toggle-cod
+exports.toggleProductCod = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    product.acceptCashOnDelivery = product.acceptCashOnDelivery === false ? true : false;
+    await product.save();
+
+    res.json({
+      success: true,
+      productId: product._id,
+      acceptCashOnDelivery: product.acceptCashOnDelivery,
+      message: `Cash on Delivery is now ${product.acceptCashOnDelivery ? 'ACCEPTED' : 'DISABLED'} for "${product.title}".`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

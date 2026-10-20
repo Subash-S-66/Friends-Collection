@@ -22,7 +22,7 @@ exports.updateSetting = async (req, res, next) => {
 
     // Support combined hero batch update
     if (req.params.key === 'heroSection' && typeof value === 'object') {
-      const { heroBadge, heroTitle, heroDescription, storeVisitText } = value;
+      const { heroBadge, heroTitle, heroDescription, storeVisitText, heroCtaText, heroCtaLink } = value;
       if (heroBadge !== undefined) {
         await Settings.findOneAndUpdate({ key: 'heroBadge' }, { value: heroBadge }, { upsert: true });
       }
@@ -33,6 +33,14 @@ exports.updateSetting = async (req, res, next) => {
       if (heroDescription !== undefined) {
         await Settings.findOneAndUpdate({ key: 'heroDescription' }, { value: heroDescription }, { upsert: true });
         await Banner.updateMany({ priority: 1 }, { subtitle: heroDescription });
+      }
+      if (heroCtaText !== undefined) {
+        await Settings.findOneAndUpdate({ key: 'heroCtaText' }, { value: heroCtaText }, { upsert: true });
+        await Banner.updateMany({ priority: 1 }, { ctaText: heroCtaText });
+      }
+      if (heroCtaLink !== undefined) {
+        await Settings.findOneAndUpdate({ key: 'heroCtaLink' }, { value: heroCtaLink }, { upsert: true });
+        await Banner.updateMany({ priority: 1 }, { ctaLink: heroCtaLink });
       }
       if (storeVisitText !== undefined) {
         await Settings.findOneAndUpdate({ key: 'storeVisitText' }, { value: storeVisitText }, { upsert: true });

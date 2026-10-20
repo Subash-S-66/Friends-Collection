@@ -132,7 +132,8 @@ export const CartProvider = ({ children }) => {
               isOutOfStock: Boolean(serverMatch.isOutOfStock || serverMatch.stock <= 0),
               price: serverMatch.price,
               title: serverMatch.title || localItem.title,
-              image: serverMatch.image || localItem.image
+              image: serverMatch.image || localItem.image,
+              acceptCashOnDelivery: serverMatch.acceptCashOnDelivery !== false
             };
           }
           return localItem;
@@ -250,7 +251,8 @@ export const CartProvider = ({ children }) => {
           stock: itemStock,
           isOutOfStock: false,
           image: resolvedVariantImage || nextItems[existingIndex].image,
-          quantity: Math.min(itemStock, currentQty + quantity)
+          quantity: Math.min(itemStock, currentQty + quantity),
+          acceptCashOnDelivery: product.acceptCashOnDelivery !== false
         };
       } else {
         // Distinct size, distinct color, or new product -> add as separate line item!
@@ -267,7 +269,8 @@ export const CartProvider = ({ children }) => {
             image: resolvedVariantImage,
             slug: product.slug,
             stock: itemStock,
-            isOutOfStock: false
+            isOutOfStock: false,
+            acceptCashOnDelivery: product.acceptCashOnDelivery !== false
           }
         ];
       }

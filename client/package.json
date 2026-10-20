@@ -8,21 +8,19 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "devDependencies": {
-    "autoprefixer": "^10.6.1",
-    "postcss": "^8.5.30",
-    "tailwindcss": "^3.4.19",
-    "typescript": "~6.0.2",
-    "vite": "^8.3.0"
-  },
   "dependencies": {
     "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.1",
     "axios": "^1.20.0",
     "framer-motion": "^14.3.0",
+    "postcss": "^8.5.30",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hot-toast": "^2.6.1",
     "react-icons": "^5.7.0",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
   }
 }

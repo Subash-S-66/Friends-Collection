@@ -136,6 +136,14 @@ exports.placeOrder = async (req, res, next) => {
         return res.status(400).json({ message: `Product not found: ${item.title || item.product}` });
       }
 
+      // Check if Cash on Delivery is supported by this product
+      const requestedPaymentMethod = (req.body.paymentMethod || 'cod').toLowerCase();
+      if (requestedPaymentMethod === 'cod' && product.acceptCashOnDelivery === false) {
+        return res.status(400).json({
+          message: `Cash on Delivery is not available for "${product.title}". Please choose an online payment method or remove this item.`
+        });
+      }
+
       // Check live database stock
       const available = await getEffectiveAvailableStock(item.product, item.size, item.color);
       if (available < item.quantity) {

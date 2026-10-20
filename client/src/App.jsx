@@ -33,6 +33,8 @@ import Account from './pages/Account';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import InvoicePage from './pages/InvoicePage';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 // Admin Dashboard Components
 import AdminLayout from './admin/AdminLayout';
@@ -104,6 +106,8 @@ const AppLayout = () => {
           <Route path="/order/invoice/:orderId" element={<InvoicePage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* Admin Dashboard Routes */}
           <Route path="/admin" element={<AdminLayout />}>

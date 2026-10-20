@@ -23,7 +23,7 @@ import AddressModal from '../components/AddressModal';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, availableItems, outOfStockCount, subtotal, clearCart, getSavedAddress, saveAddress, refreshCartStock } = useCart();
+  const { items, availableItems, outOfStockCount, subtotal, clearCart, getSavedAddress, saveAddress, refreshCartStock, removeItem } = useCart();
   const { user, updateUser } = useAuth();
   const { confirm } = useConfirm();
   const isOrderPlacedRef = useRef(false);
@@ -164,6 +164,43 @@ const Checkout = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Amazon / Flipkart style Cash on Delivery validation:
+  // If ANY item in available cart has acceptCashOnDelivery === false, disable COD
+  const codDisabledItems = availableItems.filter((item) => item.acceptCashOnDelivery === false);
+  const isCodDisabled = codDisabledItems.length > 0;
+
+  // Automatically reset payment method away from COD if cart contains non-COD products
+  useEffect(() => {
+    if (isCodDisabled && formData.paymentMethod === 'cod') {
+      setFormData((prev) => ({ ...prev, paymentMethod: 'razorpay' }));
+    }
+  }, [isCodDisabled, formData.paymentMethod]);
+
+  // Handler to remove a specific item directly from checkout to re-enable COD
+  const handleRemoveFromCheckout = async (itemToRemove) => {
+    const ok = await confirm({
+      title: 'Remove Item from Bag?',
+      message: `Are you sure you want to remove "${itemToRemove.title}" from your shopping bag?`,
+      type: 'danger',
+      confirmText: 'Yes, Remove',
+      cancelText: 'Keep Item',
+      details: itemToRemove.size ? `Size: ${itemToRemove.size}${itemToRemove.color ? ` • ${itemToRemove.color}` : ''}` : null
+    });
+    if (!ok) return;
+
+    const norm = (s) => (s || '').toString().trim().toLowerCase();
+    const idx = items.findIndex((it) => {
+      const prodA = String(it.product?._id || it.product || '');
+      const prodB = String(itemToRemove.product?._id || itemToRemove.product || '');
+      return prodA === prodB && norm(it.size) === norm(itemToRemove.size) && norm(it.color) === norm(itemToRemove.color);
+    });
+
+    if (idx !== -1) {
+      removeItem(idx);
+      toast.success(`Removed "${itemToRemove.title}"`);
+    }
+  };
+
   // Pre-fill form from user account or saved guest address
   useEffect(() => {
     // If order has already been placed or is currently being processed, NEVER redirect to /cart!
@@ -233,6 +270,14 @@ const Checkout = () => {
     e.preventDefault();
     if (submitting) return; // Prevent double entry clicks
     setErrorMsg('');
+
+    // Prevent submission with COD if any item is not COD-eligible
+    if (formData.paymentMethod === 'cod' && isCodDisabled) {
+      const msg = 'Cash on Delivery is unavailable because some items in your cart do not accept COD. Please choose Online Payment or remove those items.';
+      setErrorMsg(msg);
+      toast.error(msg);
+      return;
+    }
 
     // Validation for primary phone (strictly 10-digit Indian mobile)
     const cleanPhone = formData.phone.replace(/\D/g, '');
@@ -978,33 +1023,110 @@ const Checkout = () => {
                 </label>
 
                 {/* Option 2: Cash on Delivery / UPI at Doorstep */}
-                <label className={`flex items-start justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                  formData.paymentMethod === 'cod'
-                    ? 'border-primary bg-primary-50/40 shadow-xs ring-2 ring-primary/20'
-                    : 'border-neutral-200 hover:border-accent-300 bg-white'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cod"
-                      checked={formData.paymentMethod === 'cod'}
-                      onChange={handleChange}
-                      className="h-4 w-4 mt-1 text-primary focus:ring-primary cursor-pointer"
-                    />
-                    <div>
-                      <strong className="text-sm text-neutral-900 font-bold block">
-                        Cash on Delivery / UPI at Doorstep
-                      </strong>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Pay with GooglePay, PhonePe, Paytm QR or Cash when your parcel arrives
-                      </p>
+                <div
+                  className={`rounded-2xl border-2 transition-all overflow-hidden ${
+                    isCodDisabled
+                      ? 'border-neutral-200 bg-neutral-100/70 opacity-80 cursor-not-allowed'
+                      : formData.paymentMethod === 'cod'
+                      ? 'border-primary bg-primary-50/40 shadow-xs ring-2 ring-primary/20'
+                      : 'border-neutral-200 hover:border-accent-300 bg-white'
+                  }`}
+                >
+                  <label
+                    className={`flex items-start justify-between p-4 ${
+                      isCodDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="cod"
+                        disabled={isCodDisabled}
+                        checked={formData.paymentMethod === 'cod'}
+                        onChange={(e) => {
+                          if (!isCodDisabled) handleChange(e);
+                        }}
+                        className={`h-4 w-4 mt-1 ${
+                          isCodDisabled
+                            ? 'text-neutral-400 cursor-not-allowed opacity-50'
+                            : 'text-primary focus:ring-primary cursor-pointer'
+                        }`}
+                      />
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <strong
+                            className={`text-sm font-bold block ${
+                              isCodDisabled ? 'text-neutral-500' : 'text-neutral-900'
+                            }`}
+                          >
+                            Cash on Delivery / UPI at Doorstep
+                          </strong>
+                          {isCodDisabled ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-200 text-neutral-600 uppercase tracking-wide">
+                              Not Available
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                              Available
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs mt-0.5 ${isCodDisabled ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                          Pay with GooglePay, PhonePe, Paytm QR or Cash when your parcel arrives
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  {formData.paymentMethod === 'cod' && (
-                    <HiOutlineCheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    {!isCodDisabled && formData.paymentMethod === 'cod' && (
+                      <HiOutlineCheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    )}
+                  </label>
+
+                  {/* Amazon & Flipkart style note when COD is disabled */}
+                  {isCodDisabled && (
+                    <div className="px-4 pb-4 pt-1 border-t border-neutral-200/70 bg-amber-50/70">
+                      <div className="flex items-start gap-2.5 pt-2">
+                        <HiOutlineExclamationCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <p className="font-bold text-xs text-amber-950">
+                            Cash on Delivery is unavailable for this order
+                          </p>
+                          <p className="text-[11px] text-amber-800 leading-relaxed">
+                            Some product{codDisabledItems.length === 1 ? '' : 's'} in your cart do not accept Cash on Delivery:
+                          </p>
+                          <div className="space-y-1.5">
+                            {codDisabledItems.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-xl border border-amber-200 text-[11px] shadow-2xs"
+                              >
+                                <span className="font-semibold text-neutral-800 truncate">
+                                  • {item.title} {item.size && `(${item.size})`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRemoveFromCheckout(item);
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-md border border-red-200 transition-colors cursor-pointer shrink-0"
+                                  title="Remove this product to enable COD"
+                                >
+                                  <HiOutlineTrash className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-amber-700 pt-0.5 italic">
+                            Remove {codDisabledItems.length === 1 ? 'this product' : 'these products'} to enable Cash on Delivery for other items in your cart, or pay online securely to complete your order.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1036,7 +1158,7 @@ const Checkout = () => {
             {/* Items list preview */}
             <div className="max-h-64 overflow-y-auto divide-y divide-neutral-100 pr-1 space-y-3">
               {availableItems.map((item, idx) => (
-                <div key={idx} className="pt-3 first:pt-0 flex items-center gap-3.5">
+                <div key={idx} className="pt-3 first:pt-0 flex items-center gap-3.5 group">
                   <img
                     src={getImageUrl(item.image)}
                     alt={item.title}
@@ -1048,10 +1170,25 @@ const Checkout = () => {
                     <p className="text-[11px] text-neutral-500">
                       Qty: {item.quantity} {item.size && `• Size: ${item.size}`}
                     </p>
+                    {item.acceptCashOnDelivery === false && (
+                      <span className="inline-block mt-0.5 text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                        Online Payment Only
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs font-bold text-neutral-900 font-numeric">
-                    {formatPrice(item.price * item.quantity)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-neutral-900 font-numeric">
+                      {formatPrice(item.price * item.quantity)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFromCheckout(item)}
+                      className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Remove item from bag"
+                    >
+                      <HiOutlineTrash className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
