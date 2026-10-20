@@ -44,7 +44,7 @@ const defaultHeroBanner = {
   title: 'Style That Defines You',
   subtitle:
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
-  image: '/fallback-banner.png',
+  image: '/fallback-banner.jpg',
   ctaText: 'Explore Collection',
   ctaLink: '/shop'
 };
@@ -85,9 +85,10 @@ const HeroExactPreview = ({
         {bannersList.map((b, idx) => (
           <img
             key={b._id || idx}
-            src={getImageUrl(b.image, '/fallback-banner.png')}
+            src={getImageUrl(b?.image, '/fallback-banner.jpg')}
             alt=""
             aria-hidden="true"
+            onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
             className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
               idx === safeIdx ? 'opacity-25' : 'opacity-0'
             }`}
@@ -292,9 +293,9 @@ const HeroExactPreview = ({
                       className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
                     >
                       <img
-                        src={getImageUrl(banner.image, '/fallback-banner.png')}
-                        alt={banner.title || 'Friends Collections'}
-                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                        src={getImageUrl(banner?.image, '/fallback-banner.jpg')}
+                        alt={banner?.title || 'Friends Collections'}
+                        onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
                         fetchPriority={idx === 0 ? 'high' : 'auto'}
                         loading="eager"
                         decoding="async"
@@ -471,9 +472,10 @@ const BannerManager = () => {
   useEffect(() => {
     if (Array.isArray(activeBanners) && activeBanners.length > 0) {
       activeBanners.forEach((b) => {
-        if (b?.image) {
+        const imgSrc = getImageUrl(b?.image, '/fallback-banner.jpg');
+        if (imgSrc) {
           const img = new Image();
-          img.src = getImageUrl(b.image, '/fallback-banner.png');
+          img.src = imgSrc;
         }
       });
     }
@@ -1461,9 +1463,9 @@ const BannerManager = () => {
                     {/* Thumbnail */}
                     <div className="relative w-28 h-18 sm:w-36 sm:h-20 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-200 shrink-0">
                       <img
-                        src={getImageUrl(b.image, '/fallback-banner.png')}
+                        src={getImageUrl(b.image, '/fallback-banner.jpg')}
                         alt={b.title}
-                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                        onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
                         className="w-full h-full object-cover"
                       />
                       {b.isActive === false && (
@@ -1713,9 +1715,9 @@ const BannerManager = () => {
                     <div className="space-y-3 animate-fade-in">
                       <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
                         <img
-                          src={getImageUrl(imagePreview, '/fallback-banner.png')}
+                          src={getImageUrl(imagePreview, '/fallback-banner.jpg')}
                           alt="Banner Preview"
-                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
                         />
 

@@ -12,6 +12,9 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
   if (path === '/uploads/card.png' || path === '/card.png' || path === '/fallback-product.png') {
     return fallback;
   }
+  if (path === '/fallback-banner.png' || path === '/fallback-banner.jpg') {
+    return '/fallback-banner.jpg';
+  }
   if (path.includes('fallback-na-1')) return '/fallback-product-1.png';
   if (path.includes('fallback-na-2')) return '/fallback-product-2.png';
   // Prevent store logo from being used as a product photo

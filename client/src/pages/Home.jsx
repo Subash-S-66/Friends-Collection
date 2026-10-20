@@ -93,7 +93,7 @@ const defaultHeroBanner = {
   title: 'Style That Defines You',
   subtitle:
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
-  image: '/fallback-banner.png',
+  image: '/fallback-banner.jpg',
   ctaText: 'Explore Collection',
   ctaLink: '/shop'
 };
@@ -304,9 +304,10 @@ const Home = () => {
   useEffect(() => {
     if (Array.isArray(activeBanners) && activeBanners.length > 0) {
       activeBanners.forEach((b) => {
-        if (b?.image) {
+        const imgSrc = getImageUrl(b?.image, '/fallback-banner.jpg');
+        if (imgSrc) {
           const img = new Image();
-          img.src = getImageUrl(b.image, '/fallback-banner.png');
+          img.src = imgSrc;
         }
       });
     }
@@ -384,9 +385,10 @@ const Home = () => {
           {activeBanners.map((b, idx) => (
             <img
               key={b._id || idx}
-              src={getImageUrl(b.image, '/fallback-banner.png')}
+              src={getImageUrl(b?.image, '/fallback-banner.jpg')}
               alt=""
               aria-hidden="true"
+              onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
               className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
                 idx === activeBannerIdx ? 'opacity-25' : 'opacity-0'
               }`}
@@ -590,9 +592,9 @@ const Home = () => {
                         className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
                       >
                         <img
-                          src={getImageUrl(banner.image, '/fallback-banner.png')}
-                          alt={banner.title || 'Friends Collections'}
-                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          src={getImageUrl(banner?.image, '/fallback-banner.jpg')}
+                          alt={banner?.title || 'Friends Collections'}
+                          onError={(e) => handleImageError(e, '/fallback-banner.jpg')}
                           fetchPriority={idx === 0 ? 'high' : 'auto'}
                           loading="eager"
                           decoding="async"
