@@ -10,9 +10,11 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const Login = () => {
+  const { showOtpErrorAlert } = useAlert();
   // Method: 'google_or_token' vs 'password'
   const [activeTab, setActiveTab] = useState('token'); // 'token' or 'password'
 
@@ -86,6 +88,13 @@ const Login = () => {
       const msg = err.response?.data?.message || 'Failed to dispatch verification code';
       setErrorMsg(msg);
       toast.error(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Send Sign-In Code',
+        message: msg,
+        email: tokenEmail,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: () => handleRequestToken(e)
+      });
     } finally {
       setTokenLoading(false);
     }
@@ -110,6 +119,22 @@ const Login = () => {
       const msg = err.response?.data?.message || 'Invalid or expired verification code';
       setErrorMsg(msg);
       toast.error(msg);
+
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Sign-In Verification Issue',
+          message: msg,
+          email: tokenEmail,
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleVerifyToken(e)
+        });
+      }
     } finally {
       setTokenLoading(false);
     }

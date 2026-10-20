@@ -57,6 +57,33 @@ export const AlertProvider = ({ children }) => {
     });
   }, []);
 
+  const showOtpErrorAlert = useCallback((opts = {}) => {
+    const {
+      title = 'Unable to Send Verification Code',
+      message = '',
+      email = '',
+      retryAfter = 30,
+      onRetry = null,
+      isVerification = false
+    } = opts;
+
+    setAlertState({
+      isOpen: true,
+      type: isVerification ? 'otp-verify-error' : 'otp-error',
+      title,
+      message:
+        message ||
+        (isVerification
+          ? 'The verification code could not be processed at this moment. Please double check the code for typos or request a fresh OTP.'
+          : 'Our email dispatch system could not send the verification code to your inbox right now. Please try again in a few moments or reach our team on WhatsApp for instant assistance.'),
+      retryAfter: Math.max(5, parseInt(retryAfter, 10) || 30),
+      email: email || '',
+      actionText: isVerification ? 'Try Entering Again' : 'Try Again Now',
+      onAction: onRetry,
+      secondaryText: 'Close'
+    });
+  }, []);
+
   const showCustomAlert = useCallback((opts = {}) => {
     setAlertState({
       isOpen: true,
@@ -75,6 +102,7 @@ export const AlertProvider = ({ children }) => {
   useEffect(() => {
     setGlobalAlertHandler({
       onRateLimit: (seconds, message) => showRateLimitAlert(seconds, message),
+      onOtpError: (opts) => showOtpErrorAlert(opts),
       onMailError: (message) => showMailErrorAlert(message),
       onNetworkError: (message) =>
         showCustomAlert({
@@ -85,7 +113,7 @@ export const AlertProvider = ({ children }) => {
             'Unable to reach Friends Collections server. Please check your internet connection and try again.'
         })
     });
-  }, [showRateLimitAlert, showMailErrorAlert, showCustomAlert]);
+  }, [showRateLimitAlert, showMailErrorAlert, showOtpErrorAlert, showCustomAlert]);
 
   return (
     <AlertContext.Provider
@@ -94,6 +122,7 @@ export const AlertProvider = ({ children }) => {
         closeAlert,
         showRateLimitAlert,
         showMailErrorAlert,
+        showOtpErrorAlert,
         showCustomAlert
       }}
     >

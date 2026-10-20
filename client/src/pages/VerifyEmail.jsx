@@ -30,7 +30,7 @@ const VerifyEmail = () => {
   const [verifiedUser, setVerifiedUser] = useState(null);
 
   const { verifyEmailToken, resendVerification } = useAuth();
-  const { showMailErrorAlert } = useAlert();
+  const { showMailErrorAlert, showOtpErrorAlert } = useAlert();
   const navigate = useNavigate();
   const autoVerifiedRef = useRef(false);
 
@@ -62,6 +62,21 @@ const VerifyEmail = () => {
       setErrorMsg(msg);
       setStatus('input');
       toast.error(msg);
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Verification Service Issue',
+          message: msg,
+          email: targetEmail,
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => executeVerification(targetEmail, targetToken)
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -126,11 +141,14 @@ const VerifyEmail = () => {
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend code';
       setErrorMsg(msg);
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(msg, email);
-      } else {
-        toast.error(msg);
-      }
+      toast.error(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Resend Verification Code',
+        message: msg,
+        email,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: handleResend
+      });
     } finally {
       setLoading(false);
     }

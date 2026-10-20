@@ -433,11 +433,23 @@ exports.requestVerificationToken = async (req, res, next) => {
     });
 
     // Send the gorgeous branded email via Nodemailer
-    await sendVerificationTokenEmail({
-      to: cleanEmail,
-      token,
-      name: existingUser?.name || cleanEmail.split('@')[0]
-    });
+    try {
+      await sendVerificationTokenEmail({
+        to: cleanEmail,
+        token,
+        name: existingUser?.name || cleanEmail.split('@')[0]
+      });
+    } catch (mailError) {
+      console.error('Mail dispatch error in requestVerificationToken:', mailError.message);
+      return res.status(502).json({
+        error: 'MAIL_DELIVERY_FAILED',
+        isMailError: true,
+        isOtpError: true,
+        email: cleanEmail,
+        retryAfter: 30,
+        message: `Could not send 6-digit verification code to ${cleanEmail} due to a temporary dispatch server delay. Please try again in 30 seconds or reach us on WhatsApp.`
+      });
+    }
 
     res.json({
       message: `A 6-digit verification code has been sent to ${cleanEmail}`,
@@ -790,20 +802,32 @@ exports.requestEmailChange = async (req, res, next) => {
     console.log(`=========================================================\n`);
 
     // Concurrently dispatch both emails
-    await Promise.all([
-      sendOldEmailChangeOtp({
-        to: currentEmail,
-        token: oldEmailOtp,
-        newEmail: cleanNewEmail,
-        name: user.name
-      }),
-      sendNewEmailChangeOtp({
-        to: cleanNewEmail,
-        token: newEmailOtp,
-        currentEmail: currentEmail,
-        name: user.name
-      })
-    ]);
+    try {
+      await Promise.all([
+        sendOldEmailChangeOtp({
+          to: currentEmail,
+          token: oldEmailOtp,
+          newEmail: cleanNewEmail,
+          name: user.name
+        }),
+        sendNewEmailChangeOtp({
+          to: cleanNewEmail,
+          token: newEmailOtp,
+          currentEmail: currentEmail,
+          name: user.name
+        })
+      ]);
+    } catch (mailError) {
+      console.error('Mail dispatch error during email change request:', mailError.message);
+      return res.status(502).json({
+        error: 'MAIL_DELIVERY_FAILED',
+        isMailError: true,
+        isOtpError: true,
+        email: cleanNewEmail,
+        retryAfter: 30,
+        message: `Could not send verification codes to ${currentEmail} and ${cleanNewEmail} due to a temporary dispatch server delay. Please try again in 30 seconds or connect with our team on WhatsApp.`
+      });
+    }
 
     res.json({
       success: true,

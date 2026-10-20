@@ -27,12 +27,12 @@ const ForgotPassword = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const { forgotPasswordRequest, forgotPasswordVerify } = useAuth();
-  const { showMailErrorAlert } = useAlert();
+  const { showOtpErrorAlert } = useAlert();
   const navigate = useNavigate();
 
   // Step 1: Dispatch OTP to email
   const handleRequestOtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       toast.error('Please enter a valid email address');
       return;
@@ -49,11 +49,13 @@ const ForgotPassword = () => {
       console.error('Forgot password request error:', err);
       const msg = err.response?.data?.message || 'Failed to dispatch reset code. Please check your email address.';
       setErrorMsg(msg);
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(msg, email);
-      } else {
-        toast.error(msg);
-      }
+      showOtpErrorAlert({
+        title: 'Unable to Send Password Reset Code',
+        message: msg,
+        email,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: () => handleRequestOtp()
+      });
     } finally {
       setLoading(false);
     }
@@ -102,6 +104,22 @@ const ForgotPassword = () => {
       const msg = err.response?.data?.message || 'Invalid or expired OTP code. Please request a new code.';
       setErrorMsg(msg);
       toast.error(msg);
+
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Verification Service Issue',
+          message: msg,
+          email,
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleVerifyAndReset(e)
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -119,11 +137,13 @@ const ForgotPassword = () => {
     } catch (err) {
       const msg = err.response?.data?.message || 'Could not resend code. Try again later.';
       setErrorMsg(msg);
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(msg, email);
-      } else {
-        toast.error(msg);
-      }
+      showOtpErrorAlert({
+        title: 'Unable to Resend Password Reset Code',
+        message: msg,
+        email,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: handleResendOtp
+      });
     } finally {
       setLoading(false);
     }

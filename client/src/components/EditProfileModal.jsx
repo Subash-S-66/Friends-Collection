@@ -12,8 +12,10 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useAlert } from '../context/AlertContext';
 
 const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
+  const { showOtpErrorAlert } = useAlert();
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -142,7 +144,18 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
       setResendCooldown(30);
       toast.success(res.data?.message || 'Verification codes sent to both emails!', { icon: '📩' });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to request email change. Please try again.');
+      const msg = err.response?.data?.message || 'Failed to request email change. Please try again.';
+      setError(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Send Email Verification Codes',
+        message: msg,
+        email: cleanEmail,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: () => {
+          setEmail(cleanEmail);
+          setPhone(cleanPhone);
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -161,7 +174,15 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
       setResendCooldown(45);
       toast.success(res.data?.message || 'New verification codes have been sent!', { icon: '🔄' });
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not resend codes. Please try again.');
+      const msg = err.response?.data?.message || 'Could not resend codes. Please try again.';
+      setError(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Resend Verification Codes',
+        message: msg,
+        email: pendingNewEmail,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: handleResendCodes
+      });
     } finally {
       setLoading(false);
     }
@@ -205,7 +226,25 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
       }
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed. Please check both codes and try again.');
+      const msg = err.response?.data?.message || 'Verification failed. Please check both codes and try again.';
+      setError(msg);
+
+      // If server or network delivery failure, pop up dynamic modal
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Verification Server Issue',
+          message: msg,
+          email: pendingNewEmail,
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleVerifyDualOtp(e)
+        });
+      }
     } finally {
       setLoading(false);
     }

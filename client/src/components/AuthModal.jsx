@@ -38,7 +38,7 @@ const AuthModal = () => {
     user
   } = useAuth();
 
-  const { showMailErrorAlert, showRateLimitAlert } = useAlert();
+  const { showMailErrorAlert, showRateLimitAlert, showOtpErrorAlert } = useAlert();
   const navigate = useNavigate();
 
   // Mode: 'login' | 'register' | 'forgot' | 'verify-email'
@@ -143,11 +143,15 @@ const AuthModal = () => {
       toast.success(res.message || '6-digit code sent to your email!', { icon: '📬' });
       setTokenStep('verify');
     } catch (err) {
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(err.response?.data?.message, loginEmail.trim().toLowerCase());
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to dispatch code');
-      }
+      const msg = err.response?.data?.message || 'Failed to dispatch code';
+      toast.error(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Send Sign-In Code',
+        message: msg,
+        email: loginEmail.trim().toLowerCase(),
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: () => handleRequestToken(e)
+      });
     } finally {
       setLoginLoading(false);
     }
@@ -168,7 +172,24 @@ const AuthModal = () => {
       toast.success('Signed in successfully!', { icon: '✨' });
       handleAuthSuccess(res.user);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired code');
+      const msg = err.response?.data?.message || 'Invalid or expired code';
+      toast.error(msg);
+
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Sign-In Verification Issue',
+          message: msg,
+          email: loginEmail.trim().toLowerCase(),
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleVerifyToken(e)
+        });
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -213,10 +234,15 @@ const AuthModal = () => {
         toast.success('Account created! Verification token sent to your email.', { icon: '📬' });
       }
     } catch (err) {
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(err.response?.data?.message, regEmail.trim().toLowerCase());
-      } else {
-        toast.error(err.response?.data?.message || 'Registration failed');
+      const msg = err.response?.data?.message || 'Registration failed';
+      toast.error(msg);
+      if (err.response?.data?.isMailError || err.response?.data?.isOtpError || err.response?.status === 502) {
+        showOtpErrorAlert({
+          title: 'Verification Code Delayed',
+          message: msg,
+          email: regEmail.trim().toLowerCase(),
+          retryAfter: 30
+        });
       }
     } finally {
       setRegLoading(false);
@@ -243,7 +269,23 @@ const AuthModal = () => {
       toast.success('Account verified successfully!', { icon: '🎉' });
       startCountdown(res.user);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired verification code');
+      const msg = err.response?.data?.message || 'Invalid or expired verification code';
+      toast.error(msg);
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Verification Service Issue',
+          message: msg,
+          email: verifyEmail,
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleVerifyEmail(e)
+        });
+      }
     } finally {
       setVerifyLoading(false);
     }
@@ -288,11 +330,15 @@ const AuthModal = () => {
         });
       }, 1000);
     } catch (err) {
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(err.response?.data?.message, verifyEmail);
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to resend verification code');
-      }
+      const msg = err.response?.data?.message || 'Failed to resend verification code';
+      toast.error(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Resend Verification Code',
+        message: msg,
+        email: verifyEmail,
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: handleResend
+      });
     } finally {
       setVerifyLoading(false);
     }
@@ -312,11 +358,15 @@ const AuthModal = () => {
       toast.success(res.message || 'Password reset OTP dispatched!', { icon: '📬' });
       setForgotStep('verify');
     } catch (err) {
-      if (err.response?.data?.isMailError) {
-        showMailErrorAlert(err.response?.data?.message, forgotEmail.trim().toLowerCase());
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to send reset code');
-      }
+      const msg = err.response?.data?.message || 'Failed to send reset code';
+      toast.error(msg);
+      showOtpErrorAlert({
+        title: 'Unable to Send Password Reset Code',
+        message: msg,
+        email: forgotEmail.trim().toLowerCase(),
+        retryAfter: err.response?.data?.retryAfter || 30,
+        onRetry: () => handleForgotRequest(e)
+      });
     } finally {
       setForgotLoading(false);
     }
@@ -345,7 +395,23 @@ const AuthModal = () => {
       toast.success('Password updated! You are now signed in.', { icon: '🔐' });
       handleAuthSuccess(res.user);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update password');
+      const msg = err.response?.data?.message || 'Failed to update password';
+      toast.error(msg);
+      if (
+        err.response?.status === 502 ||
+        err.response?.data?.isMailError ||
+        err.response?.data?.isOtpError ||
+        err.code === 'ECONNABORTED'
+      ) {
+        showOtpErrorAlert({
+          title: 'Password Reset Verification Issue',
+          message: msg,
+          email: forgotEmail.trim().toLowerCase(),
+          isVerification: true,
+          retryAfter: 15,
+          onRetry: () => handleForgotVerify(e)
+        });
+      }
     } finally {
       setForgotLoading(false);
     }

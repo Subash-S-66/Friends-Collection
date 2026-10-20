@@ -7,7 +7,10 @@ import {
   HiOutlineWifi,
   HiOutlineX,
   HiOutlineCheckCircle,
-  HiOutlineQuestionMarkCircle
+  HiOutlineQuestionMarkCircle,
+  HiOutlineRefresh,
+  HiOutlineShieldCheck,
+  HiOutlineSparkles
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAlert } from '../context/AlertContext';
@@ -19,7 +22,7 @@ const DynamicAlertModal = () => {
     type,
     title,
     message,
-    retryAfter = 60,
+    retryAfter = 30,
     email = '',
     actionText,
     onAction,
@@ -27,14 +30,14 @@ const DynamicAlertModal = () => {
     onSecondary
   } = alertState;
 
-  // Live ticking countdown for rate-limit
+  // Live ticking countdown for rate-limit and OTP cooldown
   const [secondsLeft, setSecondsLeft] = useState(retryAfter);
   const [totalSeconds, setTotalSeconds] = useState(retryAfter);
 
   // Sync initial countdown whenever alert opens or retryAfter changes
   useEffect(() => {
     if (isOpen) {
-      const initial = Math.max(1, parseInt(retryAfter, 10) || 60);
+      const initial = Math.max(1, parseInt(retryAfter, 10) || 30);
       setSecondsLeft(initial);
       setTotalSeconds(initial);
     }
@@ -42,7 +45,8 @@ const DynamicAlertModal = () => {
 
   // Ticking countdown effect
   useEffect(() => {
-    if (!isOpen || type !== 'rate-limit' || secondsLeft <= 0) return;
+    const isTimedType = type === 'rate-limit' || type === 'otp-error' || type === 'otp-verify-error';
+    if (!isOpen || !isTimedType || secondsLeft <= 0) return;
 
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -97,6 +101,10 @@ const DynamicAlertModal = () => {
                 ? secondsLeft > 0
                   ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-amber-600 animate-pulse'
                   : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                : (type === 'otp-error' || type === 'otp-verify-error')
+                ? secondsLeft > 0
+                  ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-primary animate-pulse'
+                  : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-primary'
                 : type === 'mail-error'
                 ? 'bg-gradient-to-r from-primary via-accent to-primary-light'
                 : type === 'network-error'
@@ -230,6 +238,168 @@ const DynamicAlertModal = () => {
                     className="w-full sm:w-auto px-5 py-3 rounded-2xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 text-sm font-medium transition-colors"
                   >
                     Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ===================== OTP & VERIFICATION ERROR POPUP ===================== */}
+            {(type === 'otp-error' || type === 'otp-verify-error') && (
+              <div className="text-center sm:text-left">
+                {/* Dynamic Status Badge */}
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-3.5">
+                  <div
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border ${
+                      secondsLeft > 0
+                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    }`}
+                  >
+                    {secondsLeft > 0 ? (
+                      <>
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        <span>{type === 'otp-verify-error' ? 'Verification Alert' : 'OTP Delivery Notice'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700">Ready to Retry</span>
+                      </>
+                    )}
+                  </div>
+
+                  {secondsLeft > 0 && (
+                    <span className="text-xs font-mono font-bold text-amber-800 bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-200/50">
+                      Try again in {formatTime(secondsLeft)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Header Icon + Title */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${
+                      secondsLeft > 0
+                        ? 'bg-amber-100/80 text-amber-800 border border-amber-200/60'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                    }`}
+                  >
+                    {type === 'otp-verify-error' ? (
+                      <HiOutlineShieldCheck className="w-7 h-7" />
+                    ) : (
+                      <HiOutlineMail className="w-7 h-7" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-serif font-bold text-neutral-900 leading-snug">
+                      {title ||
+                        (type === 'otp-verify-error'
+                          ? 'Verification Code Issue'
+                          : 'Unable to Send Verification Code')}
+                    </h3>
+                    {email ? (
+                      <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-mono truncate max-w-xs">
+                        <span>📧</span>
+                        <span className="truncate">{email}</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Friends Collections Security System
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dynamic Message Box */}
+                <div className="p-4 rounded-2xl bg-cream border border-neutral-200/80 mb-4 text-xs sm:text-sm text-neutral-700 leading-relaxed text-left">
+                  {message ||
+                    'Our email delivery system experienced a temporary delay dispatching your 6-digit code. Your account details remain completely safe. Please wait a moment and try again.'}
+                </div>
+
+                {/* Live Countdown Progress Bar (during cooldown) */}
+                {secondsLeft > 0 && (
+                  <div className="mb-5 bg-amber-50/70 border border-amber-200/60 rounded-xl p-3 text-center">
+                    <div className="flex items-center justify-between text-xs text-amber-900 font-semibold mb-1.5">
+                      <span>Cooldown active — please pause</span>
+                      <span className="font-mono">{formatTime(secondsLeft)}</span>
+                    </div>
+                    <div className="w-full bg-amber-200/50 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Helpful Guidance Cards */}
+                <div className="space-y-2 mb-6 text-left">
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 text-xs text-neutral-600">
+                    <span className="font-bold text-primary">1.</span>
+                    <span>
+                      <strong>Check Spam & Promotions:</strong> One-time security codes may occasionally filter into secondary inboxes.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 text-xs text-neutral-600">
+                    <span className="font-bold text-primary">2.</span>
+                    <span>
+                      <strong>Check Spelling:</strong> Make sure there are no typos in the target email address.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 text-xs text-emerald-900">
+                    <span className="font-bold text-emerald-700">3.</span>
+                    <span>
+                      <strong>Instant Assistance:</strong> Our Jamalia boutique team can assist you directly on WhatsApp.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {secondsLeft > 0 ? (
+                    <button
+                      disabled
+                      className="flex-1 px-5 py-3 rounded-2xl bg-neutral-100 text-neutral-400 font-medium text-xs sm:text-sm cursor-not-allowed border border-neutral-200 text-center"
+                    >
+                      Try Again in ({formatTime(secondsLeft)})
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (onAction) onAction();
+                        closeAlert();
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-primary hover:bg-primary-dark text-white font-semibold text-xs sm:text-sm shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                    >
+                      <HiOutlineRefresh className="w-4 h-4" />
+                      <span>{actionText || 'Try Again Now ✨'}</span>
+                    </button>
+                  )}
+
+                  <a
+                    href={`https://wa.me/919500757024?text=${encodeURIComponent(
+                      `Hello Friends Collections, I encountered an issue receiving my verification OTP code for ${email || 'my account'}. Please assist me.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={closeAlert}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-semibold text-xs sm:text-sm shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <FaWhatsapp className="w-4 h-4 text-white" />
+                    <span>WhatsApp Help</span>
+                  </a>
+
+                  <button
+                    onClick={() => {
+                      if (onSecondary) onSecondary();
+                      closeAlert();
+                    }}
+                    className="px-4 py-3 rounded-2xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+                  >
+                    {secondaryText || 'Close'}
                   </button>
                 </div>
               </div>

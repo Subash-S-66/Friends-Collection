@@ -19,7 +19,10 @@ const getTransporter = async () => {
       auth: {
         user: smtpUser,
         pass: smtpPass
-      }
+      },
+      connectionTimeout: 10000, // 10 seconds timeout
+      greetingTimeout: 8000,    // 8 seconds timeout
+      socketTimeout: 15000      // 15 seconds socket timeout
     });
   } else {
     // Development / fallback: Create Ethereal test account or console logger
