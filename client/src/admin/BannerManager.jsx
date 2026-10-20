@@ -840,12 +840,22 @@ const BannerManager = () => {
                 </span>
               </div>
               <p className="text-xs text-amber-100 mt-0.5">
-                The live storefront is <strong>NOT</strong> updated yet. Test your changes in the preview below or pop-up modal, then click <strong>Save & Go Live</strong>.
+                The live storefront is <strong>NOT</strong> updated yet. Click <strong>Preview Pop-up</strong> to test your changes in the 95% full-screen modal, then click <strong>Save & Go Live</strong>.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all border border-white/30 cursor-pointer active:scale-95"
+              title="Open 95% full-screen preview"
+            >
+              <HiOutlineEye className="w-4 h-4 text-white" />
+              <span>Preview Pop-up</span>
+            </button>
+
             <button
               type="button"
               onClick={handleDiscardChanges}
@@ -895,28 +905,41 @@ const BannerManager = () => {
               Select Carousel Style (Testing Mode)
             </h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              Select a style to test in the live preview. Click "Save & Go Live" when ready.
+              Select a style to test in the pop-up preview. Click "Save & Go Live" when ready.
             </p>
           </div>
 
-          {/* Quick Default Button */}
-          <button
-            type="button"
-            onClick={handleDraftMakeDefault}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs cursor-pointer border ${
-              draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                : 'bg-cream hover:bg-amber-100 text-primary border-accent-300 hover:border-accent-400 active:scale-95'
-            }`}
-            title="Configure Image Box Carousel as default in testing draft"
-          >
-            <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>
-              {draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
-                ? 'Image Box Carousel Selected (Default)'
-                : 'Set Image Box as Default (Recommended)'}
-            </span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Pop-up Preview Button */}
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-neutral-50 text-neutral-800 border-2 border-accent-300 hover:border-accent-400 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+              title="Open 95% full interactive storefront preview"
+            >
+              <HiOutlineEye className="w-4 h-4 text-accent-700" />
+              <span>Preview Pop-up (95%)</span>
+            </button>
+
+            {/* Quick Default Button */}
+            <button
+              type="button"
+              onClick={handleDraftMakeDefault}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs cursor-pointer border ${
+                draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-cream hover:bg-amber-100 text-primary border-accent-300 hover:border-accent-400 active:scale-95'
+              }`}
+              title="Configure Image Box Carousel as default in testing draft"
+            >
+              <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                {draftSettings.enabled && draftSettings.type === 'image_box' && draftSettings.transition === 'fade'
+                  ? 'Image Box Selected (Default)'
+                  : 'Set Image Box as Default'}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* 3 Interactive Mode Selection Cards (Modifies Draft) */}
@@ -1125,113 +1148,29 @@ const BannerManager = () => {
         )}
       </div>
 
-      {/* On-Page Exact Storefront Hero Preview (Exact 1:1 Replica Copied from Home.jsx) */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-900 text-white p-4.5 rounded-2xl border border-white/10">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <div>
-              <h3 className="font-serif text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                <span>Exact Homepage Hero Preview</span>
-                <span className="text-[10px] uppercase font-sans font-bold px-2 py-0.5 rounded-full bg-accent text-white">
-                  1:1 Exact Match
-                </span>
-              </h3>
-              <p className="text-[11px] text-neutral-400">
-                Direct copy from homepage. Test switches between Small and Big Carousel below.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Quick Switcher between Small Carousel and Big Carousel */}
-            <div className="inline-flex rounded-xl bg-white/10 p-1 border border-white/10">
-              <button
-                type="button"
-                onClick={() => handleDraftMode('image_box')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  draftSettings.enabled && draftSettings.type === 'image_box'
-                    ? 'bg-accent text-white shadow-xs'
-                    : 'text-neutral-300 hover:text-white'
-                }`}
-                title="Preview Small Carousel (Image Box Only)"
-              >
-                Small Carousel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDraftMode('full')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  draftSettings.enabled && draftSettings.type === 'full'
-                    ? 'bg-accent text-white shadow-xs'
-                    : 'text-neutral-300 hover:text-white'
-                }`}
-                title="Preview Big Carousel (Full Hero Banner)"
-              >
-                Big Carousel
-              </button>
-            </div>
-
-            {/* Pop-up modal button */}
-            <button
-              type="button"
-              onClick={() => setPreviewModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 transition-all cursor-pointer active:scale-95"
-            >
-              <HiOutlineEye className="w-4 h-4 text-accent-300" />
-              <span>Pop-up View</span>
-            </button>
-          </div>
-        </div>
-
-        {/* The Exact Component Replica from Home.jsx */}
-        <div className="rounded-3xl overflow-hidden shadow-2xl border border-neutral-200">
-          <HeroExactPreview
-            activeBanners={activeBanners}
-            activeBannerIdx={previewIdx}
-            setActiveBannerIdx={setPreviewIdx}
-            carouselType={draftSettings.type}
-            isCarouselEnabled={draftSettings.enabled}
-            carouselTransition={draftSettings.transition}
-            isHovered={previewPaused}
-            setIsHovered={setPreviewPaused}
-            storeSettings={storeSettings}
-            onPrevBanner={handlePrevPreviewSlide}
-            onNextBanner={handleNextPreviewSlide}
-            onBannerClick={(b) => {
-              toast.info(`Clicked banner destination: ${b?.ctaLink || '/shop'} (Simulated same-site link)`, { icon: '🔗' });
-            }}
-          />
-        </div>
-
-        <p className="text-[11px] text-neutral-500 text-center">
-          💡 Interactive Preview: Hover over the hero to pause the {draftSettings.interval / 1000}s timer. Click left/right arrows to change slides.
-        </p>
-      </div>
-
-      {/* Pop-up Preview Modal */}
+      {/* Pop-up Preview Modal (95% Screen View) */}
       {previewModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 bg-black/90 backdrop-blur-md animate-fade-in"
           onClick={() => setPreviewModalOpen(false)}
         >
           <div
-            className="bg-neutral-950 rounded-3xl max-w-6xl w-full border border-white/15 shadow-2xl overflow-hidden flex flex-col max-h-[96vh]"
+            className="bg-neutral-950 rounded-3xl w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh] border border-white/15 shadow-2xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 bg-neutral-900/90 border-b border-white/10 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-8 py-3.5 sm:py-4 bg-neutral-900/95 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <div>
-                  <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-white flex items-center gap-2">
                     <span>Storefront Hero Preview (1:1 Replica)</span>
-                    <span className="text-[11px] font-sans font-semibold px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                    <span className="text-[10px] sm:text-[11px] font-sans font-semibold px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
                       Exact Homepage Style
                     </span>
                   </h3>
                   <p className="text-[11px] text-neutral-400">
-                    Test live auto-sliding, hover pauses, and switch between Small and Big Carousel in real-time.
+                    Full 95% screen view. Switch between Small and Big Carousel in real-time below.
                   </p>
                 </div>
               </div>
@@ -1241,11 +1180,12 @@ const BannerManager = () => {
                 <button
                   type="button"
                   onClick={() => handleDraftMode('image_box')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     draftSettings.enabled && draftSettings.type === 'image_box'
-                      ? 'bg-primary text-white shadow-xs'
+                      ? 'bg-accent text-white shadow-xs'
                       : 'text-neutral-300 hover:text-white hover:bg-white/10'
                   }`}
+                  title="Switch to Small Carousel (Image Box Only)"
                 >
                   Small Carousel (Image Box)
                 </button>
@@ -1253,11 +1193,12 @@ const BannerManager = () => {
                 <button
                   type="button"
                   onClick={() => handleDraftMode('full')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     draftSettings.enabled && draftSettings.type === 'full'
-                      ? 'bg-primary text-white shadow-xs'
+                      ? 'bg-accent text-white shadow-xs'
                       : 'text-neutral-300 hover:text-white hover:bg-white/10'
                   }`}
+                  title="Switch to Big Carousel (Full Hero Banner)"
                 >
                   Big Carousel (Full Hero)
                 </button>
@@ -1268,30 +1209,32 @@ const BannerManager = () => {
                 type="button"
                 onClick={() => setPreviewModalOpen(false)}
                 className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 cursor-pointer self-end sm:self-auto"
-                title="Close Preview"
+                title="Close Preview (ESC or click outside)"
               >
                 <HiOutlineX className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body: Exact Hero Component */}
-            <div className="overflow-y-auto p-4 sm:p-6 flex-1 bg-neutral-900/40">
-              <HeroExactPreview
-                activeBanners={activeBanners}
-                activeBannerIdx={previewIdx}
-                setActiveBannerIdx={setPreviewIdx}
-                carouselType={draftSettings.type}
-                isCarouselEnabled={draftSettings.enabled}
-                carouselTransition={draftSettings.transition}
-                isHovered={previewPaused}
-                setIsHovered={setPreviewPaused}
-                storeSettings={storeSettings}
-                onPrevBanner={handlePrevPreviewSlide}
-                onNextBanner={handleNextPreviewSlide}
-                onBannerClick={(b) => {
-                  toast.info(`Redirect test: ${b?.ctaLink || '/shop'} (Simulated same-site navigation)`, { icon: '🔗' });
-                }}
-              />
+            {/* Modal Body: Exact Hero Component filling 95% screen */}
+            <div className="overflow-y-auto p-2 sm:p-5 flex-1 bg-neutral-900/60 flex items-center justify-center">
+              <div className="w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+                <HeroExactPreview
+                  activeBanners={activeBanners}
+                  activeBannerIdx={previewIdx}
+                  setActiveBannerIdx={setPreviewIdx}
+                  carouselType={draftSettings.type}
+                  isCarouselEnabled={draftSettings.enabled}
+                  carouselTransition={draftSettings.transition}
+                  isHovered={previewPaused}
+                  setIsHovered={setPreviewPaused}
+                  storeSettings={storeSettings}
+                  onPrevBanner={handlePrevPreviewSlide}
+                  onNextBanner={handleNextPreviewSlide}
+                  onBannerClick={(b) => {
+                    toast.info(`Redirect test: ${b?.ctaLink || '/shop'} (Simulated same-site navigation)`, { icon: '🔗' });
+                  }}
+                />
+              </div>
             </div>
 
             {/* Modal Footer Bar with Save & Go Live Button */}
