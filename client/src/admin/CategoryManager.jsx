@@ -95,20 +95,66 @@ const CategoryManager = () => {
   };
 
   const toggleDepartmentVisibility = async (deptKey) => {
-    setTogglingDept(true);
     const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
     const newIsActive = isCurrentlyHidden; // If hidden, make active (true); if active, make hidden (false)
+    const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+    const deptName = names[deptKey] || deptKey;
 
-    // Optimistically update local categories & hiddenDepartments
-    setCategories((prev) =>
-      prev.map((c) => {
+    const catCount = safeCategories.filter((c) => {
+      const g = (c.gender || 'women').toLowerCase();
+      return g === deptKey || (deptKey === 'women' && (!c.gender || c.gender === 'women'));
+    }).length;
+
+    // Safety guard when turning OFF: at least one department must remain visible
+    if (!newIsActive) {
+      const allDepts = ['women', 'men', 'kids'];
+      const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
+      if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
+        toast.error('At least one department must remain visible on the store.');
+        return;
+      }
+    }
+
+    // Confirmation Popup before turning ON or turning OFF
+    const ok = await confirm({
+      title: newIsActive
+        ? `Turn ON Entire ${deptName}?`
+        : `Turn OFF Entire ${deptName}?`,
+      message: newIsActive
+        ? `This will restore ${deptName} across the storefront navigation bar, shop catalog, filters, search, and homepage, and reactivate all ${catCount} categories.`
+        : `This will immediately hide ${deptName} everywhere (navigation bar, mega-menu, shop catalog, filters, homepage, search) from customers, and turn off all ${catCount} categories. Are you sure?`,
+      type: newIsActive ? 'primary' : 'danger',
+      confirmText: newIsActive ? `Yes, Turn ON ${deptName}` : `Yes, Turn OFF ${deptName}`,
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
+    setTogglingDept(deptKey);
+    const toastId = toast.loading(
+      newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
+    );
+
+    // Optimistically update local categories & hiddenDepartments (both parent categories and nested subcategories)
+    setCategories((prev) => {
+      const parentIds = new Set(
+        prev
+          .filter((c) => {
+            const catGender = (c.gender || 'women').toLowerCase();
+            return catGender === deptKey || (deptKey === 'women' && (!c.gender || c.gender === 'women'));
+          })
+          .map((c) => String(c._id))
+      );
+
+      return prev.map((c) => {
         const catGender = (c.gender || 'women').toLowerCase();
-        if (catGender === deptKey || (deptKey === 'women' && (!c.gender || c.gender === 'women'))) {
+        const isDirect = catGender === deptKey || (deptKey === 'women' && (!c.gender || c.gender === 'women'));
+        const isChild = c.parent && parentIds.has(String(c.parent._id || c.parent));
+        if (isDirect || isChild) {
           return { ...c, isActive: newIsActive };
         }
         return c;
-      })
-    );
+      });
+    });
 
     if (newIsActive) {
       setHiddenDepartments((prev) => prev.filter((d) => d !== deptKey));
@@ -120,14 +166,14 @@ const CategoryManager = () => {
       const res = await API.patch(`/categories/admin/department/${deptKey}/toggle`, {
         isActive: newIsActive
       });
-      toast.success(res.data?.message || 'Department updated successfully');
-      fetchCategories();
+      toast.success(res.data?.message || `Entire ${deptName} updated successfully!`, { id: toastId });
+      await fetchCategories();
     } catch (err) {
       console.error('Error toggling entire department:', err);
-      toast.error(err.response?.data?.message || 'Failed to update department visibility');
+      toast.error(err.response?.data?.message || 'Failed to update department visibility', { id: toastId });
       fetchCategories();
     } finally {
-      setTogglingDept(false);
+      setTogglingDept(null);
     }
   };
 
@@ -474,16 +520,25 @@ const CategoryManager = () => {
 
                 <button
                   type="button"
-                  disabled={togglingDept}
+                  disabled={Boolean(togglingDept)}
                   onClick={() => toggleDepartmentVisibility(dept.key)}
-                  className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isHidden
+                  className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    togglingDept === dept.key
+                      ? 'bg-white/20 text-white cursor-wait'
+                      : isHidden
                       ? 'bg-accent-500 hover:bg-accent-400 text-primary-950 shadow-md active:scale-95'
                       : 'bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-neutral-200 border border-white/20 active:scale-95'
                   }`}
                   title={isHidden ? `Click to Show ${dept.name} on storefront` : `Click to Hide ${dept.name} from storefront`}
                 >
-                  {isHidden ? 'Show on Store' : 'Hide Section'}
+                  {togglingDept === dept.key ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                    </>
+                  ) : (
+                    <span>{isHidden ? 'Show on Store' : 'Hide Section'}</span>
+                  )}
                 </button>
               </div>
             );
@@ -560,15 +615,22 @@ const CategoryManager = () => {
             {genderFilter === 'kids' && (
               <button
                 type="button"
-                disabled={togglingDept}
+                disabled={Boolean(togglingDept)}
                 onClick={() => toggleDepartmentVisibility('kids')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
-                  hiddenDepartments.includes('kids')
+                  togglingDept === 'kids'
+                    ? 'bg-neutral-700 text-white cursor-wait opacity-90'
+                    : hiddenDepartments.includes('kids')
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-red-600 hover:bg-red-700 text-white'
                 }`}
               >
-                {hiddenDepartments.includes('kids') ? (
+                {togglingDept === 'kids' ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{hiddenDepartments.includes('kids') ? 'Turning ON Kids Department...' : 'Turning OFF Kids Department...'}</span>
+                  </>
+                ) : hiddenDepartments.includes('kids') ? (
                   <>
                     <HiOutlineEye className="w-4 h-4" />
                     <span>✨ Turn ON Entire Kids Department (Show on Store & Navbar)</span>
@@ -585,15 +647,22 @@ const CategoryManager = () => {
             {genderFilter === 'women' && (
               <button
                 type="button"
-                disabled={togglingDept}
+                disabled={Boolean(togglingDept)}
                 onClick={() => toggleDepartmentVisibility('women')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
-                  hiddenDepartments.includes('women')
+                  togglingDept === 'women'
+                    ? 'bg-neutral-700 text-white cursor-wait opacity-90'
+                    : hiddenDepartments.includes('women')
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-red-600 hover:bg-red-700 text-white'
                 }`}
               >
-                {hiddenDepartments.includes('women') ? (
+                {togglingDept === 'women' ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{hiddenDepartments.includes('women') ? "Turning ON Women's Department..." : "Turning OFF Women's Department..."}</span>
+                  </>
+                ) : hiddenDepartments.includes('women') ? (
                   <>
                     <HiOutlineEye className="w-4 h-4" />
                     <span>✨ Turn ON Entire Women&apos;s Department</span>
@@ -610,15 +679,22 @@ const CategoryManager = () => {
             {genderFilter === 'men' && (
               <button
                 type="button"
-                disabled={togglingDept}
+                disabled={Boolean(togglingDept)}
                 onClick={() => toggleDepartmentVisibility('men')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
-                  hiddenDepartments.includes('men')
+                  togglingDept === 'men'
+                    ? 'bg-neutral-700 text-white cursor-wait opacity-90'
+                    : hiddenDepartments.includes('men')
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-red-600 hover:bg-red-700 text-white'
                 }`}
               >
-                {hiddenDepartments.includes('men') ? (
+                {togglingDept === 'men' ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{hiddenDepartments.includes('men') ? "Turning ON Men's Department..." : "Turning OFF Men's Department..."}</span>
+                  </>
+                ) : hiddenDepartments.includes('men') ? (
                   <>
                     <HiOutlineEye className="w-4 h-4" />
                     <span>✨ Turn ON Entire Men&apos;s Department</span>
@@ -645,16 +721,25 @@ const CategoryManager = () => {
                     <button
                       key={d.key}
                       type="button"
-                      disabled={togglingDept}
+                      disabled={Boolean(togglingDept)}
                       onClick={() => toggleDepartmentVisibility(d.key)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
-                        isH
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                        togglingDept === d.key
+                          ? 'bg-neutral-200 text-neutral-800 border-neutral-400 cursor-wait'
+                          : isH
                           ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
                           : 'bg-neutral-100 text-neutral-700 border-neutral-200 hover:bg-red-50 hover:text-red-700'
                       }`}
                       title={isH ? `Turn ON ${d.label}` : `Turn OFF ${d.label}`}
                     >
-                      {d.label}: {isH ? '🔒 Hidden' : '✨ Live'}
+                      {togglingDept === d.key ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <span>{d.label}: {isH ? '🔒 Hidden' : '✨ Live'}</span>
+                      )}
                     </button>
                   );
                 })}

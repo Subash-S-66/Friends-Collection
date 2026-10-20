@@ -237,7 +237,7 @@ exports.toggleCategoryStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Toggle or set entire department active status (all categories + hiddenDepartments setting)
+// @desc    Toggle or set entire department active status (all categories + products + hiddenDepartments setting)
 // @route   PATCH /api/categories/admin/department/:gender/toggle
 exports.toggleEntireDepartment = async (req, res, next) => {
   try {
@@ -248,6 +248,7 @@ exports.toggleEntireDepartment = async (req, res, next) => {
     }
 
     const Settings = require('../models/Settings');
+    const Product = require('../models/Product');
     const settingsDoc = await Settings.findOne({ key: 'hiddenDepartments' });
     let hidden = Array.isArray(settingsDoc?.value) ? settingsDoc.value.map((x) => String(x).toLowerCase()) : [];
 
@@ -284,13 +285,47 @@ exports.toggleEntireDepartment = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
-    // 2. Update ALL categories belonging to this department
-    const catFilter =
+    // 2. Find ALL categories and subcategories belonging to this department
+    const baseCatFilter =
       g === 'women'
         ? { $or: [{ gender: 'women' }, { gender: null }, { gender: { $exists: false } }] }
         : { gender: g };
 
-    const updateResult = await Category.updateMany(catFilter, { isActive: newIsActive });
+    const directCats = await Category.find(baseCatFilter).select('_id').lean();
+    const allCatIds = new Set(directCats.map((c) => c._id.toString()));
+
+    // Recursively collect all descendant subcategories so EVERYTHING turns on/off together
+    let currentLevelIds = Array.from(allCatIds);
+    while (currentLevelIds.length > 0) {
+      const childCats = await Category.find({ parent: { $in: currentLevelIds } }).select('_id').lean();
+      const nextLevelIds = childCats
+        .map((c) => c._id.toString())
+        .filter((id) => !allCatIds.has(id));
+      nextLevelIds.forEach((id) => allCatIds.add(id));
+      currentLevelIds = nextLevelIds;
+    }
+
+    const catIdArray = Array.from(allCatIds);
+
+    const fullCatFilter = {
+      $or: [
+        baseCatFilter,
+        ...(catIdArray.length > 0 ? [{ _id: { $in: catIdArray } }] : [])
+      ]
+    };
+
+    // Reactivate or deactivate ALL categories and nested subcategories
+    const updateResult = await Category.updateMany(fullCatFilter, { isActive: newIsActive });
+
+    // 3. Also sync all products belonging to this department / category taxonomy
+    const productFilter = {
+      $or: [
+        { gender: g },
+        ...(catIdArray.length > 0 ? [{ category: { $in: catIdArray } }] : []),
+        ...(catIdArray.length > 0 ? [{ subcategory: { $in: catIdArray } }] : [])
+      ]
+    };
+    const prodResult = await Product.updateMany(productFilter, { isActive: newIsActive });
 
     const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
     const deptName = names[g] || g;
@@ -302,6 +337,7 @@ exports.toggleEntireDepartment = async (req, res, next) => {
       isActive: newIsActive,
       hiddenDepartments: hidden,
       categoriesUpdated: updateResult.modifiedCount || 0,
+      productsUpdated: prodResult.modifiedCount || 0,
       message: newHiddenState
         ? `Entire ${deptName} (${updateResult.modifiedCount || 0} categories) is now turned OFF and hidden from store & navbar.`
         : `Entire ${deptName} (${updateResult.modifiedCount || 0} categories) is now turned ON and LIVE on store & navbar.`

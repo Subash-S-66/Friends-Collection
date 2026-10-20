@@ -65,7 +65,7 @@ const SettingsManager = () => {
 
   // 6. Department Visibility state
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
-  const [savingDepartments, setSavingDepartments] = useState(false);
+  const [savingDepartmentKey, setSavingDepartmentKey] = useState(null);
 
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
@@ -106,37 +106,60 @@ const SettingsManager = () => {
       .catch((err) => console.error('Error fetching settings:', err));
   }, []);
 
-  // Handle department visibility toggle
+  // Handle department visibility toggle with confirmation & loading
   const handleToggleDepartment = async (deptKey) => {
     const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
-    let updatedList;
-    if (isCurrentlyHidden) {
-      updatedList = hiddenDepartments.filter((k) => k !== deptKey);
-    } else {
+    const newIsActive = isCurrentlyHidden;
+    const deptNames = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+    const deptName = deptNames[deptKey] || deptKey;
+
+    if (!newIsActive) {
       const allDepts = ['women', 'men', 'kids'];
       const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
       if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
         toast.error('At least one department must remain visible on the store.');
         return;
       }
-      updatedList = [...hiddenDepartments, deptKey];
     }
 
-    setSavingDepartments(true);
+    const ok = await confirm({
+      title: newIsActive ? `Turn ON Entire ${deptName}?` : `Turn OFF Entire ${deptName}?`,
+      message: newIsActive
+        ? `This will restore ${deptName} across the storefront navigation bar, shop catalog, filters, search, and homepage, and reactivate all categories and products.`
+        : `This will immediately hide ${deptName} everywhere (navigation bar, mega-menu, shop catalog, filters, homepage, search) from customers, and turn off all categories. Are you sure?`,
+      type: newIsActive ? 'primary' : 'danger',
+      confirmText: newIsActive ? `Yes, Turn ON ${deptName}` : `Yes, Turn OFF ${deptName}`,
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
+    setSavingDepartmentKey(deptKey);
+    const toastId = toast.loading(
+      newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
+    );
+
+    // Optimistically update hiddenDepartments
+    if (newIsActive) {
+      setHiddenDepartments((prev) => prev.filter((k) => k !== deptKey));
+    } else {
+      setHiddenDepartments((prev) => (prev.includes(deptKey) ? prev : [...prev, deptKey]));
+    }
+
     try {
-      await API.put('/settings/admin/hiddenDepartments', { value: updatedList });
-      setHiddenDepartments(updatedList);
-      const deptNames = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
-      toast.success(
-        isCurrentlyHidden
-          ? `✨ ${deptNames[deptKey] || deptKey} is now LIVE on the store!`
-          : `🔒 ${deptNames[deptKey] || deptKey} is now HIDDEN everywhere on the store.`
-      );
+      const res = await API.patch(`/categories/admin/department/${deptKey}/toggle`, {
+        isActive: newIsActive
+      });
+      toast.success(res.data?.message || `✨ ${deptName} updated successfully!`, { id: toastId });
     } catch (err) {
       console.error('Error updating department visibility:', err);
-      toast.error('Failed to update department visibility');
+      toast.error(err.response?.data?.message || 'Failed to update department visibility', { id: toastId });
+      API.get('/settings').then((res) => {
+        if (Array.isArray(res.data?.hiddenDepartments)) {
+          setHiddenDepartments(res.data.hiddenDepartments);
+        }
+      });
     } finally {
-      setSavingDepartments(false);
+      setSavingDepartmentKey(null);
     }
   };
 
@@ -465,15 +488,22 @@ const SettingsManager = () => {
 
                     <button
                       type="button"
-                      disabled={savingDepartments}
+                      disabled={Boolean(savingDepartmentKey)}
                       onClick={() => handleToggleDepartment(dept.key)}
                       className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50 ${
-                        isHidden
+                        savingDepartmentKey === dept.key
+                          ? 'bg-neutral-200 text-neutral-800 cursor-wait'
+                          : isHidden
                           ? 'bg-primary text-white hover:bg-primary-light'
                           : 'bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-300'
                       }`}
                     >
-                      {isHidden ? (
+                      {savingDepartmentKey === dept.key ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                        </>
+                      ) : isHidden ? (
                         <>
                           <HiOutlineEye className="w-4 h-4" />
                           <span>Show on Store</span>

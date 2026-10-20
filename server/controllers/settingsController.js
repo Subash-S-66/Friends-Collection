@@ -55,6 +55,54 @@ exports.updateSetting = async (req, res, next) => {
       await Banner.updateMany({ priority: 1 }, { title: value.trim() });
     }
 
+    // Sync categories & products if hiddenDepartments is updated directly
+    if (req.params.key === 'hiddenDepartments' && Array.isArray(value)) {
+      const Category = require('../models/Category');
+      const Product = require('../models/Product');
+      const hiddenList = value.map((x) => String(x).toLowerCase().trim());
+      const allDepts = ['women', 'men', 'kids'];
+
+      for (const dept of allDepts) {
+        const isHidden = hiddenList.includes(dept);
+        const newIsActive = !isHidden;
+
+        const baseCatFilter =
+          dept === 'women'
+            ? { $or: [{ gender: 'women' }, { gender: null }, { gender: { $exists: false } }] }
+            : { gender: dept };
+
+        const directCats = await Category.find(baseCatFilter).select('_id').lean();
+        const allCatIds = new Set(directCats.map((c) => c._id.toString()));
+
+        let currentLevelIds = Array.from(allCatIds);
+        while (currentLevelIds.length > 0) {
+          const childCats = await Category.find({ parent: { $in: currentLevelIds } }).select('_id').lean();
+          const nextLevelIds = childCats
+            .map((c) => c._id.toString())
+            .filter((id) => !allCatIds.has(id));
+          nextLevelIds.forEach((id) => allCatIds.add(id));
+          currentLevelIds = nextLevelIds;
+        }
+
+        const catIdArray = Array.from(allCatIds);
+        await Category.updateMany(
+          { $or: [baseCatFilter, ...(catIdArray.length > 0 ? [{ _id: { $in: catIdArray } }] : [])] },
+          { isActive: newIsActive }
+        );
+
+        await Product.updateMany(
+          {
+            $or: [
+              { gender: dept },
+              ...(catIdArray.length > 0 ? [{ category: { $in: catIdArray } }] : []),
+              ...(catIdArray.length > 0 ? [{ subcategory: { $in: catIdArray } }] : [])
+            ]
+          },
+          { isActive: newIsActive }
+        );
+      }
+    }
+
     res.json(setting);
   } catch (error) {
     next(error);

@@ -16,13 +16,15 @@ import {
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { formatPrice } from '../utils/formatters';
+import { useConfirm } from '../context/ConfirmContext';
 
 const Dashboard = () => {
+  const { confirm } = useConfirm();
   const [stats, setStats] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
-  const [togglingDept, setTogglingDept] = useState(false);
+  const [togglingDept, setTogglingDept] = useState(null);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -54,33 +56,54 @@ const Dashboard = () => {
 
   const handleToggleDepartment = async (deptKey) => {
     const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
-    let updated;
-    if (isCurrentlyHidden) {
-      updated = hiddenDepartments.filter((k) => k !== deptKey);
-    } else {
+    const newIsActive = isCurrentlyHidden;
+    const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+    const deptName = names[deptKey] || deptKey;
+
+    if (!newIsActive) {
       const allDepts = ['women', 'men', 'kids'];
       const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
       if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
         toast.error('At least one department must remain visible on the store.');
         return;
       }
-      updated = [...hiddenDepartments, deptKey];
     }
 
-    setTogglingDept(true);
+    const ok = await confirm({
+      title: newIsActive ? `Turn ON Entire ${deptName}?` : `Turn OFF Entire ${deptName}?`,
+      message: newIsActive
+        ? `This will restore ${deptName} across the storefront navigation bar, shop catalog, filters, search, and homepage, and reactivate all categories and products.`
+        : `This will immediately hide ${deptName} everywhere (navigation bar, mega-menu, shop catalog, filters, homepage, search) from customers, and turn off all categories. Are you sure?`,
+      type: newIsActive ? 'primary' : 'danger',
+      confirmText: newIsActive ? `Yes, Turn ON ${deptName}` : `Yes, Turn OFF ${deptName}`,
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
+    setTogglingDept(deptKey);
+    const toastId = toast.loading(
+      newIsActive ? `Turning ON entire ${deptName}...` : `Turning OFF entire ${deptName}...`
+    );
+
+    // Optimistically update hiddenDepartments
+    if (newIsActive) {
+      setHiddenDepartments((prev) => prev.filter((k) => k !== deptKey));
+    } else {
+      setHiddenDepartments((prev) => (prev.includes(deptKey) ? prev : [...prev, deptKey]));
+    }
+
     try {
-      await API.put('/settings/admin/hiddenDepartments', { value: updated });
-      setHiddenDepartments(updated);
-      const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
-      toast.success(
-        isCurrentlyHidden
-          ? `✨ ${names[deptKey] || deptKey} is now LIVE on store everywhere!`
-          : `🔒 ${names[deptKey] || deptKey} is now HIDDEN from storefront.`
-      );
-    } catch {
-      toast.error('Failed to update department visibility');
+      const res = await API.patch(`/categories/admin/department/${deptKey}/toggle`, {
+        isActive: newIsActive
+      });
+      toast.success(res.data?.message || `Entire ${deptName} updated successfully!`, { id: toastId });
+      fetchDashboardData();
+    } catch (err) {
+      console.error('Failed to update department visibility:', err);
+      toast.error(err.response?.data?.message || 'Failed to update department visibility', { id: toastId });
+      fetchDashboardData();
     } finally {
-      setTogglingDept(false);
+      setTogglingDept(null);
     }
   };
 
@@ -198,16 +221,25 @@ const Dashboard = () => {
 
                 <button
                   type="button"
-                  disabled={togglingDept}
+                  disabled={Boolean(togglingDept)}
                   onClick={() => handleToggleDepartment(dept.key)}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isHidden
-                      ? 'bg-accent-500 hover:bg-accent-400 text-primary-950 shadow-sm'
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    togglingDept === dept.key
+                      ? 'bg-white/20 text-white cursor-wait'
+                      : isHidden
+                      ? 'bg-accent-500 hover:bg-accent-400 text-primary-950 shadow-xs'
                       : 'bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-neutral-300 border border-white/20'
                   }`}
                   title={isHidden ? 'Click to Show on Customer Storefront' : 'Click to Hide from Customer Storefront'}
                 >
-                  {isHidden ? 'Show on Store' : 'Hide Section'}
+                  {togglingDept === dept.key ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>{isHidden ? 'Turning ON...' : 'Turning OFF...'}</span>
+                    </>
+                  ) : (
+                    <span>{isHidden ? 'Show on Store' : 'Hide Section'}</span>
+                  )}
                 </button>
               </div>
             );

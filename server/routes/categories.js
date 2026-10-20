@@ -22,6 +22,8 @@ const flushCategoryCache = (req, res, next) => {
       invalidateCache('/api/categories');
       invalidateCache('/api/categories/tree');
       invalidateCache('/api/products/homepage-bundle');
+      invalidateCache('/api/settings');
+      invalidateCache('/api/products');
     }
   });
   next();
