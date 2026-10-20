@@ -1783,7 +1783,7 @@ const BannerManager = () => {
                           Supports JPG, PNG, WEBP (Landscape recommended)
                         </p>
                         <p className="text-[10px] text-accent-800 font-semibold pt-0.5">
-                          Recommended ratio: 16:9 or 21:9 (e.g. 1920×800 or 1600×900) for edge-to-edge desktop & mobile banner
+                          Exact banner size: <strong className="text-primary font-bold">1920 × 1080 px</strong> (16:9 ratio) or <strong className="text-primary font-bold">1920 × 1200 px</strong> (16:10 ratio) for crisp luxury clarity on all devices.
                         </p>
                       </div>
                       <button
