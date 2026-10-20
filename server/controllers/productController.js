@@ -343,11 +343,21 @@ exports.adminGetProducts = async (req, res, next) => {
   }
 };
 
+const resolveImageRef = (ref, images) => {
+  if (!ref || typeof ref !== 'string') return '';
+  const match = ref.match(/^__photo_(\d+)__$/);
+  if (match) {
+    const idx = parseInt(match[1], 10);
+    return images[idx] || '';
+  }
+  return ref;
+};
+
 // @desc    Create product with Cloudinary/3:4 processing and variants
 // @route   POST /api/products/admin
 exports.createProduct = async (req, res, next) => {
   try {
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, stock, tags, isFeatured } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured } = req.body;
 
     // Process uploaded images with Cloudinary / Sharp (3:4 ratio - 900x1200)
     const uploadedImages = [];
@@ -366,6 +376,24 @@ exports.createProduct = async (req, res, next) => {
     let parsedVariants = [];
     if (variants) {
       parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+    }
+    if (Array.isArray(parsedVariants)) {
+      parsedVariants = parsedVariants.map(v => ({
+        ...v,
+        image: resolveImageRef(v.image, uploadedImages)
+      }));
+    }
+
+    // Parse colorImages if provided
+    let parsedColorImages = [];
+    if (colorImages) {
+      parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
+    }
+    if (Array.isArray(parsedColorImages)) {
+      parsedColorImages = parsedColorImages.map(ci => ({
+        color: ci.color ? String(ci.color).trim() : '',
+        image: resolveImageRef(ci.image, uploadedImages)
+      }));
     }
 
     // Calculate aggregate stock from variants if defined
@@ -390,6 +418,7 @@ exports.createProduct = async (req, res, next) => {
       sizes: parsedSizes,
       colors: parsedColors,
       variants: parsedVariants,
+      colorImages: parsedColorImages,
       stock: calculatedStock,
       tags: tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [],
       isFeatured: isFeatured === 'true' || isFeatured === true
@@ -412,7 +441,7 @@ exports.updateProduct = async (req, res, next) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     const prevStock = product.stock || 0;
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, stock, tags, isFeatured, isActive, existingImages } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, existingImages } = req.body;
 
     if (title) product.title = title;
     if (description !== undefined) product.description = description;
@@ -426,23 +455,7 @@ exports.updateProduct = async (req, res, next) => {
     if (sizes) product.sizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
     if (colors) product.colors = typeof colors === 'string' ? JSON.parse(colors) : colors;
 
-    if (variants !== undefined) {
-      const parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
-      product.variants = parsedVariants;
-      if (parsedVariants.length > 0) {
-        product.stock = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
-      } else if (stock !== undefined) {
-        product.stock = Number(stock);
-      }
-    } else if (stock !== undefined) {
-      product.stock = Number(stock);
-    }
-
-    if (tags) product.tags = typeof tags === 'string' ? JSON.parse(tags) : tags;
-    if (isFeatured !== undefined) product.isFeatured = isFeatured === 'true' || isFeatured === true;
-    if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
-
-    // Process new images through Cloudinary / Sharp 3:4
+    // Process images first so finalImages is available to resolve slot references
     let keepImages = existingImages ? (typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages) : product.images;
     if (!Array.isArray(keepImages)) keepImages = [];
 
@@ -458,6 +471,37 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(400).json({ message: 'A product must have at least one photo remaining' });
     }
     product.images = finalImages;
+
+    if (colorImages !== undefined) {
+      let parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
+      if (Array.isArray(parsedColorImages)) {
+        product.colorImages = parsedColorImages.map(ci => ({
+          color: ci.color ? String(ci.color).trim() : '',
+          image: resolveImageRef(ci.image, finalImages)
+        }));
+      }
+    }
+
+    if (variants !== undefined) {
+      let parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+      if (Array.isArray(parsedVariants)) {
+        product.variants = parsedVariants.map(v => ({
+          ...v,
+          image: resolveImageRef(v.image, finalImages)
+        }));
+        if (parsedVariants.length > 0) {
+          product.stock = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+        } else if (stock !== undefined) {
+          product.stock = Number(stock);
+        }
+      }
+    } else if (stock !== undefined) {
+      product.stock = Number(stock);
+    }
+
+    if (tags) product.tags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+    if (isFeatured !== undefined) product.isFeatured = isFeatured === 'true' || isFeatured === true;
+    if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
 
     await product.save();
 

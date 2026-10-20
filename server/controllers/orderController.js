@@ -149,6 +149,42 @@ exports.placeOrder = async (req, res, next) => {
       const price = product.salePrice || product.price;
       totalAmount += price * item.quantity;
 
+      // Resolve variant or color specific image
+      const targetSize = norm(item.size);
+      const targetColor = norm(item.color);
+      let resolvedItemImage = '';
+      if (product.variants && product.variants.length > 0) {
+        let match = product.variants.find(v => {
+          const vSize = norm(v.size);
+          const vColor = norm(v.color);
+          return (
+            (!targetSize || !vSize || vSize === targetSize || targetSize.startsWith(vSize)) &&
+            (!targetColor || !vColor || vColor === targetColor)
+          );
+        });
+        if (!match && targetSize) {
+          match = product.variants.find(v => {
+            const vSize = norm(v.size);
+            return vSize && (vSize === targetSize || targetSize.startsWith(vSize));
+          });
+        }
+        if (!match && targetColor) {
+          match = product.variants.find(v => norm(v.color) === targetColor);
+        }
+        if (match && match.image) {
+          resolvedItemImage = match.image;
+        }
+      }
+      if (!resolvedItemImage && targetColor && product.colorImages && product.colorImages.length > 0) {
+        const colorMatch = product.colorImages.find(ci => norm(ci.color) === targetColor);
+        if (colorMatch && colorMatch.image) {
+          resolvedItemImage = colorMatch.image;
+        }
+      }
+      if (!resolvedItemImage) {
+        resolvedItemImage = item.image || (product.images && product.images[0]) || '';
+      }
+
       orderItems.push({
         product: product._id,
         title: product.title,
@@ -156,7 +192,7 @@ exports.placeOrder = async (req, res, next) => {
         size: item.size || '',
         color: item.color || '',
         quantity: item.quantity,
-        image: (product.images && product.images[0]) || ''
+        image: resolvedItemImage
       });
     }
 

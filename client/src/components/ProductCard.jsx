@@ -11,9 +11,52 @@ const ProductCard = ({ product }) => {
   const [added, setAdded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [selectedColorOverride, setSelectedColorOverride] = useState(null);
   const discount = getDiscount(product.price, product.salePrice);
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 3;
+
+  // Extract distinct colors and their images for color dot previews
+  const colorSwatches = (() => {
+    const list = [];
+    const seen = new Set();
+
+    if (Array.isArray(product.colorImages)) {
+      product.colorImages.forEach((ci) => {
+        const c = (ci.color || '').trim();
+        if (c && !seen.has(c.toLowerCase())) {
+          seen.add(c.toLowerCase());
+          list.push({ color: c, image: ci.image });
+        }
+      });
+    }
+
+    if (Array.isArray(product.variants)) {
+      product.variants.forEach((v) => {
+        const c = (v.color || '').trim();
+        if (c && !seen.has(c.toLowerCase())) {
+          seen.add(c.toLowerCase());
+          list.push({ color: c, image: v.image || '' });
+        }
+      });
+    }
+
+    if (list.length === 0 && Array.isArray(product.colors)) {
+      product.colors.forEach((c) => {
+        const clean = (c || '').trim();
+        if (clean && !seen.has(clean.toLowerCase())) {
+          seen.add(clean.toLowerCase());
+          list.push({ color: clean, image: '' });
+        }
+      });
+    }
+
+    return list;
+  })();
+
+  const activeSwatch = selectedColorOverride
+    ? colorSwatches.find((s) => s.color.toLowerCase() === selectedColorOverride.toLowerCase())
+    : null;
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
@@ -21,11 +64,19 @@ const ProductCard = ({ product }) => {
     if (isAdding || added || isOutOfStock) return;
     setIsAdding(true);
 
-    // Pick first available in-stock variant or size
+    // Pick first available in-stock variant or size, preferring active swatch color if selected
     let defaultSize = '';
-    let defaultColor = '';
+    let defaultColor = selectedColorOverride || '';
     if (product.variants && product.variants.length > 0) {
-      const inStock = product.variants.find((v) => v.stock > 0);
+      let inStock = null;
+      if (defaultColor) {
+        inStock = product.variants.find(
+          (v) => (v.color || '').trim().toLowerCase() === defaultColor.toLowerCase() && v.stock > 0
+        );
+      }
+      if (!inStock) {
+        inStock = product.variants.find((v) => v.stock > 0);
+      }
       if (!inStock) {
         setNotifyOpen(true);
         return;
@@ -38,7 +89,7 @@ const ProductCard = ({ product }) => {
         return;
       }
       defaultSize = product.sizes?.[0] || '';
-      defaultColor = product.colors?.[0] || '';
+      defaultColor = defaultColor || product.colors?.[0] || '';
     }
 
     addToCart(product, 1, defaultSize, defaultColor);
@@ -54,9 +105,9 @@ const ProductCard = ({ product }) => {
     (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
   );
 
-  const rawPrimary = cleanImages[0];
+  const rawPrimary = activeSwatch?.image || cleanImages[0];
   const rawSecondary =
-    cleanImages.length > 1 && cleanImages[1] && cleanImages[1] !== rawPrimary
+    !activeSwatch?.image && cleanImages.length > 1 && cleanImages[1] && cleanImages[1] !== rawPrimary
       ? cleanImages[1]
       : null;
 
@@ -71,11 +122,12 @@ const ProductCard = ({ product }) => {
   const primaryImage = isPrimaryFallback ? '/fallback-product-1.png' : rawPrimary;
 
   // Secondary/Hover image:
-  // 1) If product has a real distinct 2nd image -> use rawSecondary
-  // 2) If using fallback -> use /fallback-product-2.png for seamless hover animation
-  // 3) If product has only 1 real custom image -> null (no hover animation as requested)
   const hoverImage = rawSecondary || (isPrimaryFallback ? '/fallback-product-2.png' : null);
   const hasHoverImage = Boolean(hoverImage);
+
+  const targetLink = selectedColorOverride
+    ? `/product/${product.slug}?color=${encodeURIComponent(selectedColorOverride)}`
+    : `/product/${product.slug}`;
 
   return (
     <motion.div
@@ -90,7 +142,7 @@ const ProductCard = ({ product }) => {
           : 'border-accent-100 hover:border-accent-300'
       }`}
     >
-      <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
+      <Link to={targetLink} className="flex flex-col h-full">
         {/* Image Container with 3:4 Aspect Ratio Guard */}
         <div className={`relative aspect-[3/4] w-full overflow-hidden bg-cream-dark ${isOutOfStock ? 'grayscale-[35%]' : ''}`}>
           <img
@@ -211,6 +263,61 @@ const ProductCard = ({ product }) => {
             <h3 className="font-serif text-xs sm:text-base font-semibold text-neutral-900 group-hover:text-primary transition-colors line-clamp-1 leading-snug">
               {product.title}
             </h3>
+
+            {/* Color Swatch Dots for Multi-Color Preview */}
+            {colorSwatches.length > 1 && (
+              <div
+                className="flex items-center gap-1.5 pt-1.5 overflow-x-auto scrollbar-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                {colorSwatches.slice(0, 5).map((swatch) => {
+                  const isSelected = selectedColorOverride
+                    ? selectedColorOverride.toLowerCase() === swatch.color.toLowerCase()
+                    : false;
+
+                  return (
+                    <button
+                      key={swatch.color}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedColorOverride(swatch.color);
+                      }}
+                      onMouseEnter={() => {
+                        if (swatch.image) setSelectedColorOverride(swatch.color);
+                      }}
+                      className={`relative p-0.5 rounded-full transition-transform hover:scale-110 cursor-pointer ${
+                        isSelected ? 'ring-2 ring-primary ring-offset-1' : 'hover:ring-1 hover:ring-neutral-400'
+                      }`}
+                      title={`${swatch.color}${swatch.image ? ' (View photo)' : ''}`}
+                    >
+                      {swatch.image ? (
+                        <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full overflow-hidden block border border-white shadow-2xs">
+                          <img
+                            src={getImageUrl(swatch.image)}
+                            alt={swatch.color}
+                            className="w-full h-full object-cover object-top"
+                          />
+                        </span>
+                      ) : (
+                        <span
+                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full block border border-neutral-300 shadow-2xs bg-neutral-200"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+                {colorSwatches.length > 5 && (
+                  <span className="text-[10px] text-neutral-400 font-semibold">
+                    +{colorSwatches.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-2 sm:mt-3 flex items-center justify-between gap-1">

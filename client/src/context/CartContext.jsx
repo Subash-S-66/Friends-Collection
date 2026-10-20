@@ -131,7 +131,8 @@ export const CartProvider = ({ children }) => {
               stock: serverMatch.stock,
               isOutOfStock: Boolean(serverMatch.isOutOfStock || serverMatch.stock <= 0),
               price: serverMatch.price,
-              title: serverMatch.title || localItem.title
+              title: serverMatch.title || localItem.title,
+              image: serverMatch.image || localItem.image
             };
           }
           return localItem;
@@ -208,6 +209,20 @@ export const CartProvider = ({ children }) => {
       return false;
     }
 
+    // Resolve variant or color specific image
+    let resolvedVariantImage = '';
+    if (match && match.image) {
+      resolvedVariantImage = match.image;
+    } else if (targetColor && product.colorImages && product.colorImages.length > 0) {
+      const colorMatch = product.colorImages.find((ci) => norm(ci.color) === targetColor);
+      if (colorMatch && colorMatch.image) {
+        resolvedVariantImage = colorMatch.image;
+      }
+    }
+    if (!resolvedVariantImage) {
+      resolvedVariantImage = product.images?.[0] || '';
+    }
+
     const prodId = String(product._id || product);
     const targetItem = {
       product: prodId,
@@ -234,6 +249,7 @@ export const CartProvider = ({ children }) => {
           ...nextItems[existingIndex],
           stock: itemStock,
           isOutOfStock: false,
+          image: resolvedVariantImage || nextItems[existingIndex].image,
           quantity: Math.min(itemStock, currentQty + quantity)
         };
       } else {
@@ -248,7 +264,7 @@ export const CartProvider = ({ children }) => {
             size: cleanSize,
             color: cleanColor,
             quantity: Math.min(itemStock, quantity),
-            image: product.images?.[0] || '',
+            image: resolvedVariantImage,
             slug: product.slug,
             stock: itemStock,
             isOutOfStock: false

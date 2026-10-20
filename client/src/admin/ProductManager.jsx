@@ -74,17 +74,66 @@ const ProductManager = () => {
   const [customSizeInput, setCustomSizeInput] = useState('');
   const [customSizesList, setCustomSizesList] = useState([]);
   const [variants, setVariants] = useState([
-    { color: 'Maroon', size: 'S', stock: 5, sku: 'FC-MRN-S' },
-    { color: 'Maroon', size: 'M', stock: 5, sku: 'FC-MRN-M' },
-    { color: 'Maroon', size: 'L', stock: 5, sku: 'FC-MRN-L' },
-    { color: 'Maroon', size: 'XL', stock: 5, sku: 'FC-MRN-XL' },
+    { color: 'Maroon', size: 'S', stock: 5, sku: 'FC-MRN-S', image: '' },
+    { color: 'Maroon', size: 'M', stock: 5, sku: 'FC-MRN-M', image: '' },
+    { color: 'Maroon', size: 'L', stock: 5, sku: 'FC-MRN-L', image: '' },
+    { color: 'Maroon', size: 'XL', stock: 5, sku: 'FC-MRN-XL', image: '' },
   ]);
+  const [colorImages, setColorImages] = useState([{ color: 'Maroon', image: '' }]);
   const [quickColorInput, setQuickColorInput] = useState('');
   const [tags, setTags] = useState(['new-arrival']);
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  // Combined photo pool for image assignment (existing + new uploads)
+  const allPhotoPool = [
+    ...existingImages.map((url, idx) => ({
+      id: `existing-${idx}`,
+      url,
+      ref: url,
+      label: `Photo #${idx + 1} (Cover/Gallery)`
+    })),
+    ...imagePreviews.map((url, idx) => ({
+      id: `new-${idx}`,
+      url,
+      ref: `__photo_${existingImages.length + idx}__`,
+      label: `New Photo #${existingImages.length + idx + 1}`
+    }))
+  ];
+
+  // Resolve ref (url or __photo_X__) to previewable URL
+  const resolvePreviewUrl = (ref) => {
+    if (!ref) return '';
+    const match = ref.match(/^__photo_(\d+)__$/);
+    if (match) {
+      const idx = parseInt(match[1], 10);
+      const newIdx = idx - existingImages.length;
+      return imagePreviews[newIdx] || '';
+    }
+    return ref;
+  };
+
+  const getColorPhoto = (colorName) => {
+    if (!colorName) return '';
+    const norm = colorName.trim().toLowerCase();
+    const found = colorImages.find((ci) => (ci.color || '').trim().toLowerCase() === norm);
+    return found?.image || '';
+  };
+
+  const handleColorImageChange = (colorName, imageRef) => {
+    const norm = (colorName || '').trim().toLowerCase();
+    setColorImages((prev) => {
+      const existingIdx = prev.findIndex((ci) => (ci.color || '').trim().toLowerCase() === norm);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], image: imageRef };
+        return next;
+      }
+      return [...prev, { color: colorName.trim(), image: imageRef }];
+    });
+  };
 
   const isKids = gender === 'kids';
   const baseAvailableSizes = isKids ? KIDS_SIZES : ADULT_SIZES;
@@ -154,12 +203,14 @@ const ProductManager = () => {
     setSelectedColors(['Maroon']);
     setCustomSizesList([]);
     setCustomSizeInput('');
+    setColorImages([{ color: 'Maroon', image: '' }]);
     setVariants(
       initialSizes.map((sz) => ({
         color: 'Maroon',
         size: sz,
         stock: 5,
-        sku: `FC-MRN-${sz.replace(/[^A-Z0-9]/gi, '')}`
+        sku: `FC-MRN-${sz.replace(/[^A-Z0-9]/gi, '')}`,
+        image: ''
       }))
     );
     setTags(['new-arrival']);
@@ -206,6 +257,15 @@ const ProductManager = () => {
     setImages([]);
     setImagePreviews([]);
 
+    // Populate colorImages with existing or fallback
+    const loadedColorImages = Array.isArray(prod.colorImages) && prod.colorImages.length > 0
+      ? prod.colorImages.map((ci) => ({ color: ci.color || '', image: ci.image || '' }))
+      : (prod.colors && prod.colors.length > 0 ? prod.colors : ['Maroon']).map((c, i) => ({
+          color: c,
+          image: cleanExisting[i] || cleanExisting[0] || ''
+        }));
+    setColorImages(loadedColorImages);
+
     // Populate variant stock matrix
     let initialVariants = prod.variants && prod.variants.length > 0 ? prod.variants : [];
     if (initialVariants.length === 0 && ((prod.sizes && prod.sizes.length > 0) || (prod.colors && prod.colors.length > 0))) {
@@ -218,13 +278,20 @@ const ProductManager = () => {
             color: c,
             size: s,
             stock: Math.max(1, Math.floor((prod.stock || 10) / (colors.length * sizes.length))),
-            sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`
+            sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`,
+            image: ''
           });
         });
       });
     }
-    setVariants(initialVariants.length > 0 ? initialVariants : [
-      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '' }
+    setVariants(initialVariants.length > 0 ? initialVariants.map(v => ({
+      color: v.color || 'Standard',
+      size: v.size || (isKidsMode ? '1-2' : 'Standard'),
+      stock: v.stock !== undefined ? v.stock : 5,
+      sku: v.sku || '',
+      image: v.image || ''
+    })) : [
+      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '', image: '' }
     ]);
 
     setTags(prod.tags && prod.tags.length > 0 ? prod.tags : ['new-arrival']);
@@ -249,7 +316,8 @@ const ProductManager = () => {
             color: col,
             size: sz,
             stock: 5,
-            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz.replace(/[^A-Z0-9]/gi, '')}`
+            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz.replace(/[^A-Z0-9]/gi, '')}`,
+            image: ''
           }))
         );
       }
@@ -265,7 +333,8 @@ const ProductManager = () => {
             color: col,
             size: sz,
             stock: 5,
-            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz}`
+            sku: `FC-${col.substring(0, 3).toUpperCase()}-${sz}`,
+            image: ''
           }))
         );
       }
@@ -327,6 +396,13 @@ const ProductManager = () => {
   const presentSizes = Array.from(new Set(variants.map((v) => v.size?.trim()).filter(Boolean)));
   const referenceSizes = presentSizes.length > 0 ? presentSizes : (selectedSizes.length > 0 ? selectedSizes : ['S', 'M', 'L', 'XL']);
 
+  const distinctModalColors = Array.from(
+    new Set([
+      ...variants.map((v) => v.color?.trim()).filter(Boolean),
+      ...selectedColors
+    ])
+  );
+
   // Calculate missing sizes for any color compared to existing present sizes
   const getMissingSizesForColor = (colorName) => {
     if (!colorName || !colorName.trim()) return [];
@@ -358,13 +434,24 @@ const ProductManager = () => {
         color: trimmed,
         size: sz,
         stock: '', // Keep stock empty as requested: user cannot save while empty, but 0 is allowed
-        sku: `FC-${cleanCol || 'CLR'}-${cleanSz || 'STD'}`
+        sku: `FC-${cleanCol || 'CLR'}-${cleanSz || 'STD'}`,
+        image: ''
       };
     });
 
     setVariants((prev) => [...prev, ...newRows]);
     setQuickColorInput('');
     setSelectedColors((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+
+    // Auto-assign default photo for this new color
+    setColorImages((prev) => {
+      const norm = trimmed.toLowerCase();
+      if (prev.some((ci) => (ci.color || '').trim().toLowerCase() === norm)) return prev;
+      const nextIdx = prev.length;
+      const defaultImg = allPhotoPool[nextIdx]?.ref || allPhotoPool[0]?.ref || '';
+      return [...prev, { color: trimmed, image: defaultImg }];
+    });
+
     toast.success(
       `Auto-generated ${newRows.length} variant(s) for "${trimmed}"! Please enter stock quantities (0 is allowed, but not empty).`,
       { icon: '🎨' }
@@ -377,7 +464,7 @@ const ProductManager = () => {
     const fallbackSize = isKidsMode ? '1-2' : 'M';
     setVariants((prev) => [
       ...prev,
-      { color: selectedColors[0] || 'Standard', size: referenceSizes[0] || fallbackSize, stock: '', sku: '' }
+      { color: selectedColors[0] || 'Standard', size: referenceSizes[0] || fallbackSize, stock: '', sku: '', image: '' }
     ]);
   };
 
@@ -429,11 +516,26 @@ const ProductManager = () => {
           color,
           size,
           stock: existingStock !== undefined && existingStock !== '' ? existingStock : '',
-          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${size.replace(/[^A-Z0-9]/g, '')}`
+          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${size.replace(/[^A-Z0-9]/g, '')}`,
+          image: ''
         });
       });
     });
     setVariants(matrix);
+
+    // Ensure all colors have a colorImages entry
+    setColorImages((prev) => {
+      const next = [...prev];
+      colors.forEach((col, idx) => {
+        const norm = col.toLowerCase();
+        if (!next.some((ci) => (ci.color || '').trim().toLowerCase() === norm)) {
+          const defaultImg = allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
+          next.push({ color: col, image: defaultImg });
+        }
+      });
+      return next;
+    });
+
     toast.success(`Generated ${matrix.length} variants! Stock must be filled before saving.`);
   };
 
@@ -640,11 +742,23 @@ const ProductManager = () => {
       );
       formData.append('colors', JSON.stringify(distinctColors.length > 0 ? distinctColors : ['Standard']));
 
+      const sanitizedColorImages = (distinctColors.length > 0 ? distinctColors : ['Standard']).map((color, idx) => {
+        const norm = color.toLowerCase();
+        const existing = colorImages.find((ci) => (ci.color || '').trim().toLowerCase() === norm);
+        const chosenImage = existing?.image || allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
+        return {
+          color,
+          image: chosenImage
+        };
+      });
+      formData.append('colorImages', JSON.stringify(sanitizedColorImages));
+
       const sanitizedVariants = variants.map((v) => ({
         color: (v.color || 'Standard').trim(),
         size: (v.size || 'Standard').trim(),
         stock: parseInt(v.stock, 10) || 0,
-        sku: v.sku || ''
+        sku: v.sku || '',
+        image: v.image || ''
       }));
       formData.append('variants', JSON.stringify(sanitizedVariants));
       formData.append('tags', JSON.stringify(tags));
@@ -1089,21 +1203,34 @@ const ProductManager = () => {
                             </button>
 
                             {isExpanded && (
-                              <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 mt-2 space-y-1.5 max-w-sm">
-                                {prod.variants.map((v, vIdx) => (
-                                  <div key={vIdx} className="flex items-center justify-between text-[11px]">
-                                    <span className="font-semibold text-neutral-800">
-                                      {v.color || 'Standard'} • {v.size}
-                                    </span>
-                                    <span
-                                      className={`font-bold ${
-                                        v.stock <= 0 ? 'text-red-600' : v.stock <= 3 ? 'text-amber-600' : 'text-emerald-700'
-                                      }`}
-                                    >
-                                      {v.stock} in stock
-                                    </span>
-                                  </div>
-                                ))}
+                              <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 mt-2 space-y-2 max-w-sm">
+                                {prod.variants.map((v, vIdx) => {
+                                  const normColor = (v.color || '').trim().toLowerCase();
+                                  const variantImg = v.image || prod.colorImages?.find((ci) => (ci.color || '').trim().toLowerCase() === normColor)?.image || prod.images?.[0];
+                                  return (
+                                    <div key={vIdx} className="flex items-center justify-between text-[11px] gap-2">
+                                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                                        {variantImg && (
+                                          <img
+                                            src={getImageUrl(variantImg)}
+                                            alt={v.color}
+                                            className="w-4 h-5 object-cover object-top rounded shrink-0 border border-neutral-300"
+                                          />
+                                        )}
+                                        <span className="font-semibold text-neutral-800 truncate">
+                                          {v.color || 'Standard'} • {v.size}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`font-bold shrink-0 ${
+                                          v.stock <= 0 ? 'text-red-600' : v.stock <= 3 ? 'text-amber-600' : 'text-emerald-700'
+                                        }`}
+                                      >
+                                        {v.stock} in stock
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -1233,7 +1360,7 @@ const ProductManager = () => {
       {/* Add / Edit Product Modal with Multi-Image Preview & Variant Stock Builder */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-neutral-200/80">
+          <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-neutral-200/80">
             {/* Fixed Header with Pinned Close "X" Button */}
             <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-neutral-100 bg-white/95 backdrop-blur-md shrink-0">
               <div>
@@ -1629,6 +1756,88 @@ const ProductManager = () => {
                 )}
               </div>
 
+              {/* Color Photos & Visual Swatches Section */}
+              <div className="p-5 rounded-2xl bg-white border border-neutral-200 space-y-3.5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 border-b border-neutral-100 gap-1.5">
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                      <span>🎨 Color Photos & Visual Swatches</span>
+                      <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold px-2 py-0.5 rounded-full">
+                        Auto-Inherited by all sizes of each color
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-neutral-500">
+                      Assign each color its display photo. Sizes for that color automatically share this photo, or you can override individual sizes in the table below. Multiple colors can share the same photo if desired.
+                    </p>
+                  </div>
+                  {allPhotoPool.length > 0 && (
+                    <span className="text-[11px] text-accent-700 font-semibold self-start sm:self-auto">
+                      {allPhotoPool.length} photo{allPhotoPool.length > 1 ? 's' : ''} available
+                    </span>
+                  )}
+                </div>
+
+                {distinctModalColors.length === 0 ? (
+                  <p className="text-xs text-neutral-400 italic">No colors defined yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {distinctModalColors.map((colorName, idx) => {
+                      const assignedRef = getColorPhoto(colorName) || allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
+                      const previewUrl = resolvePreviewUrl(assignedRef) || (allPhotoPool[0]?.url || '');
+
+                      return (
+                        <div
+                          key={colorName}
+                          className="p-3 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center gap-3 shadow-2xs hover:border-neutral-300 transition-colors"
+                        >
+                          {/* Photo Preview Thumbnail */}
+                          <div className="w-12 h-16 rounded-lg overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 relative aspect-[3/4]">
+                            {previewUrl ? (
+                              <img
+                                src={getImageUrl(previewUrl)}
+                                alt={colorName}
+                                className="w-full h-full object-cover object-top"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400">
+                                No Photo
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-bold text-neutral-900 truncate">
+                                {colorName}
+                              </span>
+                              <span className="text-[10px] text-neutral-400 font-mono">
+                                #{idx + 1}
+                              </span>
+                            </div>
+
+                            <select
+                              value={assignedRef}
+                              onChange={(e) => handleColorImageChange(colorName, e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-medium text-neutral-800 focus:ring-2 focus:ring-primary shadow-2xs cursor-pointer"
+                            >
+                              {allPhotoPool.length === 0 ? (
+                                <option value="">Upload photos first</option>
+                              ) : (
+                                allPhotoPool.map((p) => (
+                                  <option key={p.id} value={p.ref}>
+                                    {p.label}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Variant Stock Builder (Color + Size + Stock) */}
               <div className="p-5 rounded-2xl bg-white border border-neutral-200 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-neutral-100 gap-2">
@@ -1821,6 +2030,10 @@ const ProductManager = () => {
                         .pop()?.idx === idx;
                     const showColorPrompt = isLastRowForThisColor && missingSizes.length > 0 && referenceSizes.length > 1;
 
+                    const colorPhotoRef = getColorPhoto(v.color) || allPhotoPool[0]?.ref || '';
+                    const resolvedRef = v.image || colorPhotoRef;
+                    const variantPreviewUrl = resolvePreviewUrl(resolvedRef);
+
                     return (
                       <div key={idx} className="space-y-1.5">
                         <div className={`flex items-center gap-2 text-xs p-1 rounded-xl transition-all ${
@@ -1831,7 +2044,7 @@ const ProductManager = () => {
                             placeholder="Color (e.g. Red, Navy)"
                             value={v.color}
                             onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-medium"
+                            className="flex-1 min-w-[100px] px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-medium"
                           />
                           <select
                             value={v.size}
@@ -1852,7 +2065,7 @@ const ProductManager = () => {
                                 handleVariantChange(idx, 'size', e.target.value);
                               }
                             }}
-                            className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold"
+                            className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold shrink-0"
                           >
                             {availableSizes.map((s) => (
                               <option key={s} value={s}>{s}</option>
@@ -1861,14 +2074,14 @@ const ProductManager = () => {
                               <option value="__custom__">+ Custom Size...</option>
                             )}
                           </select>
-                          <div className="relative">
+                          <div className="relative shrink-0">
                             <input
                               type="number"
                               min="0"
                               placeholder="Stock *"
                               value={v.stock}
                               onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
-                              className={`w-24 px-2 py-2 rounded-xl font-bold text-center border transition-all ${
+                              className={`w-20 px-2 py-2 rounded-xl font-bold text-center border transition-all ${
                                 isStockEmpty
                                   ? 'border-red-400 bg-white text-red-900 placeholder:text-red-400 ring-2 ring-red-300'
                                   : 'border-neutral-200 bg-neutral-50 text-neutral-900'
@@ -1885,12 +2098,50 @@ const ProductManager = () => {
                             placeholder="SKU"
                             value={v.sku || ''}
                             onChange={(e) => handleVariantChange(idx, 'sku', e.target.value)}
-                            className="w-28 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-mono"
+                            className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-mono shrink-0"
                           />
+
+                          {/* Variant Photo: Inherited Color Photo or Custom Size Override */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="w-7 h-9 rounded-md overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 aspect-[3/4] relative">
+                              {variantPreviewUrl ? (
+                                <img
+                                  src={getImageUrl(variantPreviewUrl)}
+                                  alt={`${v.color} ${v.size}`}
+                                  className="w-full h-full object-cover object-top"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[8px] text-neutral-400">
+                                  —
+                                </div>
+                              )}
+                            </div>
+
+                            <select
+                              value={v.image || ''}
+                              onChange={(e) => handleVariantChange(idx, 'image', e.target.value)}
+                              className={`w-36 px-2 py-2 rounded-xl border text-[11px] font-medium transition-all cursor-pointer ${
+                                v.image
+                                  ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold ring-1 ring-amber-300'
+                                  : 'border-neutral-200 bg-neutral-50 text-neutral-700'
+                              }`}
+                              title={v.image ? 'Custom photo set for this size variant' : `Using default ${v.color || 'color'} photo`}
+                            >
+                              <option value="">
+                                🎨 {v.color ? `${v.color} Photo` : 'Color Photo'} (Inherited)
+                              </option>
+                              {allPhotoPool.map((p) => (
+                                <option key={p.id} value={p.ref}>
+                                  📷 Custom: {p.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
                           <button
                             type="button"
                             onClick={() => handleRemoveVariantRow(idx)}
-                            className="p-2 text-neutral-400 hover:text-red-600 rounded-lg cursor-pointer"
+                            className="p-2 text-neutral-400 hover:text-red-600 rounded-lg cursor-pointer shrink-0"
                             title="Remove variant row"
                           >
                             <HiOutlineX className="w-4 h-4" />

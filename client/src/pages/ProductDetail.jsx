@@ -50,14 +50,25 @@ const ProductDetail = () => {
         setProduct(prod);
         setActiveImageIndex(0);
 
-        // Derive initial color & size
+        // Derive initial color & size, respecting ?color= query param from swatches
+        const queryColor = new URLSearchParams(window.location.search).get('color');
+
         if (prod.variants && prod.variants.length > 0) {
-          const firstInStock = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
-          setSelectedColor(firstInStock.color || '');
-          setSelectedSize(firstInStock.size || '');
+          let chosenVariant = null;
+          if (queryColor) {
+            chosenVariant = prod.variants.find(
+              (v) => (v.color || '').trim().toLowerCase() === queryColor.trim().toLowerCase()
+            );
+          }
+          if (!chosenVariant) {
+            chosenVariant = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
+          }
+          setSelectedColor(chosenVariant.color || '');
+          setSelectedSize(chosenVariant.size || '');
         } else {
           if (prod.sizes && prod.sizes.length > 0) setSelectedSize(prod.sizes[0]);
-          if (prod.colors && prod.colors.length > 0) setSelectedColor(prod.colors[0]);
+          if (queryColor) setSelectedColor(queryColor);
+          else if (prod.colors && prod.colors.length > 0) setSelectedColor(prod.colors[0]);
         }
 
         // Fetch related products
@@ -174,16 +185,54 @@ const ProductDetail = () => {
 
   const discount = getDiscount(product.price, product.salePrice);
 
-  // Clean and prepare product images
-  const rawImages = (product.images || []).filter(
-    (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
-  );
+  // Clean and prepare product images including color and variant photos
+  const allCandidateImages = [
+    ...(product.images || []),
+    ...(product.colorImages || []).map((ci) => ci.image),
+    ...(product.variants || []).map((v) => v.image)
+  ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+
+  const rawImages = Array.from(new Set(allCandidateImages));
   const displayImages =
     rawImages.length > 0
       ? rawImages
       : ['/fallback-product-1.png', '/fallback-product-2.png'];
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
+
+  // Dynamic Image Switching:
+  // When customer selects a color or size variant, switch the active gallery photo to match!
+  useEffect(() => {
+    if (!product || displayImages.length === 0) return;
+
+    // 1. Check if specific size variant has a custom image override
+    let targetImage = currentVariant?.image;
+
+    // 2. If no custom variant image, fall back to selected color's photo
+    if (!targetImage && selectedColor) {
+      const normColor = selectedColor.trim().toLowerCase();
+      const colorObj = product.colorImages?.find(
+        (ci) => (ci.color || '').trim().toLowerCase() === normColor
+      );
+      if (colorObj?.image) {
+        targetImage = colorObj.image;
+      } else {
+        const vWithImg = product.variants?.find(
+          (v) => (v.color || '').trim().toLowerCase() === normColor && v.image
+        );
+        if (vWithImg?.image) {
+          targetImage = vWithImg.image;
+        }
+      }
+    }
+
+    if (targetImage) {
+      const idx = displayImages.indexOf(targetImage);
+      if (idx >= 0) {
+        setActiveImageIndex(idx);
+      }
+    }
+  }, [selectedColor, selectedSize, currentVariant?.image, product]);
 
   // Distinct colors and sizes for chips
   const allColors = hasVariants
@@ -418,6 +467,13 @@ const ProductDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {allColors.map((color) => {
+                      const normCol = (color || '').trim().toLowerCase();
+                      const colorImg = product.colorImages?.find(
+                        (ci) => (ci.color || '').trim().toLowerCase() === normCol
+                      )?.image || product.variants?.find(
+                        (v) => (v.color || '').trim().toLowerCase() === normCol && v.image
+                      )?.image;
+
                       const colorStock = hasVariants
                         ? product.variants
                             .filter((v) => v.color?.trim().toLowerCase() === color.trim().toLowerCase())
@@ -434,7 +490,7 @@ const ProductDetail = () => {
                             setAdded(false);
                             setIsProcessing(false);
                           }}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all relative ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all relative flex items-center gap-1.5 ${
                             selectedColor === color
                               ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
                               : isColorSoldOut
@@ -442,9 +498,18 @@ const ProductDetail = () => {
                               : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                           }`}
                         >
+                          {colorImg && (
+                            <span className="w-4 h-4 rounded-full overflow-hidden border border-white/60 shrink-0 inline-block shadow-2xs">
+                              <img
+                                src={getImageUrl(colorImg)}
+                                alt={color}
+                                className="w-full h-full object-cover object-top"
+                              />
+                            </span>
+                          )}
                           <span>{color}</span>
                           {isColorSoldOut && (
-                            <span className="text-[9px] ml-1.5 text-red-500 font-normal no-underline">
+                            <span className="text-[9px] ml-1 text-red-500 font-normal no-underline">
                               (Sold Out)
                             </span>
                           )}
@@ -480,6 +545,7 @@ const ProductDetail = () => {
                               v.size?.trim().toLowerCase() === size.trim().toLowerCase()
                           )
                         : null;
+                      const hasCustomSizeImage = Boolean(sizeVariant?.image);
                       const sizeStock = sizeVariant ? sizeVariant.stock : (hasVariants ? 0 : product.stock);
                       const isSizeSoldOut = sizeStock <= 0;
                       const isSizeSelected = selectedSize === size;
@@ -503,7 +569,12 @@ const ProductDetail = () => {
                               : 'bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-400 hover:shadow-xs'
                           }`}
                         >
-                          <span className={isSizeSoldOut ? 'line-through text-neutral-400' : ''}>{size}</span>
+                          <span className="flex items-center gap-1">
+                            <span className={isSizeSoldOut ? 'line-through text-neutral-400' : ''}>{size}</span>
+                            {hasCustomSizeImage && (
+                              <span className="text-[9px] text-amber-400" title="Custom photo for this size">📷</span>
+                            )}
+                          </span>
                           {isSizeSoldOut ? (
                             <span className="block text-[8px] font-bold text-red-600 no-underline leading-none mt-0.5">
                               Sold Out

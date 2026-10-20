@@ -55,9 +55,10 @@ const enrichItemsWithLiveStock = async (items) => {
 
     // Check variant specific stock if size or color specified
     let currentStock = prod.stock !== undefined && prod.stock !== null ? Number(prod.stock) : 0;
+    let match = null;
     if (prod.variants && prod.variants.length > 0) {
       // 1. Try matching both size and color
-      let match = prod.variants.find((v) => {
+      match = prod.variants.find((v) => {
         const vSize = norm(v.size);
         const vColor = norm(v.color);
         return (
@@ -86,6 +87,20 @@ const enrichItemsWithLiveStock = async (items) => {
 
     const isOutOfStock = currentStock <= 0;
 
+    // Resolve variant or color specific image
+    let resolvedImage = '';
+    if (match && match.image) {
+      resolvedImage = match.image;
+    } else if (targetColor && prod.colorImages && prod.colorImages.length > 0) {
+      const colorMatch = prod.colorImages.find((ci) => norm(ci.color) === targetColor);
+      if (colorMatch && colorMatch.image) {
+        resolvedImage = colorMatch.image;
+      }
+    }
+    if (!resolvedImage) {
+      resolvedImage = item.image || prod.images?.[0] || '';
+    }
+
     enriched.push({
       product: prod._id,
       title: prod.title || item.title || '',
@@ -96,7 +111,7 @@ const enrichItemsWithLiveStock = async (items) => {
       quantity: isOutOfStock
         ? (item.quantity || 1)
         : Math.min(item.quantity || 1, Math.max(1, currentStock)),
-      image: prod.images?.[0] || item.image || '',
+      image: resolvedImage,
       slug: prod.slug || item.slug || '',
       stock: currentStock,
       isOutOfStock
@@ -273,3 +288,6 @@ exports.validateCart = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.enrichItemsWithLiveStock = enrichItemsWithLiveStock;
+
