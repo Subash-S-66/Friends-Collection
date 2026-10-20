@@ -60,6 +60,7 @@ const BannerManager = () => {
   const [previewIdx, setPreviewIdx] = useState(0);
   const [previewPaused, setPreviewPaused] = useState(false);
   const previewTimerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchBannersAndSettings = async (silent = false) => {
     if (!silent && banners.length === 0) setLoading(true);
@@ -141,6 +142,7 @@ const BannerManager = () => {
     setIsActive(true);
     setImageFile(null);
     setImagePreview('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setModalOpen(true);
   };
 
@@ -154,15 +156,30 @@ const BannerManager = () => {
     setIsActive(b.isActive !== false);
     setImageFile(null);
     setImagePreview(b.image || '');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setModalOpen(true);
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file (JPG, PNG, WEBP)');
+        return;
+      }
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+      toast.success('Image selected!');
     }
+  };
+
+  const handleDeleteImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    toast.success('Banner image removed. You can now choose or upload a new image.', { icon: '🗑️' });
   };
 
   // Reorder banners (Move Up / Move Down)
@@ -221,8 +238,8 @@ const BannerManager = () => {
     e.preventDefault();
     if (saving) return;
 
-    if (!editingBanner && !imageFile) {
-      toast.error('Please upload a banner image');
+    if (!imagePreview && !imageFile) {
+      toast.error('Please choose or upload a banner image before saving');
       return;
     }
 
@@ -794,32 +811,107 @@ const BannerManager = () => {
 
                 {/* Banner Image Upload & Live Preview */}
                 <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1.5">
-                    Hero Banner Image {!editingBanner && <span className="text-red-500">*</span>}
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-neutral-700">
+                      Hero Banner Image <span className="text-red-500">*</span>
+                    </label>
+                    {imagePreview && (
+                      <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                        <HiOutlineCheck className="w-3.5 h-3.5" />
+                        Image Attached
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Hidden File Input for triggering via click */}
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    required={!editingBanner}
                     onChange={handleImageChange}
-                    className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-light cursor-pointer"
+                    className="hidden"
                   />
-                  <p className="text-[10px] text-neutral-400 mt-1">
-                    Recommended: 16:9 or 21:9 landscape photo (e.g. 1920x800 or 1600x900) for edge-to-edge Amazon / Flipkart presentation.
-                  </p>
 
-                  {/* Image Preview Box */}
-                  {imagePreview && (
-                    <div className="mt-3 relative rounded-xl overflow-hidden border border-neutral-200 aspect-[16/8] bg-neutral-900">
-                      <img
-                        src={getImageUrl(imagePreview, '/fallback-banner.png')}
-                        alt="Preview"
-                        onError={(e) => handleImageError(e, '/fallback-banner.png')}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/60 text-white">
-                        Selected Visual
+                  {/* When imagePreview exists: SHOW ONLY the image and the Delete/Replace buttons, NO file chooser */}
+                  {imagePreview ? (
+                    <div className="space-y-3 animate-fade-in">
+                      <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
+                        <img
+                          src={getImageUrl(imagePreview, '/fallback-banner.png')}
+                          alt="Banner Preview"
+                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+                        />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xs text-white border border-white/20 shadow-sm flex items-center gap-1">
+                            <HiOutlinePhotograph className="w-3.5 h-3.5 text-accent-300" />
+                            {imageFile ? 'New Selected Photo' : 'Current Active Visual'}
+                          </span>
+                        </div>
+
+                        {/* Bottom Overlay Action Bar with Delete Button */}
+                        <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex items-center justify-between gap-2 z-10">
+                          <span className="text-[11px] text-white/90 font-medium truncate hidden sm:inline">
+                            {imageFile ? imageFile.name : (editingBanner?.title || 'Promotional Banner')}
+                          </span>
+
+                          <div className="flex items-center gap-2 ml-auto">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-neutral-900 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95 border border-neutral-200"
+                              title="Replace with another image"
+                            >
+                              <HiOutlinePhotograph className="w-3.5 h-3.5 text-primary" />
+                              <span>Replace</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleDeleteImage}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                              title="Delete this banner image"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                              <span>Delete Image</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
+                    </div>
+                  ) : (
+                    /* When there is NO image or when its deleted: SHOW the Choose Image / Upload Dropzone */
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-accent-300 hover:border-primary rounded-2xl p-6 sm:p-8 bg-neutral-50/70 hover:bg-cream/60 transition-all text-center flex flex-col items-center justify-center gap-3 cursor-pointer group shadow-2xs animate-fade-in"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-accent-100/70 group-hover:bg-primary/10 text-primary flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                        <HiOutlinePhotograph className="w-7 h-7 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs sm:text-sm font-bold text-neutral-800 group-hover:text-primary transition-colors">
+                          Click to Choose or Upload Banner Image
+                        </p>
+                        <p className="text-[11px] text-neutral-500 font-medium">
+                          Supports JPG, PNG, WEBP (Landscape recommended)
+                        </p>
+                        <p className="text-[10px] text-accent-800 font-semibold pt-0.5">
+                          Recommended ratio: 16:9 or 21:9 (e.g. 1920×800 or 1600×900) for edge-to-edge desktop & mobile banner
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      >
+                        <HiOutlinePhotograph className="w-4 h-4" />
+                        <span>Choose Image</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -839,28 +931,47 @@ const BannerManager = () => {
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-100">
-                  <button
-                    type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md disabled:opacity-50 cursor-pointer"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Saving Slide...</span>
-                      </>
-                    ) : (
-                      <span>{editingBanner ? 'Save Changes' : 'Publish to Carousel'}</span>
-                    )}
-                  </button>
+                <div className="pt-4 flex items-center justify-between gap-3 border-t border-neutral-100">
+                  {editingBanner ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDelete(editingBanner._id, editingBanner.title);
+                        setModalOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all cursor-pointer"
+                      title="Delete this entire banner slide from carousel"
+                    >
+                      <HiOutlineTrash className="w-4 h-4" />
+                      <span>Delete Slide</span>
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(false)}
+                      className="px-4 py-2.5 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md disabled:opacity-50 cursor-pointer"
+                    >
+                      {saving ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Saving Slide...</span>
+                        </>
+                      ) : (
+                        <span>{editingBanner ? 'Save Changes' : 'Publish to Carousel'}</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
