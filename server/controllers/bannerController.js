@@ -27,6 +27,13 @@ exports.adminGetBanners = async (req, res, next) => {
 // @route   POST /api/banners/admin
 exports.createBanner = async (req, res, next) => {
   try {
+    const totalBanners = await Banner.countDocuments();
+    if (totalBanners >= 5) {
+      return res.status(400).json({
+        message: 'Maximum 5 banners allowed for the carousel (Amazon/Flipkart format).'
+      });
+    }
+
     const { title, subtitle, ctaText, ctaLink, priority, isActive } = req.body;
 
     if (!req.file) {
@@ -36,12 +43,12 @@ exports.createBanner = async (req, res, next) => {
     const imageUrl = await uploadAndProcessImage(req.file.buffer, req.file.originalname, 'friends_collections/banners');
 
     const banner = await Banner.create({
-      title,
-      subtitle,
+      title: title || '',
+      subtitle: subtitle || '',
       image: imageUrl,
-      ctaText,
-      ctaLink,
-      priority: Number(priority) || 0,
+      ctaText: ctaText || 'Shop Now',
+      ctaLink: ctaLink || '/shop',
+      priority: Number(priority) || (totalBanners + 1),
       isActive: isActive !== 'false' && isActive !== false
     });
     res.status(201).json(banner);
@@ -82,6 +89,46 @@ exports.updateBanner = async (req, res, next) => {
     }
 
     res.json(banner);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reorder banners (admin)
+// @route   PUT /api/banners/admin/reorder
+exports.reorderBanners = async (req, res, next) => {
+  try {
+    const { bannerIds } = req.body;
+    if (!Array.isArray(bannerIds)) {
+      return res.status(400).json({ message: 'bannerIds must be an array of IDs' });
+    }
+
+    const updates = bannerIds.map((id, index) =>
+      Banner.findByIdAndUpdate(id, { priority: index + 1 }, { new: true })
+    );
+    await Promise.all(updates);
+
+    const updated = await Banner.find().sort({ priority: 1 });
+    res.json({ message: 'Banners reordered successfully', banners: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle banner active status (admin)
+// @route   PATCH /api/banners/admin/:id/toggle
+exports.toggleBanner = async (req, res, next) => {
+  try {
+    const banner = await Banner.findById(req.params.id);
+    if (!banner) return res.status(404).json({ message: 'Banner not found' });
+
+    banner.isActive = !banner.isActive;
+    await banner.save();
+
+    res.json({
+      message: `Banner "${banner.title || 'Slide'}" is now ${banner.isActive ? 'ACTIVE' : 'HIDDEN'}`,
+      banner
+    });
   } catch (error) {
     next(error);
   }

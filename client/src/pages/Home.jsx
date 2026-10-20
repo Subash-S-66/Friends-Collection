@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   HiOutlineArrowRight,
   HiOutlineTruck,
@@ -97,6 +97,7 @@ const defaultHeroBanner = {
 };
 
 const Home = () => {
+  const navigate = useNavigate();
   const initialCache = getInitialHomeCache();
   const [categories, setCategories] = useState(() => initialCache?.categories || []);
   const [featured, setFeatured] = useState(() => initialCache?.featured || []);
@@ -104,6 +105,8 @@ const Home = () => {
   const [banners, setBanners] = useState(() => (initialCache?.banners?.length ? initialCache.banners : [defaultHeroBanner]));
   const [settings, setSettings] = useState(() => initialCache?.settings || {});
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [touchStartX, setTouchStartX] = useState(0);
   const [loading, setLoading] = useState(() => !initialCache);
   const [selectedGender, setSelectedGender] = useState('all');
 
@@ -282,16 +285,56 @@ const Home = () => {
     [newArrivals]
   );
 
-  // Auto-rotate hero banners if multiple exist in DB
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveBannerIdx((prev) => (prev + 1) % banners.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [banners.length]);
+  // Check if admin enabled Carousel Mode in Settings (Single Banner is Default)
+  const isCarouselEnabled = Boolean(settings?.heroCarouselEnabled);
+  const activeBanners = useMemo(() => {
+    const list = Array.isArray(banners)
+      ? banners.filter((b) => b && b.isActive !== false)
+      : [];
+    return list.length > 0 ? list : [defaultHeroBanner];
+  }, [banners]);
 
-  const currentBanner = banners[activeBannerIdx] || banners[0] || defaultHeroBanner;
+  // Amazon & Flipkart Auto-rotate interval (3 seconds) with hover-pause
+  useEffect(() => {
+    if (!isCarouselEnabled || activeBanners.length <= 1 || isHovered) return;
+    const interval = setInterval(() => {
+      setActiveBannerIdx((prev) => (prev + 1) % activeBanners.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isCarouselEnabled, activeBanners.length, isHovered]);
+
+  // Safe index clamp
+  useEffect(() => {
+    if (activeBannerIdx >= activeBanners.length && activeBanners.length > 0) {
+      setActiveBannerIdx(0);
+    }
+  }, [activeBanners.length, activeBannerIdx]);
+
+  const currentBanner = (isCarouselEnabled ? activeBanners[activeBannerIdx] : activeBanners[0]) || activeBanners[0] || defaultHeroBanner;
+
+  const handlePrevBanner = (e) => {
+    e?.stopPropagation();
+    if (activeBanners.length <= 1) return;
+    setActiveBannerIdx((prev) => (prev === 0 ? activeBanners.length - 1 : prev - 1));
+  };
+
+  const handleNextBanner = (e) => {
+    e?.stopPropagation();
+    if (activeBanners.length <= 1) return;
+    setActiveBannerIdx((prev) => (prev + 1) % activeBanners.length);
+  };
+
+  const handleBannerClick = (banner) => {
+    const targetLink = banner?.ctaLink || '/shop';
+    if (targetLink.startsWith('http://') || targetLink.startsWith('https://')) {
+      // Redirect in the same window (not opening a new tab/site)
+      window.location.href = targetLink;
+    } else {
+      // Seamless React Router SPA client navigation within the store
+      navigate(targetLink);
+    }
+  };
+
   const storePhone = settings.storePhone || '+91 95007 57024';
   const whatsappNum = settings.whatsappNumber || '919500757024';
   const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
@@ -299,8 +342,19 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-cream">
-      {/* Dynamic DB Hero Banner Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[440px] sm:min-h-[500px] flex items-center">
+      {/* Dynamic DB Hero Banner Section (Single Banner Default or 3s Amazon/Flipkart Carousel) */}
+      <section
+        className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 text-white min-h-[440px] sm:min-h-[500px] flex items-center group select-none"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          if (!isCarouselEnabled || activeBanners.length <= 1) return;
+          const diff = touchStartX - e.changedTouches[0].clientX;
+          if (diff > 45) handleNextBanner();
+          else if (diff < -45) handlePrevBanner();
+        }}
+      >
         {/* Subtle royal pattern/accents overlay */}
         <div
           className="absolute inset-0 opacity-10 [background-size:24px_24px] pointer-events-none"
@@ -310,44 +364,79 @@ const Home = () => {
         {/* Ambient Royal Showroom Background */}
         <div className="absolute inset-0 z-0">
           <img
+            key={currentBanner?._id || activeBannerIdx}
             src={getImageUrl(currentBanner?.image, '/fallback-banner.png')}
             alt={currentBanner?.title || 'Friends Collections'}
             onError={(e) => handleImageError(e, '/fallback-banner.png')}
             fetchPriority="high"
             loading="eager"
             decoding="async"
-            className="w-full h-full object-cover opacity-25 filter blur-xs"
+            className="w-full h-full object-cover opacity-25 filter blur-xs transition-opacity duration-700 ease-in-out"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary-950 via-primary-950/90 to-primary-900/60" />
         </div>
 
+        {/* Amazon & Flipkart Navigation Arrows (When Carousel Mode is Active & >1 Slides) */}
+        {isCarouselEnabled && activeBanners.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevBanner}
+              aria-label="Previous Banner Slide"
+              className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-20 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+              title="Previous Banner Slide"
+            >
+              <HiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNextBanner}
+              aria-label="Next Banner Slide"
+              className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-20 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+              title="Next Banner Slide"
+            >
+              <HiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          </>
+        )}
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             {/* Left Column: Dynamic Headlines & Call to Actions */}
-            <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
-                <HiOutlineSparkles className="w-4 h-4" />
-                <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+            <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left transition-all duration-500">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent-500/20 border border-accent-300/30 text-accent-200 text-xs font-semibold tracking-wider uppercase">
+                  <HiOutlineSparkles className="w-4 h-4" />
+                  <span>{settings.heroBadge || "Chennai's Trendy Fashion House"}</span>
+                </div>
+                {isCarouselEnabled && activeBanners.length > 1 && (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/10 text-neutral-300 border border-white/10">
+                    Slide {activeBannerIdx + 1} of {activeBanners.length}
+                  </span>
+                )}
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+              <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight transition-all duration-500">
                 {currentBanner?.title || settings.heroTitle || 'Style That Defines You'}
               </h1>
 
-              <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed">
+              <p className="text-sm sm:text-lg text-neutral-300 font-light max-w-xl leading-relaxed transition-all duration-500">
                 {currentBanner?.subtitle ||
                   settings.heroDescription ||
                   'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'}
               </p>
 
               <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
-                <Link
-                  to={currentBanner?.ctaLink || '/shop'}
-                  className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5"
+                <button
+                  type="button"
+                  onClick={() => handleBannerClick(currentBanner)}
+                  className="inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-accent hover:bg-accent-light text-white font-semibold text-sm tracking-wide shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  title={`Redirects to ${currentBanner?.ctaLink || '/shop'}`}
                 >
                   <span>{currentBanner?.ctaText || 'Explore Collection'}</span>
                   <HiOutlineArrowRight className="w-4 h-4" />
-                </Link>
+                </button>
                 <Link
                   to="/contact"
                   title="Visit our physical boutique store in Jamalia, Chennai"
@@ -358,37 +447,56 @@ const Home = () => {
                 </Link>
               </div>
 
-              {/* Multi-banner navigation dots if DB has > 1 active banner */}
-              {banners.length > 1 && (
+              {/* Amazon / Flipkart Style Slide Navigation Indicators */}
+              {isCarouselEnabled && activeBanners.length > 1 && (
                 <div className="flex items-center gap-2 pt-4">
-                  {banners.map((b, idx) => (
+                  {activeBanners.map((b, idx) => (
                     <button
                       key={b._id || idx}
                       onClick={() => setActiveBannerIdx(idx)}
-                      aria-label={`Show banner ${idx + 1}`}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        activeBannerIdx === idx ? 'w-8 bg-accent-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                      aria-label={`Show slide ${idx + 1}`}
+                      className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        activeBannerIdx === idx
+                          ? 'w-9 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
+                          : 'w-2.5 bg-white/40 hover:bg-white/70'
                       }`}
+                      title={`Slide ${idx + 1}: ${b.title || 'Promotional Banner'}`}
                     />
                   ))}
+                  {isHovered && (
+                    <span className="text-[10px] text-accent-300 font-medium ml-2 animate-pulse">
+                      (Paused on hover)
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Right Column: Branded Visual Showcase */}
+            {/* Right Column: Branded Visual Showcase (Clickable to redirect in same site) */}
             <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group hover:border-accent-300/70 transition-all duration-500">
+              <div
+                onClick={() => handleBannerClick(currentBanner)}
+                title={`Click to view: ${currentBanner?.title || 'Collection'} (Redirects within store)`}
+                className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card hover:border-accent-300/80 transition-all duration-500 cursor-pointer transform hover:-translate-y-1"
+              >
                 <img
+                  key={currentBanner?._id || activeBannerIdx}
                   src={getImageUrl(currentBanner?.image, '/fallback-banner.png')}
                   alt={currentBanner?.title || 'Friends Collections'}
                   onError={(e) => handleImageError(e, '/fallback-banner.png')}
                   fetchPriority="high"
                   loading="eager"
                   decoding="async"
-                  className="w-full h-full object-cover rounded-2xl shadow-inner group-hover:scale-102 transition-transform duration-700 ease-out"
+                  className="w-full h-full object-cover rounded-2xl shadow-inner group-hover/card:scale-103 transition-transform duration-700 ease-out"
                 />
                 {/* Subtle luxury inner glow */}
                 <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20 pointer-events-none" />
+
+                {/* Floating click indicator badge */}
+                <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-bold opacity-0 group-hover/card:opacity-100 transition-opacity flex items-center gap-1.5 shadow-lg border border-white/20">
+                  <span>Explore Now</span>
+                  <HiOutlineArrowRight className="w-3.5 h-3.5 text-accent-300" />
+                </div>
               </div>
             </div>
           </div>

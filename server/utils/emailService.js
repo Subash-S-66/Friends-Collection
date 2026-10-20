@@ -118,14 +118,24 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
       text-align: center;
       position: relative;
     }
-    .logo-img {
-      width: 90px;
-      height: 90px;
+    .logo-container {
+      width: 82px;
+      height: 82px;
+      margin: 0 auto;
       border-radius: 50%;
       border: 3px solid #D4AF37;
+      background-color: #FFFFFF;
+      padding: 3px;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-      background-color: #4A0E17;
       display: inline-block;
+      box-sizing: border-box;
+    }
+    .logo-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: contain;
+      display: block;
     }
     .brand-title {
       font-family: Georgia, 'Playfair Display', serif;
@@ -249,7 +259,9 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
         <div class="main-card">
           <!-- Royal Header -->
           <div class="header-banner">
-            <img src="cid:friends_logo" alt="Friends Collections" class="logo-img" />
+            <div class="logo-container">
+              <img src="cid:friends_logo" alt="Friends Collections" class="logo-img" />
+            </div>
             <h1 class="brand-title">Friends Collections</h1>
             <p class="brand-tagline">Style That Defines You</p>
             <div class="ornament">✦ ✦ ✦</div>
