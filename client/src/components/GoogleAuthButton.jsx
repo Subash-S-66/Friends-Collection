@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
   const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+  const loginWithGoogleRef = useRef(loginWithGoogle);
+  loginWithGoogleRef.current = loginWithGoogle;
 
   const googleClientId =
     import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -16,36 +21,38 @@ const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
       : 'Continue with Google';
 
   useEffect(() => {
-    // Initialize Google Identity listener in background
-    const handleCredentialResponse = async (response) => {
-      if (!response?.credential) return;
+    if (!window.google?.accounts?.id) return;
 
-      setLoading(true);
-      try {
-        const data = await loginWithGoogle(response.credential);
-        toast.success(`Welcome, ${data.user.name || data.user.email}!`, { icon: '✨' });
-        if (onSuccess) onSuccess(data.user);
-      } catch (err) {
-        console.error('Google Auth backend error:', err);
-        toast.error(err.response?.data?.message || 'Google sign-in failed');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Guard against multiple initializations which Google logs warnings for
+    if (window.__gsiInitializedClientId === googleClientId) return;
 
-    if (window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
-      } catch (e) {
-        console.warn('Google Identity initialize warning:', e);
-      }
+    try {
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response) => {
+          if (!response?.credential) return;
+
+          setLoading(true);
+          try {
+            const data = await loginWithGoogleRef.current(response.credential);
+            toast.success(`Welcome, ${data.user.name || data.user.email}!`, { icon: '✨' });
+            if (onSuccessRef.current) onSuccessRef.current(data.user);
+          } catch (err) {
+            console.error('Google Auth backend error:', err);
+            toast.error(err.response?.data?.message || 'Google sign-in failed');
+          } finally {
+            setLoading(false);
+          }
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+
+      window.__gsiInitializedClientId = googleClientId;
+    } catch (e) {
+      console.warn('Google Identity initialize warning:', e);
     }
-  }, [googleClientId, loginWithGoogle, onSuccess]);
+  }, [googleClientId]);
 
   const handleGoogleSignIn = () => {
     if (loading) return;
@@ -79,7 +86,7 @@ const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
                 });
                 const profile = await profileRes.json();
 
-                const data = await loginWithGoogle({
+                const data = await loginWithGoogleRef.current({
                   accessToken: tokenResponse.access_token,
                   userInfo: {
                     email: profile.email,
@@ -90,7 +97,7 @@ const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
                 });
 
                 toast.success(`Welcome, ${data.user.name || data.user.email}!`, { icon: '✨' });
-                if (onSuccess) onSuccess(data.user);
+                if (onSuccessRef.current) onSuccessRef.current(data.user);
               } catch (err) {
                 console.error('Google Auth backend error:', err);
                 toast.error(err.response?.data?.message || 'Google sign-in failed');

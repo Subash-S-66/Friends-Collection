@@ -432,6 +432,8 @@ exports.requestVerificationToken = async (req, res, next) => {
       expiresAt
     });
 
+    console.log(`🔑 [AUTH OTP] 6-digit login token for ${cleanEmail}: ${token}`);
+
     // Send the gorgeous branded email via Nodemailer
     try {
       await sendVerificationTokenEmail({
@@ -447,7 +449,7 @@ exports.requestVerificationToken = async (req, res, next) => {
         isOtpError: true,
         email: cleanEmail,
         retryAfter: 30,
-        message: `Could not send 6-digit verification code to ${cleanEmail} due to a temporary dispatch server delay. Please try again in 30 seconds or reach us on WhatsApp.`
+        message: `Could not dispatch 6-digit email code to ${cleanEmail}. Please sign in using your Password or check your email settings.`
       });
     }
 

@@ -108,7 +108,7 @@ const AdminLayout = () => {
     {
       title: 'STORE CONFIGURATION',
       items: [
-        { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, shipping & copy' },
+        { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, announcements & shipping' },
         { name: 'Tax Invoice Settings', path: '/admin/invoice', icon: HiOutlineDocumentText, desc: 'Customize invoice layout & details' },
       ],
     },

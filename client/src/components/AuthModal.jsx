@@ -533,7 +533,7 @@ const AuthModal = () => {
                 </span>
               </div>
 
-              {/* Sub-Tabs: Password/Admin vs Instant Email Code */}
+              {/* Sub-Tabs: Password vs Instant Email Code */}
               <div className="flex bg-neutral-50 border border-neutral-200 p-1 rounded-xl text-[11px] font-bold">
                 <button
                   type="button"
@@ -544,7 +544,7 @@ const AuthModal = () => {
                       : 'text-neutral-600 hover:text-neutral-900'
                   }`}
                 >
-                  Password / Admin
+                  Password
                 </button>
                 <button
                   type="button"
@@ -560,11 +560,11 @@ const AuthModal = () => {
               </div>
 
               {loginTab === 'password' ? (
-                /* Password / Admin Form */
+                /* Password Form */
                 <form onSubmit={handlePasswordLogin} className="space-y-3.5">
                   <div>
                     <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      Email or Admin Username
+                      Email Address
                     </label>
                     <div className="relative">
                       <HiOutlineMail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
@@ -573,7 +573,7 @@ const AuthModal = () => {
                         required
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        placeholder="admin or name@example.com"
+                        placeholder="name@example.com"
                         className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-accent-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50/50"
                       />
                     </div>

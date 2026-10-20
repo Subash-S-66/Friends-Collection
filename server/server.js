@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -219,7 +220,7 @@ app.get('/api/healthz', healthCheckHandler);
 
 // Serve static client build if present (for full-stack deployment on Render)
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
-if (require('fs').existsSync(clientDistPath)) {
+if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath, { maxAge: '1d', etag: true }));
   app.get('*', (req, res, next) => {
     if (

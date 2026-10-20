@@ -32,8 +32,9 @@ const SettingsManager = () => {
     }
   }, [searchParams, navigate]);
 
-  // Tab control from URL (?tab=theming, hero, shipping, contact)
-  const currentTab = searchParams.get('tab') || 'theming';
+  // Tab control from URL (?tab=theming, departments, announcement, shipping, contact)
+  const rawTab = searchParams.get('tab') || 'theming';
+  const currentTab = rawTab === 'hero' ? 'announcement' : rawTab;
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
   };
@@ -44,35 +45,26 @@ const SettingsManager = () => {
   const [customAccent, setCustomAccent] = useState(theme.accent || '#C88A65');
   const [customBg, setCustomBg] = useState(theme.bgTint || '#FAF7F2');
 
-  // 2. Homepage Hero Headline & Copy state
-  const [heroBadge, setHeroBadge] = useState("Chennai's Trendy Fashion House");
-  const [heroTitle, setHeroTitle] = useState('Style That Defines You');
-  const [heroDescription, setHeroDescription] = useState(
-    'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.'
-  );
-  const [storeVisitText, setStoreVisitText] = useState('Visit Store');
-
-  // 3. Announcement Bar state
+  // 2. Announcement Bar state
   const [announcementText, setAnnouncementText] = useState('🎉 Free Shipping on Orders Above ₹999!');
   const [announcementActive, setAnnouncementActive] = useState(true);
 
-  // 4. Shipping state
+  // 3. Shipping state
   const [shippingFee, setShippingFee] = useState('79');
   const [freeAbove, setFreeAbove] = useState('999');
 
-  // 5. Store Info state
+  // 4. Store Info state
   const [storeAddress, setStoreAddress] = useState('7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 12');
   const [storePhone, setStorePhone] = useState('9500757024');
   const [storeEmail, setStoreEmail] = useState('friends.collection06@gmail.com');
   const [storeInstagram, setStoreInstagram] = useState('friends_collection_in');
 
-  // 6. Department Visibility state
+  // 5. Department Visibility state
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
   const [savingDepartmentKey, setSavingDepartmentKey] = useState(null);
   const [savingDepartmentAction, setSavingDepartmentAction] = useState(null);
 
   const [savingTheme, setSavingTheme] = useState(false);
-  const [savingHero, setSavingHero] = useState(false);
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
   const [savingShipping, setSavingShipping] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
@@ -81,10 +73,6 @@ const SettingsManager = () => {
     API.get('/settings')
       .then((res) => {
         const data = res.data;
-        if (data.heroBadge) setHeroBadge(data.heroBadge);
-        if (data.heroTitle) setHeroTitle(data.heroTitle);
-        if (data.heroDescription) setHeroDescription(data.heroDescription);
-        if (data.storeVisitText) setStoreVisitText(data.storeVisitText);
         if (data.announcementBar) {
           setAnnouncementText(data.announcementBar.text || '');
           setAnnouncementActive(Boolean(data.announcementBar.isActive));
@@ -221,38 +209,6 @@ const SettingsManager = () => {
     }
   };
 
-  // Save Hero Section & Copy
-  const handleSaveHero = async (e) => {
-    e.preventDefault();
-    if (savingHero) return;
-    const ok = await confirm({
-      title: 'Update Homepage Hero Copy?',
-      message: 'Are you sure you want to publish these hero headlines and promotional text to the live storefront?',
-      type: 'save',
-      confirmText: 'Update Hero Copy',
-      cancelText: 'Keep Editing',
-      details: `Headline: "${heroTitle.trim() || 'Default'}"`
-    });
-    if (!ok) return;
-
-    setSavingHero(true);
-    try {
-      await API.put('/settings/admin/heroSection', {
-        value: {
-          heroBadge: heroBadge.trim(),
-          heroTitle: heroTitle.trim(),
-          heroDescription: heroDescription.trim(),
-          storeVisitText: storeVisitText.trim(),
-        },
-      });
-      toast.success('Homepage hero copy updated and saved to database!');
-    } catch {
-      toast.error('Failed to update hero copy');
-    } finally {
-      setSavingHero(false);
-    }
-  };
-
   // Save Announcement Bar
   const handleSaveAnnouncement = async (e) => {
     e.preventDefault();
@@ -344,7 +300,7 @@ const SettingsManager = () => {
       icon: HiOutlineEyeOff,
       badge: hiddenDepartments.length > 0 ? `${hiddenDepartments.length} Hidden` : null
     },
-    { id: 'hero', name: 'Announcement Bar', icon: HiOutlineSpeakerphone },
+    { id: 'announcement', name: 'Announcement Bar', icon: HiOutlineSpeakerphone },
     { id: 'shipping', name: 'Shipping Rules', icon: HiOutlineTruck },
     { id: 'contact', name: 'Store Contact & Info', icon: HiOutlineOfficeBuilding },
   ];
@@ -358,7 +314,7 @@ const SettingsManager = () => {
             Store & Theme Settings
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-1">
-            Configure brand theme colors, homepage hero headlines, shipping delivery rules, and showroom contact info
+            Configure brand theme colors, top announcement bar, shipping delivery rules, and showroom contact info
           </p>
         </div>
       </div>
@@ -679,7 +635,7 @@ const SettingsManager = () => {
       {/* ============================================================== */}
       {/* TAB 3: ANNOUNCEMENT BAR                                        */}
       {/* ============================================================== */}
-      {currentTab === 'hero' && (
+      {currentTab === 'announcement' && (
         <div className="space-y-6">
           {/* Announcement Bar */}
           <form onSubmit={handleSaveAnnouncement} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-4">
