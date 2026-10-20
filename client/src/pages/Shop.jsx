@@ -33,17 +33,26 @@ const Shop = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [hiddenDepartments, setHiddenDepartments] = useState([]);
 
-  // Load categories and tree
+  // Load categories, tree, and store settings
   useEffect(() => {
     Promise.all([
       API.get('/categories').catch(() => ({ data: [] })),
-      API.get('/categories/tree').catch(() => ({ data: [] }))
+      API.get('/categories/tree').catch(() => ({ data: [] })),
+      API.get('/settings').catch(() => ({ data: {} }))
     ])
-      .then(([catRes, treeRes]) => {
+      .then(([catRes, treeRes, settingsRes]) => {
         const rawCats = Array.isArray(catRes?.data) ? catRes.data : [];
         const rawTree = Array.isArray(treeRes?.data) ? treeRes.data : [];
         setCategories(rawCats);
+        if (Array.isArray(settingsRes?.data?.hiddenDepartments)) {
+          setHiddenDepartments(
+            settingsRes.data.hiddenDepartments
+              .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+              .filter(Boolean)
+          );
+        }
         if (rawTree.length > 0) {
           setCategoryTree(rawTree);
         } else {
@@ -59,6 +68,13 @@ const Shop = () => {
       })
       .catch((err) => console.error('Categories load error:', err));
   }, []);
+
+  // If currently active gender is hidden by admin, reset to All Departments
+  useEffect(() => {
+    if (selectedGender && hiddenDepartments.includes(selectedGender.toLowerCase())) {
+      updateParam('gender', '');
+    }
+  }, [hiddenDepartments, selectedGender]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -260,8 +276,10 @@ const Shop = () => {
     maxPrice
   ]);
 
-  // Filtered categories based on selected gender
-  const safeCategoryTree = Array.isArray(categoryTree) ? categoryTree : [];
+  // Filtered categories based on selected gender & excluding hidden departments
+  const safeCategoryTree = (Array.isArray(categoryTree) ? categoryTree : []).filter(
+    (c) => !c?.gender || !hiddenDepartments.includes(c.gender.toLowerCase())
+  );
   const displayedCategories = selectedGender
     ? safeCategoryTree.filter((c) => c && (c.gender === selectedGender || c.gender === 'all' || !c.gender))
     : safeCategoryTree;
@@ -385,39 +403,45 @@ const Shop = () => {
           >
             ✨ All Departments
           </button>
-          <button
-            onClick={() => updateParam('gender', 'women')}
-            data-active={selectedGender === 'women' ? 'true' : undefined}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
-              selectedGender === 'women'
-                ? 'bg-primary text-white shadow-md'
-                : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-            }`}
-          >
-            🌸 Women's Studio
-          </button>
-          <button
-            onClick={() => updateParam('gender', 'men')}
-            data-active={selectedGender === 'men' ? 'true' : undefined}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
-              selectedGender === 'men'
-                ? 'bg-primary text-white shadow-md'
-                : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-            }`}
-          >
-            👔 Men's Studio
-          </button>
-          <button
-            onClick={() => updateParam('gender', 'kids')}
-            data-active={selectedGender === 'kids' ? 'true' : undefined}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
-              selectedGender === 'kids'
-                ? 'bg-primary text-white shadow-md'
-                : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-            }`}
-          >
-            🧒 Kids' Studio
-          </button>
+          {!hiddenDepartments.includes('women') && (
+            <button
+              onClick={() => updateParam('gender', 'women')}
+              data-active={selectedGender === 'women' ? 'true' : undefined}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                selectedGender === 'women'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+              }`}
+            >
+              🌸 Women's Studio
+            </button>
+          )}
+          {!hiddenDepartments.includes('men') && (
+            <button
+              onClick={() => updateParam('gender', 'men')}
+              data-active={selectedGender === 'men' ? 'true' : undefined}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                selectedGender === 'men'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+              }`}
+            >
+              👔 Men's Studio
+            </button>
+          )}
+          {!hiddenDepartments.includes('kids') && (
+            <button
+              onClick={() => updateParam('gender', 'kids')}
+              data-active={selectedGender === 'kids' ? 'true' : undefined}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                selectedGender === 'kids'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+              }`}
+            >
+              🧒 Kids' Studio
+            </button>
+          )}
         </HorizontalScrollContainer>
 
         {/* Primary Category Pills Bar (Filtered by Gender) */}
@@ -532,7 +556,9 @@ const Shop = () => {
                   { label: "Women's Studio", value: 'women' },
                   { label: "Men's Studio", value: 'men' },
                   { label: "Kids' Studio", value: 'kids' },
-                ].map((item, idx) => (
+                ]
+                  .filter((item) => !item.value || !hiddenDepartments.includes(item.value))
+                  .map((item, idx) => (
                   <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:text-primary">
                     <input
                       type="radio"
@@ -794,7 +820,9 @@ const Shop = () => {
                     { label: "🌸 Women's Studio", value: 'women' },
                     { label: "👔 Men's Studio", value: 'men' },
                     { label: "🧒 Kids' Studio", value: 'kids' },
-                  ].map((item, idx) => (
+                  ]
+                    .filter((item) => !item.value || !hiddenDepartments.includes(item.value))
+                    .map((item, idx) => (
                     <button
                       key={idx}
                       type="button"

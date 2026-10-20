@@ -63,24 +63,66 @@ const CategoryManager = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+  const [hiddenDepartments, setHiddenDepartments] = useState([]);
+  const [togglingDept, setTogglingDept] = useState(false);
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const [catRes, prodRes] = await Promise.all([
+      const [catRes, prodRes, settingsRes] = await Promise.all([
         API.get('/categories/admin/all'),
-        API.get('/products/admin/all?limit=300').catch(() => ({ data: [] }))
+        API.get('/products/admin/all?limit=300').catch(() => ({ data: [] })),
+        API.get('/settings').catch(() => ({ data: {} }))
       ]);
       setCategories(Array.isArray(catRes.data) ? catRes.data : []);
       const prods = Array.isArray(prodRes.data?.products)
         ? prodRes.data.products
         : (Array.isArray(prodRes.data) ? prodRes.data : []);
       setProducts(prods);
+      if (Array.isArray(settingsRes?.data?.hiddenDepartments)) {
+        setHiddenDepartments(
+          settingsRes.data.hiddenDepartments
+            .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+            .filter(Boolean)
+        );
+      }
     } catch (err) {
       console.error('Error fetching categories & products:', err);
       toast.error('Failed to load categories');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleDepartmentVisibility = async (deptKey) => {
+    const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
+    let updated;
+    if (isCurrentlyHidden) {
+      updated = hiddenDepartments.filter((k) => k !== deptKey);
+    } else {
+      const allDepts = ['women', 'men', 'kids'];
+      const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
+      if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
+        toast.error('At least one department must remain visible on the store.');
+        return;
+      }
+      updated = [...hiddenDepartments, deptKey];
+    }
+
+    setTogglingDept(true);
+    try {
+      await API.put('/settings/admin/hiddenDepartments', { value: updated });
+      setHiddenDepartments(updated);
+      const names = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+      toast.success(
+        isCurrentlyHidden
+          ? `✨ ${names[deptKey] || deptKey} is now LIVE on store everywhere!`
+          : `🔒 ${names[deptKey] || deptKey} is now HIDDEN from store everywhere.`
+      );
+    } catch {
+      toast.error('Failed to update department visibility');
+    } finally {
+      setTogglingDept(false);
     }
   };
 
@@ -357,37 +399,126 @@ const CategoryManager = () => {
       </div>
 
       {/* Summary KPI Badges */}
+      {/* Summary KPI Badges with Department Store Visibility Controls */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold text-sm">
-            🌸
+        {/* Women's Department Card */}
+        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
+          hiddenDepartments.includes('women') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
+        }`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold text-sm">
+                🌸
+              </div>
+              <div>
+                <span className="text-xl font-bold text-neutral-900">{womenCount}</span>
+                <p className="text-xs text-neutral-500">Women's Studio</p>
+              </div>
+            </div>
+            {hiddenDepartments.includes('women') ? (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
+                Hidden
+              </span>
+            ) : (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                Live
+              </span>
+            )}
           </div>
-          <div>
-            <span className="text-xl font-bold text-neutral-900">{womenCount}</span>
-            <p className="text-xs text-neutral-500">Women's Categories</p>
+          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
+            <span className="text-neutral-400">Store Visibility:</span>
+            <button
+              type="button"
+              disabled={togglingDept}
+              onClick={() => toggleDepartmentVisibility('women')}
+              className={`font-bold hover:underline cursor-pointer ${
+                hiddenDepartments.includes('women') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
+              }`}
+            >
+              {hiddenDepartments.includes('women') ? 'Show on Store' : 'Hide from Store'}
+            </button>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm">
-            👔
+        {/* Men's Department Card */}
+        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
+          hiddenDepartments.includes('men') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
+        }`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm">
+                👔
+              </div>
+              <div>
+                <span className="text-xl font-bold text-neutral-900">{menCount}</span>
+                <p className="text-xs text-neutral-500">Men's Studio</p>
+              </div>
+            </div>
+            {hiddenDepartments.includes('men') ? (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
+                Hidden
+              </span>
+            ) : (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                Live
+              </span>
+            )}
           </div>
-          <div>
-            <span className="text-xl font-bold text-neutral-900">{menCount}</span>
-            <p className="text-xs text-neutral-500">Men's Categories</p>
+          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
+            <span className="text-neutral-400">Store Visibility:</span>
+            <button
+              type="button"
+              disabled={togglingDept}
+              onClick={() => toggleDepartmentVisibility('men')}
+              className={`font-bold hover:underline cursor-pointer ${
+                hiddenDepartments.includes('men') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
+              }`}
+            >
+              {hiddenDepartments.includes('men') ? 'Show on Store' : 'Hide from Store'}
+            </button>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
-            🧒
+        {/* Kids' Department Card */}
+        <div className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between ${
+          hiddenDepartments.includes('kids') ? 'bg-neutral-50 border-neutral-300 opacity-90' : 'bg-white border-neutral-200'
+        }`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
+                🧒
+              </div>
+              <div>
+                <span className="text-xl font-bold text-neutral-900">{kidsCount}</span>
+                <p className="text-xs text-neutral-500">Kids' Studio</p>
+              </div>
+            </div>
+            {hiddenDepartments.includes('kids') ? (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
+                Hidden
+              </span>
+            ) : (
+              <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                Live
+              </span>
+            )}
           </div>
-          <div>
-            <span className="text-xl font-bold text-neutral-900">{kidsCount}</span>
-            <p className="text-xs text-neutral-500">Kids Section</p>
+          <div className="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between text-[11px]">
+            <span className="text-neutral-400">Store Visibility:</span>
+            <button
+              type="button"
+              disabled={togglingDept}
+              onClick={() => toggleDepartmentVisibility('kids')}
+              className={`font-bold hover:underline cursor-pointer ${
+                hiddenDepartments.includes('kids') ? 'text-primary' : 'text-neutral-500 hover:text-neutral-800'
+              }`}
+            >
+              {hiddenDepartments.includes('kids') ? 'Show on Store' : 'Hide from Store'}
+            </button>
           </div>
         </div>
 
+        {/* Total Main Categories Card */}
         <div className="bg-white p-4 rounded-2xl border border-neutral-200 flex items-center gap-3 shadow-xs">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
             <HiOutlineFolder className="w-5 h-5" />
@@ -415,33 +546,42 @@ const CategoryManager = () => {
           </button>
           <button
             onClick={() => setGenderFilter('women')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               genderFilter === 'women'
                 ? 'bg-rose-600 text-white shadow-xs'
-                : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
             }`}
           >
-            🌸 Women ({womenCount})
+            <span>🌸 Women ({womenCount})</span>
+            {hiddenDepartments.includes('women') && (
+              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+            )}
           </button>
           <button
             onClick={() => setGenderFilter('men')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               genderFilter === 'men'
                 ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
             }`}
           >
-            👔 Men ({menCount})
+            <span>👔 Men ({menCount})</span>
+            {hiddenDepartments.includes('men') && (
+              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+            )}
           </button>
           <button
             onClick={() => setGenderFilter('kids')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               genderFilter === 'kids'
                 ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
             }`}
           >
-            🧒 Kids ({kidsCount})
+            <span>🧒 Kids ({kidsCount})</span>
+            {hiddenDepartments.includes('kids') && (
+              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/30 text-white">Hidden</span>
+            )}
           </button>
           {unisexCount > 0 && (
             <button

@@ -15,6 +15,8 @@ const flushSettingsCache = (req, res, next) => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       invalidateCache('/api/settings');
       invalidateCache('/api/products/homepage-bundle');
+      invalidateCache('/api/categories');
+      invalidateCache('/api/products');
     }
   });
   next();

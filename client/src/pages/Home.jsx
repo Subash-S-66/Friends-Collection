@@ -188,9 +188,25 @@ const Home = () => {
     };
   }, []);
 
+  // Extract hidden departments configured by store admin
+  const hiddenDepartments = useMemo(() => {
+    if (Array.isArray(settings?.hiddenDepartments)) {
+      return settings.hiddenDepartments
+        .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+        .filter(Boolean);
+    }
+    return [];
+  }, [settings?.hiddenDepartments]);
+
+  // If active filter matches a hidden department, fallback to 'all'
+  useEffect(() => {
+    if (selectedGender !== 'all' && hiddenDepartments.includes(selectedGender.toLowerCase())) {
+      setSelectedGender('all');
+    }
+  }, [hiddenDepartments, selectedGender]);
+
   // Interleave items fairly across departments (women, men, kids, unisex)
-  // ensuring that if women, men, and kids are available,
-  // the first 3 items are [Women, Men, Kids], the next 3 are [Women, Men, Kids], etc.
+  // excluding any department hidden by admin
   const interleaveByDepartment = (items = [], maxLimit = 8) => {
     if (!Array.isArray(items) || items.length === 0) return [];
 
@@ -202,6 +218,8 @@ const Home = () => {
     for (const item of items) {
       if (!item) continue;
       const g = (item.gender || item.category?.gender || '').toLowerCase();
+      if (hiddenDepartments.includes(g)) continue; // Never show items from hidden departments
+
       if (g === 'women') women.push(item);
       else if (g === 'men') men.push(item);
       else if (g === 'kids') kids.push(item);
@@ -233,8 +251,15 @@ const Home = () => {
 
   // Filter and interleave categories: strictly max 2 rows on desktop (10 items on 5-col grid)
   const rootCategories = useMemo(
-    () => (Array.isArray(categories) ? categories : []).filter((c) => c && !c.parent && c.isActive !== false),
-    [categories]
+    () =>
+      (Array.isArray(categories) ? categories : []).filter(
+        (c) =>
+          c &&
+          !c.parent &&
+          c.isActive !== false &&
+          (!c.gender || !hiddenDepartments.includes(c.gender.toLowerCase()))
+      ),
+    [categories, hiddenDepartments]
   );
 
   const displayedCategories = useMemo(() => {
@@ -443,39 +468,45 @@ const Home = () => {
                 >
                   ✨ All Collections
                 </button>
-                <button
-                  disabled={loading}
-                  onClick={() => setSelectedGender('women')}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                    selectedGender === 'women'
-                      ? 'bg-primary text-white shadow-md'
-                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                  }`}
-                >
-                  🌸 Women's Studio
-                </button>
-                <button
-                  disabled={loading}
-                  onClick={() => setSelectedGender('men')}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                    selectedGender === 'men'
-                      ? 'bg-primary text-white shadow-md'
-                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                  }`}
-                >
-                  👔 Men's Studio
-                </button>
-                <button
-                  disabled={loading}
-                  onClick={() => setSelectedGender('kids')}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
-                    selectedGender === 'kids'
-                      ? 'bg-primary text-white shadow-md'
-                      : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
-                  }`}
-                >
-                  🧒 Kids' Studio
-                </button>
+                {!hiddenDepartments.includes('women') && (
+                  <button
+                    disabled={loading}
+                    onClick={() => setSelectedGender('women')}
+                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                      selectedGender === 'women'
+                        ? 'bg-primary text-white shadow-md'
+                        : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                    }`}
+                  >
+                    🌸 Women's Studio
+                  </button>
+                )}
+                {!hiddenDepartments.includes('men') && (
+                  <button
+                    disabled={loading}
+                    onClick={() => setSelectedGender('men')}
+                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                      selectedGender === 'men'
+                        ? 'bg-primary text-white shadow-md'
+                        : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                    }`}
+                  >
+                    👔 Men's Studio
+                  </button>
+                )}
+                {!hiddenDepartments.includes('kids') && (
+                  <button
+                    disabled={loading}
+                    onClick={() => setSelectedGender('kids')}
+                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                      selectedGender === 'kids'
+                        ? 'bg-primary text-white shadow-md'
+                        : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
+                    }`}
+                  >
+                    🧒 Kids' Studio
+                  </button>
+                )}
               </div>
             </div>
 

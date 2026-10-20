@@ -1,15 +1,25 @@
 const Category = require('../models/Category');
 const slugify = require('slugify');
 const { uploadAndProcessImage } = require('../config/cloudinary');
+const { getHiddenDepartments } = require('../utils/settingsHelper');
 
 // @desc    Get active categories with parent info (public)
 // @route   GET /api/categories
 exports.getCategories = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const filter = { isActive: true };
+
     if (req.query.gender && req.query.gender !== 'all') {
-      filter.$or = [{ gender: req.query.gender }, { gender: 'all' }];
+      const qGender = req.query.gender.toLowerCase();
+      if (hiddenDepartments.includes(qGender)) {
+        return res.json([]);
+      }
+      filter.$or = [{ gender: qGender }, { gender: 'all' }];
+    } else if (hiddenDepartments.length > 0) {
+      filter.gender = { $nin: hiddenDepartments };
     }
+
     const categories = await Category.find(filter)
       .populate('parent', 'name slug gender')
       .sort({ priority: 1, createdAt: -1 })
@@ -24,10 +34,19 @@ exports.getCategories = async (req, res, next) => {
 // @route   GET /api/categories/tree
 exports.getCategoryTree = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const filter = { isActive: true };
+
     if (req.query.gender && req.query.gender !== 'all') {
-      filter.$or = [{ gender: req.query.gender }, { gender: 'all' }];
+      const qGender = req.query.gender.toLowerCase();
+      if (hiddenDepartments.includes(qGender)) {
+        return res.json([]);
+      }
+      filter.$or = [{ gender: qGender }, { gender: 'all' }];
+    } else if (hiddenDepartments.length > 0) {
+      filter.gender = { $nin: hiddenDepartments };
     }
+
     const allActive = await Category.find(filter)
       .sort({ priority: 1, createdAt: 1 })
       .lean();

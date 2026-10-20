@@ -1,23 +1,36 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const { uploadAndProcessImage } = require('../config/cloudinary');
+const { getHiddenDepartments } = require('../utils/settingsHelper');
 
 // @desc    Get all products (public)
 // @route   GET /api/products
 exports.getProducts = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const { category, subcategory, gender, search, sort, minPrice, maxPrice, inStock, color, size, page = 1, limit = 12, tag } = req.query;
     const query = { isActive: true };
 
-    // Gender filter (women, men, unisex)
+    // Gender filter (women, men, unisex, kids)
     if (gender && gender !== 'all') {
-      query.gender = { $in: [gender, 'unisex'] };
+      const qGender = gender.toLowerCase();
+      if (hiddenDepartments.includes(qGender)) {
+        return res.json({ products: [], page: 1, pages: 0, total: 0 });
+      }
+      query.gender = { $in: [qGender, 'unisex'] };
+    } else if (hiddenDepartments.length > 0) {
+      query.gender = { $nin: hiddenDepartments };
     }
 
     // Category filter
     if (category) {
       const cat = await Category.findOne({ slug: category });
-      if (cat) query.category = cat._id;
+      if (cat) {
+        if (cat.gender && hiddenDepartments.includes(cat.gender.toLowerCase())) {
+          return res.json({ products: [], page: 1, pages: 0, total: 0 });
+        }
+        query.category = cat._id;
+      }
       else if (category.match(/^[0-9a-fA-F]{24}$/)) query.category = category;
     }
 
@@ -102,11 +115,28 @@ exports.getProducts = async (req, res, next) => {
 // @route   GET /api/products/search/suggestions
 exports.getSearchSuggestions = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const q = (req.query.q || '').trim();
+
+    // Default popular suggestions excluding any hidden department
+    const defaultSuggestions = [
+      { text: 'Pure Silk Sarees', gender: 'women' },
+      { text: 'Bridal Lehengas', gender: 'women' },
+      { text: 'Designer Kurtis', gender: 'women' },
+      { text: 'Men Formal Shirts', gender: 'men' },
+      { text: 'Kids Festive Wear', gender: 'kids' }
+    ]
+      .filter((s) => !hiddenDepartments.includes(s.gender))
+      .map((s) => s.text);
 
     if (!q) {
       // Return popular trending dresses when search is focused but empty
-      const trending = await Product.find({ isActive: true, stock: { $gt: 0 } })
+      const trendingQuery = { isActive: true, stock: { $gt: 0 } };
+      if (hiddenDepartments.length > 0) {
+        trendingQuery.gender = { $nin: hiddenDepartments };
+      }
+
+      const trending = await Product.find(trendingQuery)
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ views: -1, createdAt: -1 })
@@ -117,13 +147,7 @@ exports.getSearchSuggestions = async (req, res, next) => {
       return res.json({
         products: trending,
         categories: [],
-        suggestions: [
-          'Pure Silk Sarees',
-          'Bridal Lehengas',
-          'Designer Kurtis',
-          'Men Formal Shirts',
-          'Kids Festive Wear'
-        ],
+        suggestions: defaultSuggestions,
         query: ''
       });
     }
@@ -131,16 +155,29 @@ exports.getSearchSuggestions = async (req, res, next) => {
     const escaped = q.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
     const regex = new RegExp(escaped, 'i');
 
+    const productQuery = {
+      isActive: true,
+      $or: [
+        { title: regex },
+        { tags: regex },
+        { colors: regex },
+        { description: regex }
+      ]
+    };
+    if (hiddenDepartments.length > 0) {
+      productQuery.gender = { $nin: hiddenDepartments };
+    }
+
+    const categoryQuery = {
+      isActive: true,
+      name: regex
+    };
+    if (hiddenDepartments.length > 0) {
+      categoryQuery.gender = { $nin: hiddenDepartments };
+    }
+
     const [products, categories, totalCount] = await Promise.all([
-      Product.find({
-        isActive: true,
-        $or: [
-          { title: regex },
-          { tags: regex },
-          { colors: regex },
-          { description: regex }
-        ]
-      })
+      Product.find(productQuery)
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ stock: -1, views: -1, createdAt: -1 })
@@ -148,23 +185,12 @@ exports.getSearchSuggestions = async (req, res, next) => {
         .select('title slug price salePrice images category subcategory gender stock tags')
         .lean(),
 
-      Category.find({
-        isActive: true,
-        name: regex
-      })
+      Category.find(categoryQuery)
         .limit(4)
         .select('name slug gender parent')
         .lean(),
 
-      Product.countDocuments({
-        isActive: true,
-        $or: [
-          { title: regex },
-          { tags: regex },
-          { colors: regex },
-          { description: regex }
-        ]
-      })
+      Product.countDocuments(productQuery)
     ]);
 
     // Extract relevant matching tags/keywords
@@ -195,12 +221,18 @@ exports.getSearchSuggestions = async (req, res, next) => {
 // @route   GET /api/products/:slug
 exports.getProduct = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const product = await Product.findOne({ slug: req.params.slug, isActive: true })
       .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug');
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // If product belongs to a hidden department, deny public access with 404
+    if (product.gender && hiddenDepartments.includes(product.gender.toLowerCase())) {
+      return res.status(404).json({ message: 'This collection/section is currently unavailable' });
     }
 
     // Increment views asynchronously without blocking response
@@ -231,7 +263,7 @@ exports.getHomepageBundle = async (req, res, next) => {
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ createdAt: -1 })
-        .limit(10)
+        .limit(12)
         .lean(),
 
       // 3. New Arrivals Products
@@ -239,7 +271,7 @@ exports.getHomepageBundle = async (req, res, next) => {
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort({ createdAt: -1 })
-        .limit(10)
+        .limit(12)
         .lean(),
 
       // 4. Settings
@@ -258,10 +290,24 @@ exports.getHomepageBundle = async (req, res, next) => {
       });
     }
 
+    const hiddenDepartments = Array.isArray(settings.hiddenDepartments)
+      ? settings.hiddenDepartments.map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : '')).filter(Boolean)
+      : [];
+
+    const filteredCategories = (categories || []).filter(
+      (c) => !c.gender || !hiddenDepartments.includes(c.gender.toLowerCase())
+    );
+    const filteredFeatured = (featured || []).filter(
+      (p) => !p.gender || !hiddenDepartments.includes(p.gender.toLowerCase())
+    );
+    const filteredNewArrivals = (newArrivals || []).filter(
+      (p) => !p.gender || !hiddenDepartments.includes(p.gender.toLowerCase())
+    );
+
     res.json({
-      categories: categories || [],
-      featured: featured || [],
-      newArrivals: newArrivals || [],
+      categories: filteredCategories,
+      featured: filteredFeatured,
+      newArrivals: filteredNewArrivals,
       settings: settings || {},
       banners: banners || []
     });
@@ -274,7 +320,13 @@ exports.getHomepageBundle = async (req, res, next) => {
 // @route   GET /api/products/featured/list
 exports.getFeatured = async (req, res, next) => {
   try {
-    const products = await Product.find({ isActive: true, isFeatured: true })
+    const hiddenDepartments = await getHiddenDepartments();
+    const filter = { isActive: true, isFeatured: true };
+    if (hiddenDepartments.length > 0) {
+      filter.gender = { $nin: hiddenDepartments };
+    }
+
+    const products = await Product.find(filter)
       .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug')
       .sort({ createdAt: -1 })
@@ -290,14 +342,24 @@ exports.getFeatured = async (req, res, next) => {
 // @route   GET /api/products/:slug/related
 exports.getRelated = async (req, res, next) => {
   try {
+    const hiddenDepartments = await getHiddenDepartments();
     const product = await Product.findOne({ slug: req.params.slug }).lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    const related = await Product.find({
+    if (product.gender && hiddenDepartments.includes(product.gender.toLowerCase())) {
+      return res.json([]);
+    }
+
+    const relFilter = {
       category: product.category,
       _id: { $ne: product._id },
       isActive: true
-    })
+    };
+    if (hiddenDepartments.length > 0) {
+      relFilter.gender = { $nin: hiddenDepartments };
+    }
+
+    const related = await Product.find(relFilter)
       .populate('category', 'name slug gender')
       .populate('subcategory', 'name slug')
       .limit(4)

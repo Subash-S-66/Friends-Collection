@@ -9,7 +9,10 @@ import {
   HiOutlineRefresh,
   HiOutlineSparkles,
   HiOutlineLocationMarker,
-  HiOutlineArrowRight
+  HiOutlineArrowRight,
+  HiOutlineEye,
+  HiOutlineEyeOff,
+  HiOutlineViewGrid
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -60,6 +63,10 @@ const SettingsManager = () => {
   const [storeEmail, setStoreEmail] = useState('friends.collection06@gmail.com');
   const [storeInstagram, setStoreInstagram] = useState('friends_collection_in');
 
+  // 6. Department Visibility state
+  const [hiddenDepartments, setHiddenDepartments] = useState([]);
+  const [savingDepartments, setSavingDepartments] = useState(false);
+
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
@@ -88,9 +95,50 @@ const SettingsManager = () => {
           setStoreEmail(data.contactInfo.email || '');
           setStoreInstagram(data.contactInfo.instagram || '');
         }
+        if (Array.isArray(data.hiddenDepartments)) {
+          setHiddenDepartments(
+            data.hiddenDepartments
+              .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+              .filter(Boolean)
+          );
+        }
       })
       .catch((err) => console.error('Error fetching settings:', err));
   }, []);
+
+  // Handle department visibility toggle
+  const handleToggleDepartment = async (deptKey) => {
+    const isCurrentlyHidden = hiddenDepartments.includes(deptKey);
+    let updatedList;
+    if (isCurrentlyHidden) {
+      updatedList = hiddenDepartments.filter((k) => k !== deptKey);
+    } else {
+      const allDepts = ['women', 'men', 'kids'];
+      const activeDepts = allDepts.filter((k) => !hiddenDepartments.includes(k));
+      if (activeDepts.length <= 1 && activeDepts.includes(deptKey)) {
+        toast.error('At least one department must remain visible on the store.');
+        return;
+      }
+      updatedList = [...hiddenDepartments, deptKey];
+    }
+
+    setSavingDepartments(true);
+    try {
+      await API.put('/settings/admin/hiddenDepartments', { value: updatedList });
+      setHiddenDepartments(updatedList);
+      const deptNames = { women: "Women's Studio", men: "Men's Studio", kids: "Kids' Studio" };
+      toast.success(
+        isCurrentlyHidden
+          ? `✨ ${deptNames[deptKey] || deptKey} is now LIVE on the store!`
+          : `🔒 ${deptNames[deptKey] || deptKey} is now HIDDEN everywhere on the store.`
+      );
+    } catch (err) {
+      console.error('Error updating department visibility:', err);
+      toast.error('Failed to update department visibility');
+    } finally {
+      setSavingDepartments(false);
+    }
+  };
 
   // Handle Preset Selection
   const handleSelectPreset = async (presetId) => {
@@ -261,6 +309,12 @@ const SettingsManager = () => {
 
   const tabs = [
     { id: 'theming', name: 'Theme & Brand Colors', icon: HiOutlineColorSwatch },
+    {
+      id: 'departments',
+      name: 'Department Visibility',
+      icon: HiOutlineEyeOff,
+      badge: hiddenDepartments.length > 0 ? `${hiddenDepartments.length} Hidden` : null
+    },
     { id: 'hero', name: 'Hero Headline & Copy', icon: HiOutlineSpeakerphone },
     { id: 'shipping', name: 'Shipping Rules', icon: HiOutlineTruck },
     { id: 'contact', name: 'Store Contact & Info', icon: HiOutlineOfficeBuilding },
@@ -314,6 +368,148 @@ const SettingsManager = () => {
       </div>
 
 
+
+      {/* ============================================================== */}
+      {/* TAB: DEPARTMENT VISIBILITY                                     */}
+      {/* ============================================================== */}
+      {currentTab === 'departments' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                <HiOutlineEyeOff className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="font-serif text-lg font-bold text-neutral-900">Department & Section Visibility</h2>
+                <p className="text-xs text-neutral-500">
+                  Instantly show or hide entire sections (Women, Men, Kids) from the customer storefront
+                </p>
+              </div>
+            </div>
+
+            {hiddenDepartments.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 self-start sm:self-auto">
+                🔒 {hiddenDepartments.length} {hiddenDepartments.length === 1 ? 'Section' : 'Sections'} Hidden
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 self-start sm:self-auto">
+                ✨ All Departments Live
+              </span>
+            )}
+          </div>
+
+          {/* Department Visibility Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                key: 'women',
+                name: "Women's Studio",
+                emoji: '🌸',
+                tagline: 'Sarees, Salwar Suits, Kurtis, Lehengas & Western Wear',
+                color: 'from-rose-500/10 to-pink-500/5',
+                border: 'border-rose-200'
+              },
+              {
+                key: 'men',
+                name: "Men's Studio",
+                emoji: '👔',
+                tagline: 'Shirts, Kurtas, Formal Trousers, Polos & Blazers',
+                color: 'from-blue-500/10 to-indigo-500/5',
+                border: 'border-blue-200'
+              },
+              {
+                key: 'kids',
+                name: "Kids' Studio",
+                emoji: '🧒',
+                tagline: "Boys' Ethnic Wear, Girls' Lehengas, Pattu Pavadai & Sets",
+                color: 'from-amber-500/10 to-yellow-500/5',
+                border: 'border-amber-200'
+              }
+            ].map((dept) => {
+              const isHidden = hiddenDepartments.includes(dept.key);
+              return (
+                <div
+                  key={dept.key}
+                  className={`relative rounded-2xl border p-5 transition-all shadow-xs flex flex-col justify-between ${
+                    isHidden
+                      ? 'bg-neutral-50/80 border-neutral-300 opacity-90'
+                      : `bg-gradient-to-br ${dept.color} ${dept.border} hover:shadow-md`
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl">{dept.emoji}</span>
+                      {isHidden ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-neutral-200 text-neutral-700 border border-neutral-300">
+                          <HiOutlineEyeOff className="w-3.5 h-3.5" />
+                          Hidden
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <HiOutlineEye className="w-3.5 h-3.5" />
+                          Live on Store
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="font-serif text-base font-bold text-neutral-900">{dept.name}</h3>
+                      <p className="text-xs text-neutral-500 mt-1 leading-relaxed">{dept.tagline}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-5 mt-4 border-t border-neutral-200/60 flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-medium text-neutral-600">
+                      {isHidden ? 'Section hidden everywhere' : 'Visible to all customers'}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={savingDepartments}
+                      onClick={() => handleToggleDepartment(dept.key)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50 ${
+                        isHidden
+                          ? 'bg-primary text-white hover:bg-primary-light'
+                          : 'bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-300'
+                      }`}
+                    >
+                      {isHidden ? (
+                        <>
+                          <HiOutlineEye className="w-4 h-4" />
+                          <span>Show on Store</span>
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineEyeOff className="w-4 h-4" />
+                          <span>Hide Section</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Educational Explainer Banner */}
+          <div className="p-4 rounded-2xl bg-cream border border-accent-200/80 space-y-2 text-xs text-neutral-700">
+            <div className="flex items-center gap-2 font-bold text-neutral-900">
+              <HiOutlineSparkles className="w-4 h-4 text-accent-700" />
+              <span>How does Section Visibility work?</span>
+            </div>
+            <p className="text-neutral-600 leading-relaxed">
+              When a department (e.g. <strong>Kids' Studio</strong> or <strong>Men's Studio</strong>) is hidden:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-neutral-600">
+              <li><strong>Navigation Header & Mobile Drawer:</strong> The tab and its mega-menu categories disappear automatically.</li>
+              <li><strong>Shop Catalog & Filters:</strong> Removed from the Department filter bar, desktop sidebar, and mobile drawer.</li>
+              <li><strong>Homepage:</strong> Filter tabs, department collections, trending highlights, and new arrival cards for this section are hidden.</li>
+              <li><strong>Search Autocomplete:</strong> Product recommendations and search keywords for this department will not be suggested.</li>
+              <li><strong>Admin Dashboard:</strong> You can always view, add, and manage products and categories for hidden departments right here without restriction.</li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* TAB 2: THEME STUDIO                                            */}

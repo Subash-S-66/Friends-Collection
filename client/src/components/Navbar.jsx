@@ -27,6 +27,7 @@ const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTree, setCategoryTree] = useState([]);
+  const [hiddenDepartments, setHiddenDepartments] = useState([]);
   
   const [announcement, setAnnouncement] = useState({
     text: '🎉 Free Shipping on Orders Above ₹999!',
@@ -96,6 +97,13 @@ const Navbar = () => {
         if (res.data?.announcementBar) {
           setAnnouncement(res.data.announcementBar);
         }
+        if (Array.isArray(res.data?.hiddenDepartments)) {
+          setHiddenDepartments(
+            res.data.hiddenDepartments
+              .map((g) => (typeof g === 'string' ? g.trim().toLowerCase() : ''))
+              .filter(Boolean)
+          );
+        }
       })
       .catch(() => {});
 
@@ -109,6 +117,14 @@ const Navbar = () => {
         console.error('Error fetching dynamic category tree:', err);
       });
   }, []);
+
+  // Ensure active mobile gender tab is visible
+  useEffect(() => {
+    if (hiddenDepartments.includes(mobileGenderTab)) {
+      const firstAvailable = ['women', 'men', 'kids'].find((g) => !hiddenDepartments.includes(g));
+      if (firstAvailable) setMobileGenderTab(firstAvailable);
+    }
+  }, [hiddenDepartments, mobileGenderTab]);
 
   // Dynamic categories filtered directly from DB category tree
   const womenCategories = (categoryTree || []).filter((c) => c && (c.gender === 'women' || !c.gender));
@@ -205,82 +221,88 @@ const Navbar = () => {
               </Link>
 
               {/* WOMEN - Mega Menu Trigger */}
-              <div
-                className="relative py-2"
-                onMouseEnter={() => handleMouseEnter('women')}
-                onMouseLeave={handleMouseLeave}
-              >
-                <Link
-                  to="/shop?gender=women"
-                  className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
-                    activeMegaMenu === 'women' || (location.pathname === '/shop' && currentGender === 'women')
-                      ? 'text-primary'
-                      : 'text-neutral-800 hover:text-primary'
-                  }`}
+              {!hiddenDepartments.includes('women') && (
+                <div
+                  className="relative py-2"
+                  onMouseEnter={() => handleMouseEnter('women')}
+                  onMouseLeave={handleMouseLeave}
                 >
-                  <span>Women</span>
-                  <HiChevronDown
-                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeMegaMenu === 'women' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                  <Link
+                    to="/shop?gender=women"
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
+                      activeMegaMenu === 'women' || (location.pathname === '/shop' && currentGender === 'women')
+                        ? 'text-primary'
+                        : 'text-neutral-800 hover:text-primary'
                     }`}
-                  />
-                  {(activeMegaMenu === 'women' || (location.pathname === '/shop' && currentGender === 'women')) && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
-                  )}
-                </Link>
-              </div>
+                  >
+                    <span>Women</span>
+                    <HiChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        activeMegaMenu === 'women' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                      }`}
+                    />
+                    {(activeMegaMenu === 'women' || (location.pathname === '/shop' && currentGender === 'women')) && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
+                    )}
+                  </Link>
+                </div>
+              )}
 
               {/* MEN - Mega Menu Trigger */}
-              <div
-                className="relative py-2"
-                onMouseEnter={() => handleMouseEnter('men')}
-                onMouseLeave={handleMouseLeave}
-              >
-                <Link
-                  to="/shop?gender=men"
-                  className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
-                    activeMegaMenu === 'men' || (location.pathname === '/shop' && currentGender === 'men')
-                      ? 'text-primary'
-                      : 'text-neutral-800 hover:text-primary'
-                  }`}
+              {!hiddenDepartments.includes('men') && (
+                <div
+                  className="relative py-2"
+                  onMouseEnter={() => handleMouseEnter('men')}
+                  onMouseLeave={handleMouseLeave}
                 >
-                  <span>Men</span>
-                  <HiChevronDown
-                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeMegaMenu === 'men' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                  <Link
+                    to="/shop?gender=men"
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
+                      activeMegaMenu === 'men' || (location.pathname === '/shop' && currentGender === 'men')
+                        ? 'text-primary'
+                        : 'text-neutral-800 hover:text-primary'
                     }`}
-                  />
-                  {(activeMegaMenu === 'men' || (location.pathname === '/shop' && currentGender === 'men')) && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
-                  )}
-                </Link>
-              </div>
+                  >
+                    <span>Men</span>
+                    <HiChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        activeMegaMenu === 'men' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                      }`}
+                    />
+                    {(activeMegaMenu === 'men' || (location.pathname === '/shop' && currentGender === 'men')) && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
+                    )}
+                  </Link>
+                </div>
+              )}
 
               {/* KIDS - Mega Menu Trigger */}
-              <div
-                className="relative py-2"
-                onMouseEnter={() => handleMouseEnter('kids')}
-                onMouseLeave={handleMouseLeave}
-              >
-                <Link
-                  to="/shop?gender=kids"
-                  className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
-                    activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')
-                      ? 'text-primary'
-                      : 'text-neutral-800 hover:text-primary'
-                  }`}
+              {!hiddenDepartments.includes('kids') && (
+                <div
+                  className="relative py-2"
+                  onMouseEnter={() => handleMouseEnter('kids')}
+                  onMouseLeave={handleMouseLeave}
                 >
-                  <span>Kids</span>
-                  <HiChevronDown
-                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      activeMegaMenu === 'kids' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                  <Link
+                    to="/shop?gender=kids"
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wider transition-all uppercase ${
+                      activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')
+                        ? 'text-primary'
+                        : 'text-neutral-800 hover:text-primary'
                     }`}
-                  />
-                  {(activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')) && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
-                  )}
-                </Link>
-              </div>
+                  >
+                    <span>Kids</span>
+                    <HiChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        activeMegaMenu === 'kids' ? 'rotate-180 text-primary' : 'text-neutral-400'
+                      }`}
+                    />
+                    {(activeMegaMenu === 'kids' || (location.pathname === '/shop' && currentGender === 'kids')) && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-500 rounded-full animate-fade-in" />
+                    )}
+                  </Link>
+                </div>
+              )}
 
               {/* Shop All */}
               <Link
@@ -714,39 +736,45 @@ const Navbar = () => {
 
               {/* Segmented Women, Men & Kids Switcher for Mobile */}
               <div className="bg-neutral-100 p-1 rounded-xl flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setMobileGenderTab('women')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    mobileGenderTab === 'women'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  🌸 Women
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileGenderTab('men')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    mobileGenderTab === 'men'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  👔 Men
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileGenderTab('kids')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    mobileGenderTab === 'kids'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  🧒 Kids
-                </button>
+                {!hiddenDepartments.includes('women') && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileGenderTab('women')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      mobileGenderTab === 'women'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    🌸 Women
+                  </button>
+                )}
+                {!hiddenDepartments.includes('men') && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileGenderTab('men')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      mobileGenderTab === 'men'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    👔 Men
+                  </button>
+                )}
+                {!hiddenDepartments.includes('kids') && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileGenderTab('kids')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      mobileGenderTab === 'kids'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    🧒 Kids
+                  </button>
+                )}
               </div>
 
               {/* View Entire Gender Section Link */}
