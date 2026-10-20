@@ -10,7 +10,6 @@ import {
   HiOutlineTruck,
   HiOutlinePhone,
   HiOutlineClipboardCopy,
-  HiOutlineExternalLink,
   HiOutlineSearch,
   HiOutlineDownload,
   HiOutlineEye,
@@ -447,18 +446,6 @@ const Account = () => {
                   <HiOutlineClipboardCopy className="w-4 h-4" />
                 </button>
               </div>
-
-              {order.tracking?.trackingUrl && (
-                <a
-                  href={order.tracking.trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-xs transition-all"
-                >
-                  <span>Track on Courier Website</span>
-                  <HiOutlineExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
             </div>
           ) : (
             <div className="text-xs text-neutral-500 pt-2 border-t border-neutral-100">
@@ -613,17 +600,6 @@ const Account = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {order.tracking?.trackingUrl && (
-                  <a
-                    href={order.tracking.trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-light text-white text-[11px] font-bold shadow-2xs"
-                  >
-                    <span>Courier Site</span>
-                    <HiOutlineExternalLink className="w-3 h-3" />
-                  </a>
-                )}
                 <button
                   type="button"
                   onClick={() => setTrackingOrder(order)}
@@ -753,31 +729,38 @@ const Account = () => {
         
         {/* Profile or Guest Header */}
         {user ? (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-serif text-2xl font-bold shadow-inner">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-4 text-left min-w-0 flex-1 sm:max-w-xl">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-serif text-xl sm:text-2xl font-bold shadow-inner shrink-0">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="font-serif text-2xl font-bold text-neutral-900">{user?.name}</h1>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <h1 
+                    className="font-serif text-xl sm:text-2xl font-bold text-neutral-900 truncate min-w-0"
+                    title={user?.name}
+                  >
+                    {user?.name}
+                  </h1>
                   <button
                     type="button"
                     onClick={() => setIsEditProfileOpen(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105 active:scale-95 shrink-0 ml-auto"
                     title="Edit Email & Phone"
                   >
                     <HiOutlinePencilAlt className="w-3.5 h-3.5" />
                     <span>Edit</span>
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  {user?.email} {user?.phone ? `• +91 ${user.phone}` : ''}
+                <p className="text-xs text-neutral-500 mt-1 truncate" title={`${user?.email || ''} ${user?.phone ? `• +91 ${user.phone}` : ''}`}>
+                  <span>{user?.email}</span>
+                  {user?.phone && <span className="mx-1.5 text-neutral-400">•</span>}
+                  {user?.phone && <span>+91 {user.phone}</span>}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
               <button
                 type="button"
                 onClick={() => setActiveTab('track')}

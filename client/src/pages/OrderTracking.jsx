@@ -8,7 +8,6 @@ import {
   HiCheckCircle,
   HiOutlineClock,
   HiOutlineClipboardCopy,
-  HiOutlineExternalLink,
   HiOutlineShoppingBag,
   HiArrowRight,
   HiOutlineDownload,
@@ -368,23 +367,11 @@ const OrderTracking = () => {
                     </button>
                     {copied && <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>}
                   </div>
-
-                  {order.tracking?.trackingUrl && (
-                    <a
-                      href={order.tracking.trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-semibold shadow-xs transition-all"
-                    >
-                      <span>Track on Courier Site</span>
-                      <HiOutlineExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-white border border-accent-100 text-xs text-neutral-600">
                   <p>
-                    Your order is currently being packed with boutique care at our Jamalia store. A tracking number and courier link will appear here as soon as our logistics partner picks it up!
+                    Your order is currently being packed with boutique care at our Jamalia store. A tracking number will appear here as soon as our logistics partner picks it up!
                   </p>
                 </div>
               )}

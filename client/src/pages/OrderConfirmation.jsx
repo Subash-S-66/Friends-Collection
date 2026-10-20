@@ -12,7 +12,6 @@ import {
   HiOutlineClock,
   HiOutlineSparkles,
   HiOutlinePrinter,
-  HiOutlineExternalLink,
   HiOutlineShieldCheck
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';

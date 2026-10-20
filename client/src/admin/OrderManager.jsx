@@ -8,7 +8,6 @@ import {
   HiOutlineX,
   HiOutlineRefresh,
   HiOutlineTruck,
-  HiOutlineExternalLink,
   HiOutlineClipboardCopy,
   HiOutlineCheckCircle,
   HiOutlinePrinter,
@@ -795,33 +794,6 @@ const OrderManager = () => {
                     placeholder="e.g. 21 Oct 2026 or 2 to 3 Business Days"
                     className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
                   />
-                </div>
-
-                {/* Custom Tracking URL */}
-                <div>
-                  <label className="block font-bold text-neutral-700 mb-1">
-                    Courier URL <span className="font-normal text-neutral-400">(Auto-filled if empty)</span>
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="url"
-                      value={trackingUrl}
-                      onChange={(e) => setTrackingUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white font-mono"
-                    />
-                    {trackingUrl && (
-                      <a
-                        href={trackingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 border border-neutral-300 bg-white hover:bg-neutral-100 rounded-xl text-neutral-600 cursor-pointer"
-                        title="Open Tracking URL"
-                      >
-                        <HiOutlineExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
                 </div>
               </div>
 
