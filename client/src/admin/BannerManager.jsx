@@ -264,8 +264,7 @@ const HeroExactPreview = ({
 
             {/* Slide Navigation Dots (Below left content in 'full' mode) */}
             {isCarouselEnabled && carouselType === 'full' && bannersList.length > 1 && (
-              <div className="flex items-center gap-2 pt-1">
-                {bannersList.map((b, idx) => (
+              <div className="flex items-center gap-2 pt-1">                {bannersList.map((b, idx) => (
                   <button
                     key={b._id || idx}
                     type="button"
@@ -685,24 +684,39 @@ const BannerManager = () => {
       mode === 'disabled'
         ? { ...draftSettings, enabled: false }
         : { ...draftSettings, enabled: true, type: mode };
-    updateCarouselSettings(nextSettings);
+    setDraftSettings(nextSettings);
   };
 
   const handleDraftTransition = (transition) => {
-    updateCarouselSettings({ ...draftSettings, transition });
+    setDraftSettings((prev) => ({ ...prev, transition }));
   };
 
   const handleDraftInterval = (interval) => {
-    updateCarouselSettings({ ...draftSettings, interval });
+    setDraftSettings((prev) => ({ ...prev, interval }));
   };
 
   const handleDraftMakeDefault = () => {
-    updateCarouselSettings({
+    setDraftSettings({
       ...draftSettings,
       enabled: true,
       type: 'image_box',
       transition: 'fade'
     });
+  };
+
+  const hasUnsavedChanges =
+    Boolean(draftSettings.enabled) !== Boolean(liveSettings.enabled) ||
+    draftSettings.type !== liveSettings.type ||
+    draftSettings.transition !== liveSettings.transition ||
+    Number(draftSettings.interval) !== Number(liveSettings.interval);
+
+  const handleDiscardChanges = () => {
+    setDraftSettings({ ...liveSettings });
+    toast.info('Draft changes discarded. Reset to current live settings.');
+  };
+
+  const handleSaveAndGoLive = async () => {
+    await updateCarouselSettings(draftSettings);
   };
 
   const handlePrevPreviewSlide = (e) => {
