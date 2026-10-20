@@ -3,7 +3,13 @@ import {
   HiOutlineCheck,
   HiOutlineRefresh,
   HiOutlineDownload,
-  HiOutlineDocumentText
+  HiOutlineDocumentText,
+  HiOutlineUpload,
+  HiOutlineTrash,
+  HiOutlineShieldCheck,
+  HiOutlineExclamation,
+  HiOutlineX,
+  HiOutlineLockClosed
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
@@ -64,6 +70,7 @@ const InvoiceSettingsManager = () => {
     gstin: DEFAULT_INVOICE_SETTINGS.gstin,
     authorizedSignatory: DEFAULT_INVOICE_SETTINGS.authorizedSignatory,
     signatorySubtitle: DEFAULT_INVOICE_SETTINGS.signatorySubtitle,
+    signatureImage: '',
     footerNote: DEFAULT_INVOICE_SETTINGS.footerNote,
     terms: DEFAULT_INVOICE_SETTINGS.terms,
     notes: DEFAULT_INVOICE_SETTINGS.notes,
@@ -73,6 +80,18 @@ const InvoiceSettingsManager = () => {
 
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [downloadingSample, setDownloadingSample] = useState(false);
+
+  // Security OTP state for modifying signature
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'upload' | 'remove'
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingPreview, setPendingPreview] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
     API.get('/settings')
@@ -87,11 +106,133 @@ const InvoiceSettingsManager = () => {
       .catch((err) => console.error('Error fetching settings:', err));
   }, []);
 
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let interval = null;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
   const handleInvoiceFieldChange = (field, value) => {
     setInvoiceForm((prev) => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Triggered when admin selects a signature image file
+  const handleSignatureFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, WEBP, SVG)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Signature image file size must be under 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setPendingFile(file);
+      setPendingPreview(event.target.result);
+      setPendingAction('upload');
+      setWarningModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Triggered when admin requests to remove signature image
+  const handleRemoveSignatureRequest = () => {
+    setPendingAction('remove');
+    setPendingFile(null);
+    setPendingPreview(null);
+    setWarningModalOpen(true);
+  };
+
+  // Dispatches OTP to admin's registered email
+  const handleProceedToSendOtp = async () => {
+    if (sendingOtp) return;
+    setSendingOtp(true);
+    try {
+      const res = await API.post('/settings/admin/signature-otp');
+      setMaskedEmail(res.data.maskedEmail || 'your administrator email');
+      toast.success(res.data.message || 'Security verification code sent to your email!');
+      setWarningModalOpen(false);
+      setOtpModalOpen(true);
+      setOtpCode('');
+      setResendTimer(60);
+    } catch (err) {
+      console.error('Error requesting signature OTP:', err);
+      toast.error(err.response?.data?.message || 'Failed to dispatch security OTP. Please try again.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || sendingOtp) return;
+    setSendingOtp(true);
+    try {
+      const res = await API.post('/settings/admin/signature-otp');
+      setMaskedEmail(res.data.maskedEmail || 'your administrator email');
+      toast.success('A new 6-digit verification code has been dispatched.');
+      setResendTimer(60);
+    } catch (err) {
+      console.error('Error resending signature OTP:', err);
+      toast.error(err.response?.data?.message || 'Failed to resend code.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  // Submits OTP + image / remove action to verify and save
+  const handleVerifyOtpAndSave = async (e) => {
+    if (e) e.preventDefault();
+    if (!otpCode || otpCode.trim().length !== 6) {
+      toast.error('Please enter the 6-digit authorization code');
+      return;
+    }
+    if (verifyingOtp) return;
+
+    setVerifyingOtp(true);
+    try {
+      const formData = new FormData();
+      formData.append('otp', otpCode.trim());
+      if (pendingAction === 'upload' && pendingFile) {
+        formData.append('signature', pendingFile);
+      } else if (pendingAction === 'remove') {
+        formData.append('action', 'remove');
+      }
+
+      const res = await API.post('/settings/admin/signature-verify', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setInvoiceForm((prev) => ({
+        ...prev,
+        signatureImage: res.data.signatureImage || ''
+      }));
+
+      toast.success(res.data.message || 'Authorized signature updated successfully!');
+      setOtpModalOpen(false);
+      setPendingFile(null);
+      setPendingPreview(null);
+      setPendingAction(null);
+      setOtpCode('');
+    } catch (err) {
+      console.error('Error verifying signature OTP:', err);
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP code.');
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   const handleSaveInvoice = async (e) => {
@@ -394,6 +535,65 @@ const InvoiceSettingsManager = () => {
                 </div>
               </div>
 
+              {/* Authorized Legal Signature Image Asset */}
+              <div className="pt-1 pb-1">
+                <label className="block text-xs font-bold text-neutral-700 mb-1.5">
+                  Official Authorized Signature (Printed on Invoices)
+                </label>
+                <div className="p-4 rounded-2xl bg-neutral-50/80 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {invoiceForm.signatureImage ? (
+                      <div className="bg-white p-2 rounded-xl border border-neutral-200 shadow-2xs shrink-0">
+                        <img
+                          src={invoiceForm.signatureImage}
+                          alt="Current Authorized Signature"
+                          className="h-12 max-w-[140px] object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-12 w-32 border border-dashed border-neutral-300 rounded-xl bg-white flex items-center justify-center text-[11px] text-neutral-400 italic shrink-0">
+                        No image uploaded
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <HiOutlineShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <h4 className="text-xs font-bold text-neutral-900 truncate">
+                          {invoiceForm.signatureImage ? 'Custom Signature Active' : 'Default Boutique Font'}
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Protected asset: Changing requires Administrator Email OTP authorization.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                      <HiOutlineUpload className="w-4 h-4" />
+                      <span>{invoiceForm.signatureImage ? 'Change Image' : 'Upload Signature'}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={handleSignatureFileSelect}
+                      />
+                    </label>
+                    {invoiceForm.signatureImage && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveSignatureRequest}
+                        className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        title="Remove custom signature image"
+                      >
+                        <HiOutlineTrash className="w-4 h-4" />
+                        <span>Remove</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-neutral-700 mb-1">
                   Exchange & Return Policy (Terms)
@@ -559,6 +759,195 @@ const InvoiceSettingsManager = () => {
           </p>
         </div>
       </div>
+
+      {/* Dynamic Warning Confirmation Modal for Legal Signatory Change */}
+      {warningModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 sm:p-7 border border-neutral-200 space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs">
+                <HiOutlineExclamation className="w-7 h-7" />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWarningModalOpen(false);
+                  setPendingFile(null);
+                  setPendingPreview(null);
+                  setPendingAction(null);
+                }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-all cursor-pointer"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-serif text-lg font-bold text-neutral-900">
+                Security Warning: Legal Signatory Change
+              </h3>
+              <p className="text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                You are about to modify the official authorized signatory asset that appears on all customer receipts, tax invoices, and legal GST documents issued by Friends Collections.
+              </p>
+            </div>
+
+            {/* Preview of pending change */}
+            <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block">
+                {pendingAction === 'remove' ? 'Action Requested:' : 'New Signature Asset Preview:'}
+              </span>
+              {pendingAction === 'remove' ? (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 font-medium">
+                  🗑️ Reverting from image signature back to standard computerized typography.
+                </div>
+              ) : pendingPreview ? (
+                <div className="bg-white p-3 rounded-xl border border-neutral-200 flex items-center justify-center shadow-xs">
+                  <img
+                    src={pendingPreview}
+                    alt="Pending Signature"
+                    className="max-h-16 max-w-full object-contain"
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {/* Email OTP requirement notice */}
+            <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 leading-snug">
+              <HiOutlineShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Identity Verification Mandate:</strong>
+                <p className="text-amber-800/90 mt-0.5">
+                  A 6-digit OTP verification code will be dispatched to your registered administrator email before this signature can be applied.
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setWarningModalOpen(false);
+                  setPendingFile(null);
+                  setPendingPreview(null);
+                  setPendingAction(null);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={sendingOtp}
+                onClick={handleProceedToSendOtp}
+                className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <HiOutlineLockClosed className="w-4 h-4" />
+                <span>{sendingOtp ? 'Sending Code...' : 'Proceed & Send OTP'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic OTP Verification Modal */}
+      {otpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <form
+            onSubmit={handleVerifyOtpAndSave}
+            className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 sm:p-7 border border-neutral-200 space-y-5"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-xs">
+                <HiOutlineLockClosed className="w-6 h-6" />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpModalOpen(false);
+                  setOtpCode('');
+                }}
+                className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-all cursor-pointer"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-serif text-lg font-bold text-neutral-900">
+                Enter Security Verification Code
+              </h3>
+              <p className="text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                We sent a 6-digit one-time authorization code to:
+              </p>
+              <div className="mt-2 inline-block px-3 py-1 bg-neutral-100 border border-neutral-200 rounded-lg text-xs font-mono font-bold text-neutral-900">
+                {maskedEmail}
+              </div>
+            </div>
+
+            {/* 6-Digit OTP Input */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-neutral-700">
+                6-Digit Authorization Code
+              </label>
+              <input
+                type="text"
+                autoFocus
+                required
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] py-3 px-4 rounded-2xl border-2 border-neutral-300 focus:border-primary focus:ring-2 focus:ring-primary/20 text-neutral-900 placeholder:text-neutral-300 transition-all uppercase"
+              />
+              <p className="text-[11px] text-neutral-400 text-center">
+                Check your inbox and spam folder for the Friends Collections security code.
+              </p>
+            </div>
+
+            {/* Resend Timer or Resend Button */}
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-100">
+              <span className="text-neutral-500">Didn't receive the code?</span>
+              {resendTimer > 0 ? (
+                <span className="text-neutral-400 font-mono text-[11px]">
+                  Resend in <strong>{resendTimer}s</strong>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={sendingOtp}
+                  onClick={handleResendOtp}
+                  className="text-primary hover:text-primary-light font-bold cursor-pointer disabled:opacity-50"
+                >
+                  {sendingOtp ? 'Resending...' : 'Resend Code'}
+                </button>
+              )}
+            </div>
+
+            {/* Submit & Cancel */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpModalOpen(false);
+                  setOtpCode('');
+                }}
+                className="px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={verifyingOtp || otpCode.trim().length !== 6}
+                className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <HiOutlineCheck className="w-4 h-4" />
+                <span>{verifyingOtp ? 'Verifying...' : 'Verify & Apply Signature'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

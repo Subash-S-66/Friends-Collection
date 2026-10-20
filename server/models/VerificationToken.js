@@ -14,7 +14,7 @@ const verificationTokenSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['login', 'notify', 'register', 'forgot-password', 'verify-email', 'change-email'],
+    enum: ['login', 'notify', 'register', 'forgot-password', 'verify-email', 'change-email', 'signature-change'],
     default: 'login'
   },
   metadata: {

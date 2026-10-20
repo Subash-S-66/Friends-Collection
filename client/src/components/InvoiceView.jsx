@@ -19,6 +19,7 @@ export const DEFAULT_INVOICE_SETTINGS = {
   gstin: '33AAACF1234M1Z5',
   authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
   signatorySubtitle: 'Friends Collections Jamalia Boutique',
+  signatureImage: '',
   footerNote: 'Thank You for Shopping with Friends Collections!',
   terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Defective items replaced free of charge.',
   notes: 'This is an authentic computer-generated Tax Invoice and requires no physical signature.',
@@ -116,30 +117,45 @@ const InvoiceView = ({
       className="p-6 sm:p-10 text-neutral-800 bg-white space-y-6 print:p-8 select-text"
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
     >
-      {/* 1. Header with Universal Boutique Branding */}
+      {/* 1. Header with Universal Boutique Branding & Logo */}
       <div
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b-2"
+        className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b-2"
         style={{ borderColor: `${primaryColor}30` }}
       >
-        <div>
-          <h1
-            className="font-serif text-2xl sm:text-3xl font-extrabold tracking-wide"
-            style={{ color: primaryColor }}
-          >
-            {inv.companyName}
-          </h1>
-          <p className="text-xs text-neutral-500 font-medium tracking-wider uppercase mt-0.5">
-            {inv.tagline}
-          </p>
-          <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
-            {inv.address}<br />
-            Phone: <strong className="text-neutral-900">{inv.phone}</strong> • Email: <span className="text-neutral-700">{inv.email}</span>
-          </p>
+        <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+          <img
+            src="/logo.png"
+            alt={inv.companyName || 'Friends Collections'}
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-2xl p-1 bg-white border border-neutral-200/90 shadow-xs shrink-0"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <div className="min-w-0">
+            <h1
+              className="font-serif text-2xl sm:text-3xl font-black tracking-tight"
+              style={{ color: primaryColor }}
+            >
+              {inv.companyName}
+            </h1>
+            <p className="text-[11px] sm:text-xs text-neutral-500 font-semibold tracking-wide uppercase mt-1 leading-snug">
+              {inv.tagline}
+            </p>
+            <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+              <span>{inv.address}</span>
+              <span className="block sm:inline sm:before:content-['•'] sm:before:mx-2 mt-0.5 sm:mt-0">
+                Phone: <strong className="text-neutral-900">{inv.phone}</strong>
+              </span>
+              {inv.email && (
+                <span className="block sm:inline sm:before:content-['•'] sm:before:mx-2 text-neutral-700">
+                  Email: {inv.email}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
 
-        <div className="text-left sm:text-right space-y-1">
+        <div className="text-left md:text-right shrink-0 space-y-1.5 self-start md:self-auto">
           <span
-            className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+            className="inline-flex items-center justify-center whitespace-nowrap px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider border shadow-2xs"
             style={{
               backgroundColor: `${primaryColor}12`,
               color: primaryColor,
@@ -149,35 +165,38 @@ const InvoiceView = ({
             {inv.invoiceTitle}
           </span>
           <p className="font-mono text-xs text-neutral-500 pt-1">
-            Invoice No: <strong className="text-neutral-900">INV-{order.orderId}</strong>
+            Invoice No: <strong className="text-neutral-900 font-bold">INV-{order.orderId}</strong>
           </p>
           <p className="text-xs text-neutral-500">
             Date: <strong className="text-neutral-900">{invoiceDate}</strong>
           </p>
           {inv.gstin && (
             <p className="text-xs text-neutral-500">
-              GSTIN: <span className="font-mono text-neutral-800 font-semibold">{inv.gstin}</span>
+              GSTIN: <span className="font-mono text-neutral-900 font-bold">{inv.gstin}</span>
             </p>
           )}
         </div>
       </div>
 
       {/* 2. Customer & Order Metadata Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 rounded-2xl bg-neutral-50/70 border border-neutral-200 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 sm:p-6 rounded-2xl bg-neutral-50/70 border border-neutral-200 text-xs">
         {/* Bill / Ship To */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <span
             className="font-bold uppercase tracking-wider text-[11px] block"
             style={{ color: primaryColor }}
           >
-            Billed & Shipped To:
+            BILLED & SHIPPED TO:
           </span>
           <h3 className="font-bold text-neutral-900 text-sm">{order.customer?.name || 'Valued Customer'}</h3>
-          <p className="text-neutral-700 leading-relaxed">
-            {order.customer?.address?.street}<br />
-            {order.customer?.address?.city}, {order.customer?.address?.state} - <strong className="font-mono">{order.customer?.address?.pincode}</strong>
-          </p>
-          <div className="pt-1.5 space-y-0.5 text-neutral-600">
+          <div className="text-neutral-700 leading-relaxed space-y-0.5">
+            <p>{order.customer?.address?.street}</p>
+            <p>
+              {order.customer?.address?.city}, {order.customer?.address?.state} –{' '}
+              <strong className="font-mono font-bold text-neutral-900">{order.customer?.address?.pincode}</strong>
+            </p>
+          </div>
+          <div className="pt-2 space-y-1 text-neutral-600 border-t border-neutral-200/60 mt-2">
             <p className="flex items-center gap-1.5">
               <HiOutlinePhone className="w-3.5 h-3.5" style={{ color: accentColor }} />
               Primary: <strong className="font-mono text-neutral-900">+91 {order.customer?.phone}</strong>
@@ -189,18 +208,18 @@ const InvoiceView = ({
               </p>
             )}
             {order.customer?.email && (
-              <p className="text-neutral-500">{order.customer.email}</p>
+              <p className="text-neutral-500 font-mono text-[11px]">{order.customer.email}</p>
             )}
           </div>
         </div>
 
         {/* Statuses & Payment Info */}
-        <div className="space-y-2.5 sm:border-l sm:border-neutral-200 sm:pl-6">
+        <div className="space-y-2.5 md:border-l md:border-neutral-200 md:pl-6">
           <span
             className="font-bold uppercase tracking-wider text-[11px] block"
             style={{ color: primaryColor }}
           >
-            Order & Payment Status:
+            ORDER & PAYMENT STATUS:
           </span>
 
           <div className="flex items-center justify-between">
@@ -353,26 +372,42 @@ const InvoiceView = ({
       </div>
 
       {/* 5. Footer Signature & Authenticity Seal */}
-      <div className="pt-8 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
-        <div className="text-center sm:text-left space-y-0.5">
-          <p className="font-bold text-neutral-800">{inv.footerNote}</p>
+      <div className="pt-8 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-neutral-500">
+        <div className="text-center sm:text-left space-y-1 max-w-sm">
+          <p className="font-bold text-neutral-800 text-sm">{inv.footerNote}</p>
           <p className="text-[11px] text-neutral-400">
             {inv.signatorySubtitle || `${inv.companyName} Jamalia Boutique`}
           </p>
         </div>
 
-        <div className="text-center sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0">
-          <div className="w-44 h-11 border-b border-dashed border-neutral-400 mx-auto sm:ml-auto mb-1 flex items-end justify-center pb-1">
-            <span
-              className="font-serif italic text-xs font-semibold"
-              style={{ color: primaryColor }}
-            >
-              {inv.companyName}
-            </span>
-          </div>
-          <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">
+        <div className="text-center sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 min-w-[200px]">
+          {inv.signatureImage ? (
+            <div className="h-14 flex items-end justify-center sm:justify-end mb-1">
+              <img
+                src={inv.signatureImage}
+                alt="Authorized Signatory"
+                className="max-h-12 max-w-[170px] object-contain"
+              />
+            </div>
+          ) : (
+            <div className="w-48 h-12 border-b border-dashed border-neutral-400 mx-auto sm:ml-auto mb-1 flex items-end justify-center pb-1">
+              <span
+                className="font-serif italic text-xs font-semibold"
+                style={{ color: primaryColor }}
+              >
+                {inv.companyName}
+              </span>
+            </div>
+          )}
+          <div className="w-48 border-b border-neutral-300 mx-auto sm:ml-auto mb-1.5" />
+          <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-700 block">
             {inv.authorizedSignatory}
           </span>
+          {inv.signatorySubtitle && (
+            <span className="text-[10px] text-neutral-400 block mt-0.5">
+              {inv.signatorySubtitle}
+            </span>
+          )}
         </div>
       </div>
     </div>

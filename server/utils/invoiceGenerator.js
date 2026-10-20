@@ -1,4 +1,6 @@
 const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
 const Settings = require('../models/Settings');
 
 const DEFAULT_INVOICE_SETTINGS = {
@@ -10,6 +12,8 @@ const DEFAULT_INVOICE_SETTINGS = {
   email: 'friends.collection06@gmail.com',
   gstin: '33AAACF1234M1Z5',
   authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
+  signatorySubtitle: 'Friends Collections Jamalia Boutique',
+  signatureImage: '',
   footerNote: 'Thank You for Shopping with Friends Collections!',
   terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Defective items replaced free of charge.',
   notes: 'This is an authentic computer-generated Tax Invoice and requires no physical signature.',
@@ -106,30 +110,59 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       doc.rect(0, 0, doc.page.width, 92).fill(PRIMARY);
 
+      // Check for store logo image
+      const possibleLogoPaths = [
+        path.join(__dirname, '../assets/logo.png'),
+        path.join(__dirname, '../../client/public/logo.png')
+      ];
+      let resolvedLogo = null;
+      for (const lp of possibleLogoPaths) {
+        if (fs.existsSync(lp)) {
+          resolvedLogo = lp;
+          break;
+        }
+      }
+
+      let textStartX = 32;
+      if (resolvedLogo) {
+        try {
+          doc.roundedRect(32, 15, 62, 62, 8).fillAndStroke('#FFFFFF', ACCENT);
+          doc.image(resolvedLogo, 35, 18, { fit: [56, 56], align: 'center', valign: 'center' });
+          textStartX = 104;
+        } catch (logoErr) {
+          console.warn('Could not draw logo in PDF:', logoErr.message);
+          textStartX = 32;
+        }
+      }
+
       // Store Title
       doc.fillColor('#FFFFFF')
         .font('Helvetica-Bold')
-        .fontSize(20)
-        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), 32, 18, { characterSpacing: 1.2 });
+        .fontSize(textStartX > 32 ? 18 : 20)
+        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), textStartX, 18, { characterSpacing: 1.1 });
 
       // Tagline
       doc.fillColor('#E2BFB3')
         .font('Helvetica')
-        .fontSize(8)
-        .text((cfg.tagline || 'LUXURY ETHNIC & CONTEMPORARY WEAR').toUpperCase(), 32, 42, { characterSpacing: 0.8 });
+        .fontSize(7.5)
+        .text((cfg.tagline || 'TRADITIONAL SILK SAREES • DESIGNER KURTIS • LEHENGAS • KIDS WEAR').toUpperCase(), textStartX, 40, {
+          characterSpacing: 0.6,
+          width: doc.page.width - textStartX - 200,
+          lineBreak: false
+        });
 
       // Contact & Address
       const contactLine = `${cfg.address || '7/4 Perambur High Road, Jamalia, Chennai – 600012'} | Phone: ${cfg.phone || '+91 95007 57024'}`;
       doc.fillColor('#F5EDE4')
         .font('Helvetica')
-        .fontSize(7.5)
-        .text(contactLine, 32, 55, { width: doc.page.width - 230 });
+        .fontSize(7.2)
+        .text(contactLine, textStartX, 53, { width: doc.page.width - textStartX - 200, lineBreak: false });
 
       if (cfg.email) {
         doc.fillColor('#E2BFB3')
           .font('Helvetica')
           .fontSize(7)
-          .text(`Email: ${cfg.email}`, 32, 68);
+          .text(`Email: ${cfg.email}`, textStartX, 66);
       }
 
       // Invoice Badge on Top Right
@@ -303,7 +336,7 @@ async function generateInvoicePdf(order, customSettings = null) {
       // 4. SUMMARY & TOTALS SECTION
       // ==========================================
       let totalsY = tableY + 10;
-      if (totalsY + 74 > doc.page.height - 85) {
+      if (totalsY + 74 > doc.page.height - 95) {
         doc.addPage();
         totalsY = 40;
       }
@@ -346,32 +379,77 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       // 5. FOOTER & AUTHENTICITY NOTE (Strictly pinned to last page with no overflow)
       // ==========================================
-      const footerY = doc.page.height - 62;
+      const footerY = doc.page.height - 72;
       const prevBottomMargin = doc.page.margins.bottom;
       doc.page.margins.bottom = 5; // Prevent any accidental page break
 
       doc.rect(32, footerY, doc.page.width - 64, 0.75).fill(BORDER_COLOR);
 
+      // Left Column: Terms, notes & gratitude
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
-        .fontSize(8.5)
-        .text(cfg.footerNote || 'Thank You for Shopping with Friends Collections!', 32, footerY + 6, { align: 'center', width: doc.page.width - 64, lineBreak: false });
+        .fontSize(8)
+        .text(cfg.footerNote || 'Thank You for Shopping with Friends Collections!', 32, footerY + 6, { width: 330, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
-        .fontSize(7)
-        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Jamalia, Perambur, Chennai - 600012', 32, footerY + 18, { align: 'center', width: doc.page.width - 64, lineBreak: false });
+        .fontSize(6.8)
+        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Jamalia, Perambur, Chennai - 600012', 32, footerY + 18, { width: 330, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
-        .fontSize(7)
-        .text(cfg.notes || 'This is an authentic computer-generated Tax Invoice and requires no physical signature.', 32, footerY + 30, { width: 340, lineBreak: false });
+        .fontSize(6.8)
+        .text(cfg.notes || 'This is an authentic computer-generated Tax Invoice and requires no physical signature.', 32, footerY + 30, { width: 330, lineBreak: false });
+
+      // Right Column: Signatory block with signature image
+      let sigRendered = false;
+      if (cfg.signatureImage) {
+        try {
+          let sigImgSource = null;
+          if (typeof cfg.signatureImage === 'string') {
+            if (cfg.signatureImage.startsWith('data:image')) {
+              const base64Data = cfg.signatureImage.split(',')[1];
+              sigImgSource = Buffer.from(base64Data, 'base64');
+            } else {
+              const localSigPath = cfg.signatureImage.startsWith('/')
+                ? path.join(__dirname, '..', cfg.signatureImage)
+                : path.join(__dirname, '../uploads', cfg.signatureImage);
+              if (fs.existsSync(localSigPath)) {
+                sigImgSource = localSigPath;
+              }
+            }
+          }
+          if (sigImgSource) {
+            doc.image(sigImgSource, doc.page.width - 180, footerY + 2, { fit: [140, 24], align: 'right' });
+            sigRendered = true;
+          }
+        } catch (sigErr) {
+          console.warn('Could not embed signature image in PDF:', sigErr.message);
+        }
+      }
+
+      if (!sigRendered) {
+        doc.fillColor(PRIMARY)
+          .font('Helvetica-Oblique')
+          .fontSize(8)
+          .text(cfg.companyName || 'Friends Collections', doc.page.width - 200, footerY + 11, { align: 'right', width: 168 });
+      }
+
+      // Horizontal signature underline
+      doc.moveTo(doc.page.width - 190, footerY + 27).lineTo(doc.page.width - 32, footerY + 27).stroke(BORDER_COLOR);
 
       if (cfg.authorizedSignatory) {
-        doc.fillColor(PRIMARY)
+        doc.fillColor(DARK)
           .font('Helvetica-Bold')
           .fontSize(7.5)
-          .text(cfg.authorizedSignatory, doc.page.width - 210, footerY + 30, { align: 'right', width: 178, lineBreak: false });
+          .text(cfg.authorizedSignatory, doc.page.width - 210, footerY + 31, { align: 'right', width: 178, lineBreak: false });
+      }
+
+      if (cfg.signatorySubtitle) {
+        doc.fillColor(MUTED)
+          .font('Helvetica')
+          .fontSize(6.5)
+          .text(cfg.signatorySubtitle, doc.page.width - 210, footerY + 41, { align: 'right', width: 178, lineBreak: false });
       }
 
       doc.page.margins.bottom = prevBottomMargin;

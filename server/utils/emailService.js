@@ -572,6 +572,65 @@ exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
   }
 };
 
+// 1f. Send OTP for Invoice Authorized Signature Change
+exports.sendSignatureChangeOtpEmail = async ({ to, token, name }) => {
+  try {
+    const mailClient = await getTransporter();
+    const greeting = name ? `Dear ${name},` : 'Admin,';
+
+    const contentHtml = `
+      <h2 class="content-title" style="color: #4A0E17;">🔒 Signature Change Authorization</h2>
+      <p class="content-text" style="text-align: center;">
+        ${greeting}<br>
+        A security request was initiated in the Administrator Console to <strong>update or change the legal Authorized Signature</strong> for official Tax Invoices & Bills of Supply.
+      </p>
+
+      <div class="token-box" style="border: 2px dashed #C88A65; background: #FFFDF9;">
+        <div class="token-label" style="color: #4A0E17; font-weight: 700; letter-spacing: 1px;">SIGNATURE AUTHORIZATION CODE</div>
+        <div class="token-digits" style="color: #4A0E17; font-size: 34px; letter-spacing: 8px;">${token}</div>
+        <div class="token-expires" style="color: #8C827A;">Valid for the next 10 minutes</div>
+      </div>
+
+      <p class="content-text" style="font-size: 13px; color: #5C5552; text-align: center; margin-top: 16px;">
+        Enter this 6-digit code in the dynamic confirmation popup to verify your identity and commit the new signature image.
+      </p>
+
+      <div style="background-color: #FFF4E5; border-left: 4px solid #E07A22; padding: 12px 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 12px; color: #7B3E03; line-height: 1.5;">
+          <strong>⚠️ Critical Security Notice:</strong> Authorized signatures appear on all legally binding customer receipts and GST invoices. If you did NOT initiate this change, immediately disregard this email and change your administrator password.
+        </p>
+      </div>
+
+      <p class="content-text" style="font-size: 12px; color: #9E9590; text-align: center; border-top: 1px solid #EEDCD0; padding-top: 14px; margin-top: 20px;">
+        Friends Collections Administration Security Desk • Chennai, Tamil Nadu
+      </p>
+    `;
+
+    const html = wrapInFriendsTheme({
+      title: `${token} is your Invoice Signature Authorization Code`,
+      preheader: `Your 6-digit signature authorization code is ${token}. Valid for 10 minutes.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections Security" <friends.collection06@gmail.com>',
+      to,
+      subject: `🔒 ${token} is your Invoice Signature Authorization Code`,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    if (info?.messageId && !info.messageId.startsWith('stub-') && nodemailer.getTestMessageUrl) {
+      console.log('📬 [Signature Change OTP Sent] Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return { success: true, messageId: info?.messageId };
+  } catch (error) {
+    console.error('❌ [Email Error] sendSignatureChangeOtpEmail:', error);
+    throw error;
+  }
+};
+
 // 2. Send Back In Stock Subscription Confirmation
 exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, variant }) => {
   try {

@@ -74,8 +74,62 @@ const uploadAndProcessImage = async (fileBuffer, originalName, folder = 'friends
   return `/uploads/${filename}`;
 };
 
+/**
+ * Upload and process signature image:
+ * Preserves transparency and natural aspect ratio (fit: 'inside') without aggressive cropping.
+ */
+const uploadSignatureImage = async (fileBuffer, originalName, folder = 'friends_collections/signatures') => {
+  if (isCloudinaryConfigured()) {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          transformation: [
+            {
+              width: 800,
+              height: 260,
+              crop: 'limit',
+              quality: 'auto:best',
+              fetch_format: 'png'
+            }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary signature upload error:', error);
+            reject(error);
+          } else {
+            resolve(result.secure_url);
+          }
+        }
+      );
+      uploadStream.end(fileBuffer);
+    });
+  }
+
+  // Local fallback with Sharp:
+  const uploadsDir = path.join(__dirname, '..', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const filename = `signature-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.png`;
+  const targetPath = path.join(uploadsDir, filename);
+
+  await sharp(fileBuffer)
+    .resize(800, 260, {
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+    .png({ quality: 95 })
+    .toFile(targetPath);
+
+  return `/uploads/${filename}`;
+};
+
 module.exports = {
   cloudinary,
   isCloudinaryConfigured,
-  uploadAndProcessImage
+  uploadAndProcessImage,
+  uploadSignatureImage
 };
