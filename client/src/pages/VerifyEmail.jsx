@@ -391,7 +391,7 @@ const VerifyEmail = () => {
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.6, opacity: 0, y: 10 }}
                         transition={{ duration: 0.35, ease: 'backOut' }}
-                        className="text-4xl sm:text-5xl font-black font-serif text-primary"
+                        className="text-4xl sm:text-5xl font-black font-numeric text-primary tracking-tight"
                       >
                         {countdown > 0 ? countdown : '✦'}
                       </motion.div>

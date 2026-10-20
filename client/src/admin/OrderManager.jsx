@@ -468,7 +468,7 @@ const OrderManager = () => {
                       </td>
 
                       {/* Total */}
-                      <td className="py-4 px-6 font-bold text-neutral-900">
+                      <td className="py-4 px-6 font-numeric font-bold text-neutral-900">
                         {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
                       </td>
 
@@ -880,11 +880,11 @@ const OrderManager = () => {
                       <div>
                         <h4 className="font-bold text-neutral-900">{item.title}</h4>
                         <p className="text-neutral-500">
-                          Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                          Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold text-neutral-900">
+                    <span className="font-numeric font-bold text-neutral-900">
                       {formatPrice(item.price * item.quantity)}
                     </span>
                   </div>

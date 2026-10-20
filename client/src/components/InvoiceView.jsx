@@ -318,13 +318,13 @@ const InvoiceView = ({
                 <td className="py-3 px-3 text-center font-semibold text-neutral-700">
                   {item.color || 'Standard'}
                 </td>
-                <td className="py-3 px-3 text-center font-bold text-neutral-900">
+                <td className="py-3 px-3 text-center font-bold text-neutral-900 font-numeric">
                   {item.quantity}
                 </td>
-                <td className="py-3 px-3 text-right font-medium text-neutral-700">
+                <td className="py-3 px-3 text-right font-semibold text-neutral-700 font-numeric">
                   {formatPrice(item.price)}
                 </td>
-                <td className="py-3 px-3 text-right font-bold text-neutral-900">
+                <td className="py-3 px-3 text-right font-bold text-neutral-900 font-numeric">
                   {formatPrice(item.price * item.quantity)}
                 </td>
               </tr>
@@ -350,20 +350,20 @@ const InvoiceView = ({
         <div className="w-full sm:w-64 space-y-2 text-xs">
           <div className="flex justify-between text-neutral-600">
             <span>Items Subtotal:</span>
-            <span className="font-semibold text-neutral-900">{formatPrice(order.totalAmount)}</span>
+            <span className="font-bold text-neutral-900 font-numeric">{formatPrice(order.totalAmount)}</span>
           </div>
           <div className="flex justify-between text-neutral-600">
             <span>Shipping & Packaging:</span>
-            <span className="font-semibold text-emerald-700">
+            <span className="font-bold text-emerald-700 font-numeric">
               {order.shippingCharge > 0 ? formatPrice(order.shippingCharge) : 'FREE'}
             </span>
           </div>
           <div
-            className="flex justify-between text-base font-serif font-bold pt-2 border-t-2 border-neutral-300"
+            className="flex justify-between items-center pt-2.5 border-t-2 border-neutral-300"
             style={{ color: primaryColor }}
           >
-            <span>Grand Total:</span>
-            <span>{formatPrice(totalWithShipping)}</span>
+            <span className="font-bold uppercase tracking-wider text-xs">Grand Total:</span>
+            <span className="font-numeric text-xl sm:text-2xl font-black">{formatPrice(totalWithShipping)}</span>
           </div>
           <div className="text-[10px] text-neutral-500 text-right">
             (Inclusive of all applicable GST & taxes)

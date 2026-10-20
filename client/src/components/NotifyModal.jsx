@@ -182,7 +182,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
                 Variant: {variantDesc}
               </span>
             )}
-            <span className="text-xs font-bold text-primary block mt-0.5">
+            <span className="font-numeric text-xs font-extrabold text-primary block mt-0.5">
               {formatPrice(product.salePrice || product.price)}
             </span>
           </div>

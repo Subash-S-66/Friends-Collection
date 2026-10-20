@@ -174,12 +174,12 @@ const ProductCard = ({ product }) => {
               <>
                 {discount > 0 && (
                   <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider bg-primary text-white rounded shadow-xs">
-                    {discount}% OFF
+                    <span className="font-numeric">{discount}%</span> OFF
                   </span>
                 )}
                 {isLowStock && (
                   <span className="px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[10px] font-bold tracking-wider bg-amber-600 text-white rounded shadow-xs">
-                    Only {product.stock} Left!
+                    Only <span className="font-numeric">{product.stock}</span> Left!
                   </span>
                 )}
                 {product.tags?.includes('new-arrival') && (
@@ -324,15 +324,15 @@ const ProductCard = ({ product }) => {
             <div className="flex items-baseline gap-1.5 sm:gap-2">
               {product.salePrice ? (
                 <>
-                  <span className="text-xs sm:text-lg font-bold text-primary">
+                  <span className="font-numeric text-xs sm:text-lg font-extrabold text-primary tracking-tight">
                     {formatPrice(product.salePrice)}
                   </span>
-                  <span className="text-[10px] sm:text-sm text-neutral-400 line-through">
+                  <span className="font-numeric text-[10px] sm:text-sm text-neutral-400 line-through">
                     {formatPrice(product.price)}
                   </span>
                 </>
               ) : (
-                <span className="text-xs sm:text-lg font-bold text-neutral-900">
+                <span className="font-numeric text-xs sm:text-lg font-extrabold text-neutral-900 tracking-tight">
                   {formatPrice(product.price)}
                 </span>
               )}

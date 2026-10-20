@@ -355,7 +355,7 @@ const SearchAutocomplete = ({
                         ) : item.stock <= 3 ? (
                           <>
                             <span>•</span>
-                            <span className="text-amber-600 font-bold">Only {item.stock} left</span>
+                            <span className="text-amber-600 font-bold">Only <span className="font-numeric">{item.stock}</span> left</span>
                           </>
                         ) : null}
                       </div>
@@ -363,15 +363,15 @@ const SearchAutocomplete = ({
 
                     {/* Price & Discount Pill */}
                     <div className="text-right shrink-0">
-                      <div className="text-xs sm:text-sm font-extrabold text-neutral-900 group-hover:text-primary transition-colors">
+                      <div className="text-xs sm:text-sm font-numeric font-extrabold text-neutral-900 group-hover:text-primary transition-colors tracking-tight">
                         {formatPrice(effectivePrice)}
                       </div>
                       {discount > 0 && (
                         <div className="flex items-center justify-end gap-1">
-                          <span className="text-[10px] text-neutral-400 line-through">
+                          <span className="text-[10px] font-numeric text-neutral-400 line-through">
                             {formatPrice(item.price)}
                           </span>
-                          <span className="text-[9px] font-bold text-red-600 bg-red-50 border border-red-100 px-1 rounded-sm">
+                          <span className="text-[9px] font-numeric font-bold text-red-600 bg-red-50 border border-red-100 px-1 rounded-sm">
                             {discount}%
                           </span>
                         </div>

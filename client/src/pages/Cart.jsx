@@ -187,11 +187,11 @@ const Cart = () => {
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-2">
-                          <span className="text-base font-bold text-primary">
+                          <span className="text-base font-bold text-primary font-numeric">
                             {formatPrice(item.price)}
                           </span>
                           {item.originalPrice && item.originalPrice > item.price && (
-                            <span className="text-xs text-neutral-400 line-through">
+                            <span className="text-xs text-neutral-400 line-through font-numeric">
                               {formatPrice(item.originalPrice)}
                             </span>
                           )}
@@ -229,7 +229,7 @@ const Cart = () => {
                           >
                             <HiMinus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="px-3.5 text-xs font-bold text-neutral-900">
+                          <span className="px-3.5 text-xs font-bold text-neutral-900 font-numeric">
                             {item.quantity}
                           </span>
                           <button
@@ -243,7 +243,7 @@ const Cart = () => {
                       )}
 
                       <span
-                        className={`font-serif text-base font-bold min-w-20 text-right ${
+                        className={`font-numeric text-base font-bold min-w-20 text-right ${
                           isSoldOut ? 'text-neutral-400 line-through' : 'text-neutral-900'
                         }`}
                       >
@@ -283,13 +283,13 @@ const Cart = () => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between text-neutral-600">
                 <span>Subtotal ({totalItems} in-stock {totalItems === 1 ? 'item' : 'items'})</span>
-                <span className="font-semibold text-neutral-900">{formatPrice(subtotal)}</span>
+                <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-neutral-600">
                 <span>Standard Delivery</span>
-                <span className="font-semibold text-neutral-900">
+                <span className="font-bold text-neutral-900 font-numeric">
                   {isFreeShipping ? (
-                    <span className="text-emerald-700 uppercase text-xs font-bold">FREE</span>
+                    <span className="text-emerald-700 uppercase text-xs font-bold font-sans">FREE</span>
                   ) : (
                     formatPrice(shippingCharge)
                   )}
@@ -297,12 +297,12 @@ const Cart = () => {
               </div>
               {!isFreeShipping && subtotal > 0 && (
                 <p className="text-xs text-accent-700 bg-accent-50 p-2.5 rounded-xl border border-accent-200">
-                  Add ₹{freeShippingThreshold - subtotal} more to qualify for <strong>FREE Delivery</strong>!
+                  Add <strong className="font-numeric">₹{freeShippingThreshold - subtotal}</strong> more to qualify for <strong>FREE Delivery</strong>!
                 </p>
               )}
-              <div className="pt-4 border-t border-neutral-100 flex justify-between text-base">
+              <div className="pt-4 border-t border-neutral-100 flex justify-between items-baseline text-base">
                 <span className="font-bold text-neutral-900">Estimated Total</span>
-                <span className="font-serif text-2xl font-bold text-primary">{formatPrice(totalAmount)}</span>
+                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(totalAmount)}</span>
               </div>
             </div>
 

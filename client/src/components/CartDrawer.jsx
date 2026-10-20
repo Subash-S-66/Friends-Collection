@@ -238,7 +238,7 @@ const CartDrawer = () => {
                                 </span>
                               </div>
                             ) : (
-                              <p className="text-sm font-bold text-primary mt-1">
+                              <p className="text-sm font-bold text-primary mt-1 font-numeric">
                                 {formatPrice(item.price)}
                               </p>
                             )}
@@ -276,7 +276,7 @@ const CartDrawer = () => {
                                 >
                                   <HiMinus className="w-3.5 h-3.5" />
                                 </button>
-                                <span className="px-3 text-xs font-semibold text-neutral-800">
+                                <span className="px-3 text-xs font-bold text-neutral-800 font-numeric">
                                   {item.quantity}
                                 </span>
                                 <button
@@ -291,7 +291,7 @@ const CartDrawer = () => {
                             )}
 
                             <span
-                              className={`text-xs font-semibold ${
+                              className={`text-xs font-bold font-numeric ${
                                 isSoldOut ? 'text-neutral-400 line-through' : 'text-neutral-800'
                               }`}
                             >
@@ -315,7 +315,7 @@ const CartDrawer = () => {
                         ({totalItems} {totalItems === 1 ? 'item' : 'items'} in stock)
                       </span>
                     </div>
-                    <span className="font-serif text-xl font-bold text-neutral-900">
+                    <span className="font-numeric text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
                       {formatPrice(subtotal)}
                     </span>
                   </div>

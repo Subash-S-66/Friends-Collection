@@ -1174,7 +1174,7 @@ const ProductManager = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="flex items-baseline gap-1.5">
+                        <div className="flex items-baseline gap-1.5 font-numeric">
                           <span className="font-bold text-primary">
                             {formatPrice(prod.salePrice || prod.price)}
                           </span>

@@ -260,7 +260,7 @@ const Dashboard = () => {
               <HiOutlineCurrencyRupee className="w-6 h-6" />
             </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-bold text-neutral-900">
+          <p className="font-numeric text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
             {formatPrice(stats?.totalRevenue || 0)}
           </p>
           <span className="text-[11px] text-neutral-400 block">Excluding cancelled orders</span>
@@ -274,7 +274,7 @@ const Dashboard = () => {
               <HiOutlineShoppingBag className="w-6 h-6" />
             </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-bold text-neutral-900">
+          <p className="font-numeric text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
             {stats?.totalOrders || 0}
           </p>
           <span className="text-[11px] text-neutral-400 block">{stats?.todayOrders || 0} placed today</span>
@@ -288,7 +288,7 @@ const Dashboard = () => {
               <HiOutlineClock className="w-6 h-6" />
             </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-bold text-amber-900">
+          <p className="font-numeric text-2xl sm:text-3xl font-extrabold text-amber-900 tracking-tight">
             {stats?.pendingOrders || 0}
           </p>
           <span className="text-[11px] text-amber-700 font-medium block">Awaiting confirmation/dispatch</span>
@@ -302,7 +302,7 @@ const Dashboard = () => {
               <HiOutlineCheckCircle className="w-6 h-6" />
             </div>
           </div>
-          <p className="font-serif text-2xl sm:text-3xl font-bold text-neutral-900">
+          <p className="font-numeric text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
             {stats?.statusBreakdown?.delivered || 0}
           </p>
           <span className="text-[11px] text-neutral-400 block">Successfully delivered</span>
@@ -536,7 +536,7 @@ const Dashboard = () => {
                         {order.items?.map((i) => i.title).join(', ')}
                       </p>
                     </td>
-                    <td className="py-4 px-6 font-bold text-neutral-900">
+                    <td className="py-4 px-6 font-numeric font-bold text-neutral-900">
                       {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
                     </td>
                     <td className="py-4 px-6 space-y-1.5">

@@ -466,7 +466,7 @@ const Navbar = () => {
               >
                 <HiOutlineShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scale-up">
+                  <span className="absolute -top-1 -right-1 bg-primary text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scale-up font-numeric">
                     {totalItems}
                   </span>
                 )}

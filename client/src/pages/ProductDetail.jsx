@@ -422,18 +422,18 @@ const ProductDetail = () => {
               <div className="flex items-baseline gap-3 pt-1">
                 {product.salePrice ? (
                   <>
-                    <span className="font-serif text-3xl font-bold text-primary">
+                    <span className="font-numeric text-3xl sm:text-4xl font-extrabold text-primary tracking-tight">
                       {formatPrice(product.salePrice)}
                     </span>
-                    <span className="text-base text-neutral-400 line-through">
+                    <span className="font-numeric text-base sm:text-lg text-neutral-400 line-through">
                       {formatPrice(product.price)}
                     </span>
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <span className="font-numeric text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                       Save {formatPrice(product.price - product.salePrice)}
                     </span>
                   </>
                 ) : (
-                  <span className="font-serif text-3xl font-bold text-neutral-900">
+                  <span className="font-numeric text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
                     {formatPrice(product.price)}
                   </span>
                 )}
@@ -620,12 +620,12 @@ const ProductDetail = () => {
                 ) : currentStock <= 3 ? (
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-xs animate-pulse">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Hurry, Only {currentStock} Left in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize}!
+                    Hurry, Only <strong className="font-numeric font-bold">{currentStock}</strong> Left in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize}!
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    In Stock & Ready for Dispatch ({currentStock} available in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize})
+                    In Stock & Ready for Dispatch (<strong className="font-numeric font-bold">{currentStock}</strong> available in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize})
                   </span>
                 )}
               </div>
@@ -642,7 +642,7 @@ const ProductDetail = () => {
                     >
                       <HiMinus className="w-4 h-4" />
                     </button>
-                    <span className="px-4 text-sm font-bold text-neutral-900">{quantity}</span>
+                    <span className="px-4 text-sm font-numeric font-bold text-neutral-900 min-w-8 text-center">{quantity}</span>
                     <button
                       onClick={() => setQuantity((q) => Math.min(currentStock, q + 1))}
                       disabled={quantity >= currentStock}

@@ -165,7 +165,7 @@ const OrderConfirmation = () => {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-accent-800 block">
                   Estimated Arrival Window
                 </span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-neutral-900 block">
+                <span className="font-numeric text-lg sm:text-xl font-extrabold text-neutral-900 block tracking-tight">
                   {deliveryRange}
                 </span>
                 <span className="text-[11px] text-neutral-500">
@@ -292,11 +292,11 @@ const OrderConfirmation = () => {
                             Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                           </p>
                           <p className="text-neutral-400 text-[10px]">
-                            Unit: {formatPrice(item.price)}
+                            Unit: <strong className="font-numeric">{formatPrice(item.price)}</strong>
                           </p>
                         </div>
                       </div>
-                      <span className="font-bold text-neutral-900 shrink-0">
+                      <span className="font-bold text-neutral-900 shrink-0 font-numeric">
                         {formatPrice(item.price * item.quantity)}
                       </span>
                     </div>
@@ -308,11 +308,11 @@ const OrderConfirmation = () => {
               <div className="border-t border-accent-200/60 pt-4 space-y-1.5 text-xs text-neutral-700">
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-500">Items Subtotal:</span>
-                  <span className="font-semibold text-neutral-900">{formatPrice(order.totalAmount || 0)}</span>
+                  <span className="font-bold text-neutral-900 font-numeric">{formatPrice(order.totalAmount || 0)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-500">Boutique Express Delivery:</span>
-                  <span className="font-semibold text-emerald-700">
+                  <span className="font-bold text-emerald-700 font-numeric">
                     {Number(order.shippingCharge || 0) === 0 ? 'FREE' : formatPrice(order.shippingCharge)}
                   </span>
                 </div>
@@ -320,7 +320,7 @@ const OrderConfirmation = () => {
                   <span className="font-bold text-neutral-900">
                     {isPaid ? 'Total Amount Paid:' : 'Total Payable upon Delivery:'}
                   </span>
-                  <span className="font-serif text-xl sm:text-2xl font-bold text-primary">
+                  <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
                     {formatPrice(grandTotal)}
                   </span>
                 </div>

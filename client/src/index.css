@@ -66,3 +66,48 @@
   animation-play-state: paused;
 }
 
+/* ==========================================================================
+   Universal Number & Currency Theming (Luxury, Modern & Crystal Clear)
+   ========================================================================== */
+@layer utilities {
+  /* Geometric, high-legibility tabular lining numbers for all prices and quantities */
+  .font-numeric,
+  .font-price,
+  .tabular-nums {
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-variant-numeric: tabular-nums lining-nums;
+    -moz-font-feature-settings: "tnum" 1, "lnum" 1;
+    -webkit-font-feature-settings: "tnum" 1, "lnum" 1;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Ultra-clear JetBrains Mono for Order IDs, Tracking AWB, GSTIN, Pincodes, OTP */
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;
+    font-variant-numeric: tabular-nums lining-nums;
+    -moz-font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+    -webkit-font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+    font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+    letter-spacing: 0.025em;
+  }
+}
+
+/* Ensure currency and price digits across cart, checkout, invoices and tracking pop with optimal contrast */
+.price-display,
+.currency-amount {
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  -moz-font-feature-settings: "tnum" 1, "lnum" 1;
+  -webkit-font-feature-settings: "tnum" 1, "lnum" 1;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Rupee symbol crisp alignment */
+.rupee-symbol {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 700;
+  display: inline-block;
+  margin-right: 0.05em;
+}
+

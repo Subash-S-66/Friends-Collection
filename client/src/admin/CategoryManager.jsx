@@ -1104,7 +1104,7 @@ const CategoryManager = () => {
                                         {prod.title}
                                       </h5>
                                       <div className="flex items-center justify-between text-[11px] mt-0.5">
-                                        <span className="font-bold text-primary">
+                                        <span className="font-numeric font-bold text-primary">
                                           {formatPrice(prod.salePrice || prod.price)}
                                         </span>
                                         <span className="text-[10px] text-neutral-500 font-mono">
@@ -1469,7 +1469,7 @@ const CategoryManager = () => {
                                   {prod.title}
                                 </span>
                                 <div className="flex items-center justify-between text-[10px]">
-                                  <span className="font-bold text-primary">
+                                  <span className="font-numeric font-bold text-primary">
                                     {formatPrice(prod.salePrice || prod.price)}
                                   </span>
                                   <span className="text-neutral-400 font-mono">

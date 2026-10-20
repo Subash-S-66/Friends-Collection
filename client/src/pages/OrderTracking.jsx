@@ -242,7 +242,7 @@ const OrderTracking = () => {
               <div className="flex flex-col sm:items-end justify-between gap-3">
                 <div className="text-left sm:text-right">
                   <span className="text-xs text-neutral-500 block">Total Amount</span>
-                  <span className="font-serif text-2xl font-bold text-primary">
+                  <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
                     {formatPrice(order.totalAmount + (order.shippingCharge || 0))}
                   </span>
                   <span className="block text-[11px] text-neutral-400 font-medium mt-0.5 uppercase">
@@ -474,11 +474,11 @@ const OrderTracking = () => {
                       <div>
                         <h4 className="font-bold text-neutral-900 text-sm line-clamp-1">{item.title}</h4>
                         <p className="text-neutral-500 text-xs mt-0.5">
-                          Quantity: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                          Quantity: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold text-neutral-900 text-sm">
+                    <span className="font-numeric font-bold text-neutral-900 text-sm">
                       {formatPrice(item.price * item.quantity)}
                     </span>
                   </div>

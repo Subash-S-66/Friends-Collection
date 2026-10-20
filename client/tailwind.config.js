@@ -53,7 +53,10 @@ export default {
       fontFamily: {
         logo: ['Cinzel', '"Playfair Display"', 'Georgia', 'serif'],
         serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['Inter', 'Outfit', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        numeric: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+        price: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         fadeIn: {

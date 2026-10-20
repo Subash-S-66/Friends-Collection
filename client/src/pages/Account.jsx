@@ -516,7 +516,7 @@ const Account = () => {
             </div>
             <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
               <span className="text-neutral-500 font-bold">Total Bill:</span>
-              <span className="font-serif text-base font-bold text-primary">{formatPrice(totalWithShipping)}</span>
+              <span className="font-numeric text-base sm:text-lg font-extrabold text-primary">{formatPrice(totalWithShipping)}</span>
             </div>
           </div>
         </div>
@@ -552,7 +552,7 @@ const Account = () => {
           <div className="flex items-center sm:text-right justify-between sm:justify-end gap-4">
             <div>
               <span className="text-xs text-neutral-500 block">Total Amount</span>
-              <span className="font-serif text-lg font-bold text-primary">
+              <span className="font-numeric text-lg sm:text-xl font-extrabold text-primary">
                 {formatPrice(totalWithShipping)}
               </span>
               <span className="block text-[10px] text-neutral-400 font-medium uppercase">
@@ -676,10 +676,10 @@ const Account = () => {
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-neutral-900 truncate">{item.title}</h4>
                 <p className="text-xs text-neutral-500">
-                  Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                  Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                 </p>
               </div>
-              <span className="text-xs font-bold text-neutral-800">
+              <span className="font-numeric text-xs sm:text-sm font-bold text-neutral-900">
                 {formatPrice(item.price * item.quantity)}
               </span>
             </div>
@@ -1253,7 +1253,7 @@ const Account = () => {
                     Order Summary & Tracking
                   </span>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <h3 className="font-serif text-2xl font-bold text-neutral-900">{detailOrder.orderId}</h3>
+                    <h3 className="font-mono text-xl sm:text-2xl font-bold text-neutral-900 tracking-tight">{detailOrder.orderId}</h3>
                     {getFulfillmentBadge(detailOrder.status)}
                     {getPaymentBadge(detailOrder.paymentStatus, detailOrder.paymentMethod)}
                   </div>
@@ -1351,15 +1351,21 @@ const Account = () => {
                         <div>
                           <h4 className="font-bold text-neutral-900">{item.title}</h4>
                           <p className="text-neutral-500">
-                            Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                            Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                           </p>
                         </div>
                       </div>
-                      <span className="font-bold text-neutral-900">
+                      <span className="font-numeric font-bold text-neutral-900 text-sm">
                         {formatPrice(item.price * item.quantity)}
                       </span>
                     </div>
                   ))}
+                </div>
+                <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 flex items-center justify-between text-xs">
+                  <span className="font-bold text-neutral-600">Grand Total Payable</span>
+                  <span className="font-numeric text-base font-extrabold text-primary">
+                    {formatPrice((detailOrder.totalAmount || 0) + (detailOrder.shippingCharge || 0))}
+                  </span>
                 </div>
               </div>
 
@@ -1414,7 +1420,7 @@ const Account = () => {
                     Live Shipment & Delivery Tracking
                   </span>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <h3 className="font-serif text-2xl font-bold text-neutral-900">
+                    <h3 className="font-mono text-xl sm:text-2xl font-bold text-neutral-900 tracking-tight">
                       #{trackingOrder.orderId}
                     </h3>
                     {getFulfillmentBadge(trackingOrder.status)}

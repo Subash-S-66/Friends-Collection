@@ -1049,7 +1049,7 @@ const Checkout = () => {
                       Qty: {item.quantity} {item.size && `• Size: ${item.size}`}
                     </p>
                   </div>
-                  <span className="text-xs font-bold text-neutral-900">
+                  <span className="text-xs font-bold text-neutral-900 font-numeric">
                     {formatPrice(item.price * item.quantity)}
                   </span>
                 </div>
@@ -1060,21 +1060,21 @@ const Checkout = () => {
             <div className="border-t border-neutral-100 pt-4 space-y-2.5 text-sm">
               <div className="flex justify-between text-neutral-600">
                 <span>Subtotal</span>
-                <span className="font-semibold text-neutral-900">{formatPrice(subtotal)}</span>
+                <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-neutral-600">
                 <span>Delivery Charge</span>
-                <span className="font-semibold text-neutral-900">
+                <span className="font-bold text-neutral-900 font-numeric">
                   {isFreeShipping ? (
-                    <span className="text-emerald-700 text-xs font-bold uppercase">FREE</span>
+                    <span className="text-emerald-700 text-xs font-bold uppercase font-sans">FREE</span>
                   ) : (
                     formatPrice(shippingCharge)
                   )}
                 </span>
               </div>
-              <div className="border-t border-neutral-100 pt-3 flex justify-between text-base">
+              <div className="border-t border-neutral-100 pt-3 flex justify-between items-baseline text-base">
                 <span className="font-bold text-neutral-900">Total Payable</span>
-                <span className="font-serif text-2xl font-bold text-primary">{formatPrice(grandTotal)}</span>
+                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(grandTotal)}</span>
               </div>
             </div>
 
@@ -1094,13 +1094,13 @@ const Checkout = () => {
               ) : formData.paymentMethod === 'razorpay' ? (
                 <>
                   <HiOutlineLockClosed className="w-4 h-4 text-accent-300" />
-                  <span>Pay Securely • {formatPrice(grandTotal)}</span>
+                  <span>Pay Securely • <strong className="font-numeric font-bold">{formatPrice(grandTotal)}</strong></span>
                   <HiArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
                   <HiOutlineShoppingBag className="w-4 h-4 text-accent-300" />
-                  <span>Place Cash on Delivery Order • {formatPrice(grandTotal)}</span>
+                  <span>Place Cash on Delivery Order • <strong className="font-numeric font-bold">{formatPrice(grandTotal)}</strong></span>
                   <HiArrowRight className="w-4 h-4" />
                 </>
               )}

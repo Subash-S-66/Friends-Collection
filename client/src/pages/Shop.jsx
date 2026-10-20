@@ -611,7 +611,7 @@ const Shop = () => {
                 ].map((item, idx) => {
                   const isChecked = minPrice === item.min && maxPrice === item.max;
                   return (
-                    <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:text-primary">
+                    <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:text-primary font-numeric text-xs font-semibold">
                       <input
                         type="radio"
                         name="priceFilter"
@@ -696,7 +696,7 @@ const Shop = () => {
                   </span>
                 )}
                 {(minPrice || maxPrice) && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-100 text-primary font-semibold">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-100 text-primary font-semibold font-numeric text-xs">
                     Price: {minPrice ? `₹${minPrice}` : '₹0'} - {maxPrice ? `₹${maxPrice}` : 'Above'}
                     <button onClick={() => {
                       const newParams = new URLSearchParams(searchParams);
@@ -771,7 +771,7 @@ const Shop = () => {
                     <div className="text-center py-6 space-y-2">
                       <div className="w-12 h-0.5 bg-accent-200 mx-auto rounded-full" />
                       <p className="text-xs text-neutral-400 font-medium tracking-wide">
-                        ✨ You've viewed all {products.length} designs
+                        ✨ You've viewed all <span className="font-numeric font-bold">{products.length}</span> designs
                       </p>
                       <button
                         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -926,7 +926,7 @@ const Shop = () => {
                         setSearchParams(newParams);
                         setFilterDrawerOpen(false);
                       }}
-                      className={`block w-full text-left py-1.5 px-2 rounded-lg ${minPrice === item.min && maxPrice === item.max ? 'font-bold text-primary bg-primary-50' : 'text-neutral-700'}`}
+                      className={`block w-full text-left py-1.5 px-2 rounded-lg font-numeric text-xs ${minPrice === item.min && maxPrice === item.max ? 'font-bold text-primary bg-primary-50' : 'text-neutral-700'}`}
                     >
                       {item.label}
                     </button>
