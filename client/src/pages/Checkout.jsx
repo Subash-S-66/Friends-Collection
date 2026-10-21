@@ -488,7 +488,7 @@ const Checkout = () => {
               if (verifyRes.data?.success && verifyRes.data?.order) {
                 // Mark order placed immediately to prevent any empty-cart redirection
                 isOrderPlacedRef.current = true;
-                toast.success('🎉 Payment verified! Order confirmed automatically.', { id: 'rzp-verify' });
+                toast.success('🎉 Payment verified! Order placed successfully.', { id: 'rzp-verify' });
 
                 // SUCCESS ONLY: Clear hold session and clear cart!
                 sessionStorage.removeItem('fc_checkout_session');

@@ -326,16 +326,7 @@ exports.placeOrder = async (req, res, next) => {
         { status: 'completed' }
       );
     }
-    // Asynchronously dispatch Order Confirmation Email with PDF Invoice & Delivery Window
-    try {
-      const { sendOrderConfirmationEmail } = require('../utils/emailService');
-      sendOrderConfirmationEmail({ order }).catch((mailErr) =>
-        console.error(`⚠️ Email dispatch failed for COD order #${order.orderId}:`, mailErr)
-      );
-    } catch (eErr) {
-      console.warn('Could not initiate COD confirmation email:', eErr);
-    }
-
+    // Note: Order confirmation email will be dispatched once admin reviews & confirms the order in Admin Panel.
     res.status(201).json(order);
   } catch (error) {
     if (deductionResult?.success && deductionResult?.deductedItems) {

@@ -100,12 +100,36 @@ const OrderConfirmation = () => {
     `Hello Friends Collections! I placed an order with Order ID #${effectiveOrderId}. Please confirm my order details.`
   );
 
-  // Stepper milestones
+  // Stepper milestones: Only show confirmed when admin actually sets status to confirmed, shipped, or delivered
+  const isConfirmedByAdmin = order?.status === 'confirmed' || order?.status === 'shipped' || order?.status === 'delivered';
+  const isShippedByAdmin = order?.status === 'shipped' || order?.status === 'delivered';
+  const isDelivered = order?.status === 'delivered';
+
   const steps = [
-    { key: 'placed', label: 'Order Placed', desc: 'Received at Jamalia Store', done: true },
-    { key: 'confirmed', label: 'Confirmed & Packaged', desc: isPaid ? 'Paid & Verified' : 'Awaiting Dispatch', done: isPaid || order?.status === 'confirmed' || order?.status === 'shipped' || order?.status === 'delivered' },
-    { key: 'shipped', label: 'Dispatched / In Transit', desc: order?.tracking?.courier || 'Express Courier', done: order?.status === 'shipped' || order?.status === 'delivered' },
-    { key: 'delivered', label: 'Delivered', desc: 'At Your Doorstep', done: order?.status === 'delivered' }
+    { 
+      key: 'placed', 
+      label: 'Order Placed', 
+      desc: 'Received at Jamalia Store', 
+      done: true 
+    },
+    { 
+      key: 'confirmed', 
+      label: 'Confirmed & Packaged', 
+      desc: isConfirmedByAdmin ? 'Inspected & Packaged' : 'Awaiting Boutique Confirmation', 
+      done: isConfirmedByAdmin 
+    },
+    { 
+      key: 'shipped', 
+      label: 'Dispatched / In Transit', 
+      desc: order?.tracking?.courier ? `Courier: ${order.tracking.courier}` : 'Express Courier Dispatch', 
+      done: isShippedByAdmin 
+    },
+    { 
+      key: 'delivered', 
+      label: 'Delivered', 
+      desc: 'At Your Doorstep', 
+      done: isDelivered 
+    }
   ];
 
   return (
@@ -130,13 +154,13 @@ const OrderConfirmation = () => {
           {/* Heading & Thank You Message */}
           <div className="space-y-2 max-w-xl mx-auto">
             <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200 inline-block">
-              ✦ Order Received & Placed Successfully ✦
+              ✦ Order Placed & Received Successfully ✦
             </span>
             <h1 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 leading-tight">
               Thank You for Shopping with Us!
             </h1>
             <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Valued Customer'}</strong>, your order has been received and placed. Our boutique artisans at Jamalia, Chennai will confirm your order and pack your garments with supreme care.
+              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Valued Customer'}</strong>, your order has been placed and received. Our boutique artisans at Jamalia, Chennai will confirm your order and pack your garments with supreme care.
             </p>
           </div>
 
@@ -264,8 +288,12 @@ const OrderConfirmation = () => {
                       Email: {order.customer.email}
                     </p>
                   )}
-                  <p className="text-[11px] text-emerald-800 mt-2 font-medium">
-                    ✉️ Order confirmation & Tax Invoice PDF dispatched to email.
+                  <p className="text-[11px] mt-2 font-medium">
+                    {isConfirmedByAdmin ? (
+                      <span className="text-emerald-800">✉️ Order confirmed & Tax Invoice PDF dispatched to email.</span>
+                    ) : (
+                      <span className="text-neutral-500">✉️ Tax Invoice & confirmation email will be dispatched once our boutique team confirms your order.</span>
+                    )}
                   </p>
                 </div>
               </div>

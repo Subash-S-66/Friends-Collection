@@ -318,7 +318,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
         user: draft.user,
         totalAmount: draft.totalAmount,
         shippingCharge: draft.shippingCharge,
-        status: 'confirmed',
+        status: 'order_received',
         paymentStatus: 'paid',
         paidAt: new Date(),
         paymentMethod: 'razorpay',
@@ -330,15 +330,9 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
         tracking: {
           statusHistory: [
             {
-              status: 'yet_to_move',
-              message: 'Order received and payment verified via Razorpay.',
+              status: 'order_received',
+              message: `Online payment of ₹${(draft.grandTotalPaise / 100).toLocaleString('en-IN')} received via Razorpay (Payment ID: ${razorpay_payment_id}). Order placed & received at boutique. Awaiting admin review & confirmation.`,
               location: 'Jamalia Boutique, Chennai',
-              timestamp: new Date()
-            },
-            {
-              status: 'confirmed',
-              message: `Online payment of ₹${(draft.grandTotalPaise / 100).toLocaleString('en-IN')} verified (Payment ID: ${razorpay_payment_id}). Order confirmed automatically.`,
-              location: 'Razorpay Gateway',
               timestamp: new Date()
             }
           ]
@@ -411,19 +405,11 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
       }
     }
 
-    // 12. Asynchronously Dispatch Order Confirmation Email with PDF Invoice & Delivery Window
-    try {
-      const { sendOrderConfirmationEmail } = require('../utils/emailService');
-      sendOrderConfirmationEmail({ order }).catch((mailErr) =>
-        console.error(`⚠️ Email dispatch failed for order #${order.orderId}:`, mailErr)
-      );
-    } catch (eErr) {
-      console.warn('Could not initiate confirmation email:', eErr);
-    }
+    // Note: Order confirmation email will be dispatched once admin confirms the order in Admin Panel.
 
     res.json({
       success: true,
-      message: 'Payment verified successfully and order confirmed automatically.',
+      message: 'Payment verified successfully. Order placed and received at store.',
       order: {
         orderId: order.orderId,
         status: order.status,
@@ -508,7 +494,7 @@ router.post('/webhook', async (req, res) => {
                   user: draft.user,
                   totalAmount: draft.totalAmount,
                   shippingCharge: draft.shippingCharge,
-                  status: 'confirmed',
+                  status: 'order_received',
                   paymentStatus: 'paid',
                   paidAt: new Date(),
                   paymentMethod: 'razorpay',
@@ -520,15 +506,9 @@ router.post('/webhook', async (req, res) => {
                   tracking: {
                     statusHistory: [
                       {
-                        status: 'yet_to_move',
-                        message: 'Order received and payment verified via Razorpay Webhook.',
+                        status: 'order_received',
+                        message: `Payment received via Razorpay Webhook (Payment ID: ${razorpayPaymentId}). Order placed & received at boutique. Awaiting admin review & confirmation.`,
                         location: 'Jamalia Boutique, Chennai',
-                        timestamp: new Date()
-                      },
-                      {
-                        status: 'confirmed',
-                        message: `Payment confirmed via Razorpay Webhook (Payment ID: ${razorpayPaymentId}). Order confirmed automatically.`,
-                        location: 'Razorpay Webhook',
                         timestamp: new Date()
                       }
                     ]
@@ -549,11 +529,7 @@ router.post('/webhook', async (req, res) => {
                 draft.status = 'completed';
                 await draft.save();
 
-                // Dispatch confirmation email with PDF invoice
-                try {
-                  const { sendOrderConfirmationEmail } = require('../utils/emailService');
-                  sendOrderConfirmationEmail({ order: webhookOrder }).catch(() => {});
-                } catch (wMailErr) {}
+                // Note: Order confirmation email will be dispatched once admin confirms the order in Admin Panel.
               } catch (orderErr) {
                 await rollbackStockDeduction(deduction.deductedItems).catch(() => {});
                 throw orderErr;

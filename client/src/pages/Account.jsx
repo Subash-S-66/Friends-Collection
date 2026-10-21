@@ -785,47 +785,10 @@ const Account = () => {
                   {user?.phone && <span className="mx-1.5 text-neutral-400">•</span>}
                   {user?.phone && <span>+91 {user.phone}</span>}
                 </p>
-
-                {/* Direct Saved Addresses Badge */}
-                <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('address')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
-                      activeTab === 'address'
-                        ? 'bg-primary text-white border-primary shadow-xs'
-                        : 'bg-accent-50/80 hover:bg-accent-100/90 text-accent-800 border-accent-200/80 hover:border-accent-300'
-                    }`}
-                    title="View and Manage Saved Addresses"
-                  >
-                    <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-600" />
-                    <span>{user?.savedAddresses?.length || 0} Saved Delivery Addresses</span>
-                    <span className="text-[10px] opacity-75 font-bold">Manage →</span>
-                  </button>
-                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-              <button
-                type="button"
-                onClick={() => handleTabChange('address')}
-                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                  activeTab === 'address'
-                    ? 'bg-primary text-white border-primary shadow-sm ring-2 ring-primary/20'
-                    : 'bg-white hover:bg-accent-50 text-neutral-800 border-accent-200 shadow-2xs'
-                }`}
-                title="Manage Delivery Locations"
-              >
-                <HiOutlineLocationMarker className="w-4 h-4 text-accent-600" />
-                <span>Saved Addresses</span>
-                <span className={`ml-0.5 text-[11px] px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'address' ? 'bg-white/20 text-white' : 'bg-accent-100 text-accent-800'
-                }`}>
-                  {user?.savedAddresses?.length || 0}
-                </span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => handleTabChange('track')}
