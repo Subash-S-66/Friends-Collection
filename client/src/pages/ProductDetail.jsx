@@ -507,12 +507,14 @@ const ProductDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {allColors.map((color) => {
+                      const normCol = (color || '').trim().toLowerCase();
                       const colorMatch = product.colorImages?.find(
                         (ci) => (ci.color || '').trim().toLowerCase() === normCol
                       );
-                      const colorImg = colorMatch?.image || colorMatch?.images?.[0] || product.variants?.find(
-                        (v) => (v.color || '').trim().toLowerCase() === normCol && (v.image || v.images?.[0])
-                      )?.image;
+                      const variantMatch = product.variants?.find(
+                        (v) => (v.color || '').trim().toLowerCase() === normCol && (v.image || (Array.isArray(v.images) && v.images[0]))
+                      );
+                      const colorImg = colorMatch?.image || (Array.isArray(colorMatch?.images) ? colorMatch.images[0] : '') || variantMatch?.image || (Array.isArray(variantMatch?.images) ? variantMatch.images[0] : '');
 
                       const colorStock = hasVariants
                         ? product.variants
