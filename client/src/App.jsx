@@ -99,6 +99,11 @@ const AppLayout = () => {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/account/orders" element={<Account />} />
+          <Route path="/account/address" element={<Navigate to="/account?tab=address" replace />} />
+          <Route path="/account/addresses" element={<Navigate to="/account?tab=address" replace />} />
+          <Route path="/saved-addresses" element={<Navigate to="/account?tab=address" replace />} />
+          <Route path="/saved-address" element={<Navigate to="/account?tab=address" replace />} />
+          <Route path="/profile" element={<Navigate to="/account" replace />} />
           <Route path="/track" element={<TrackRedirect />} />
           <Route path="/track-order" element={<TrackRedirect />} />
           <Route path="/track/:orderId" element={<TrackRedirect />} />

@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useAlert } from '../context/AlertContext';
 
-const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
+const EditProfileModal = ({ isOpen, onClose, user, onSuccess, onNavigateToAddresses }) => {
   const { showOtpErrorAlert } = useAlert();
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [email, setEmail] = useState('');
@@ -331,6 +331,23 @@ const EditProfileModal = ({ isOpen, onClose, user, onSuccess }) => {
                     </p>
                   </div>
                 </div>
+
+                {/* Saved Address Shortcut Card */}
+                {onNavigateToAddresses && (
+                  <div className="p-3 bg-accent-50/70 rounded-xl border border-accent-200/60 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-neutral-700 min-w-0">
+                      <span className="text-base">📍</span>
+                      <span className="truncate">Need to change your delivery address instead?</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onNavigateToAddresses}
+                      className="font-bold text-primary hover:text-primary-light hover:underline cursor-pointer shrink-0"
+                    >
+                      Saved Addresses →
+                    </button>
+                  </div>
+                )}
 
                 {/* Email Input */}
                 <div>

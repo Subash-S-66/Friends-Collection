@@ -403,10 +403,17 @@ const Navbar = () => {
                             <Link
                               to="/account?tab=address"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-accent-50 hover:text-primary transition-colors"
+                              className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-accent-50 hover:text-primary transition-colors"
                             >
-                              <span>📍</span>
-                              <span>Saved Addresses</span>
+                              <div className="flex items-center gap-2.5">
+                                <span>📍</span>
+                                <span>Saved Addresses</span>
+                              </div>
+                              {user.savedAddresses?.length > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-100 text-accent-800 font-bold">
+                                  {user.savedAddresses.length}
+                                </span>
+                              )}
                             </Link>
 
                             {isAdmin && (
@@ -893,14 +900,29 @@ const Navbar = () => {
                       onClick={() => setMobileOpen(false)}
                       className="block px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-accent-100/60"
                     >
-                      My Profile & Saved Address
+                      👤 My Account & Profile
+                    </Link>
+                    <Link
+                      to="/account?tab=address"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-accent-100/60 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>📍</span>
+                        <span>Saved Delivery Addresses</span>
+                      </div>
+                      {user?.savedAddresses?.length > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-100 text-accent-800 font-bold">
+                          {user.savedAddresses.length}
+                        </span>
+                      )}
                     </Link>
                     <Link
                       to="/account/orders"
                       onClick={() => setMobileOpen(false)}
                       className="block px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-accent-100/60"
                     >
-                      My Orders
+                      🛍️ My Orders & Tracking
                     </Link>
                     <button
                       type="button"

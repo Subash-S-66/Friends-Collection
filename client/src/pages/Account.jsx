@@ -175,7 +175,22 @@ const Account = () => {
     }
   }, [user]);
 
-  // Handle URL query parameters (?orderId=... or ?tab=track)
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', newTab);
+    setSearchParams(newParams, { replace: true });
+
+    // Smooth scroll down to tab content
+    setTimeout(() => {
+      const tabEl = document.getElementById('account-tab-content');
+      if (tabEl) {
+        tabEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  };
+
+  // Handle URL query parameters (?orderId=... or ?tab=address or ?tab=track or ?tab=orders)
   useEffect(() => {
     const orderIdParam = searchParams.get('orderId');
     const tabParam = searchParams.get('tab');
@@ -183,8 +198,14 @@ const Account = () => {
       handleLookupOrder(null, orderIdParam);
     } else if (tabParam === 'track') {
       setActiveTab('track');
+    } else if (['address', 'addresses', 'saved_address', 'saved-address', 'saved_addresses'].includes(tabParam)) {
+      setActiveTab('address');
+    } else if (tabParam === 'orders') {
+      if (user) setActiveTab('orders');
+    } else if (tabParam === 'phone_lookup' || tabParam === 'phone') {
+      setActiveTab('phone_lookup');
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   const handleLogout = async () => {
     const ok = await confirm({
@@ -756,7 +777,7 @@ const Account = () => {
                     title="Edit Email & Phone"
                   >
                     <HiOutlinePencilAlt className="w-3.5 h-3.5" />
-                    <span>Edit</span>
+                    <span>Edit Profile</span>
                   </button>
                 </div>
                 <p className="text-xs text-neutral-500 mt-1 truncate" title={`${user?.email || ''} ${user?.phone ? `• +91 ${user.phone}` : ''}`}>
@@ -764,14 +785,55 @@ const Account = () => {
                   {user?.phone && <span className="mx-1.5 text-neutral-400">•</span>}
                   {user?.phone && <span>+91 {user.phone}</span>}
                 </p>
+
+                {/* Direct Saved Addresses Badge */}
+                <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('address')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                      activeTab === 'address'
+                        ? 'bg-primary text-white border-primary shadow-xs'
+                        : 'bg-accent-50/80 hover:bg-accent-100/90 text-accent-800 border-accent-200/80 hover:border-accent-300'
+                    }`}
+                    title="View and Manage Saved Addresses"
+                  >
+                    <HiOutlineLocationMarker className="w-3.5 h-3.5 text-accent-600" />
+                    <span>{user?.savedAddresses?.length || 0} Saved Delivery Addresses</span>
+                    <span className="text-[10px] opacity-75 font-bold">Manage →</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
               <button
                 type="button"
-                onClick={() => setActiveTab('track')}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 text-xs font-semibold hover:bg-accent-100 transition-colors border border-accent-200 cursor-pointer"
+                onClick={() => handleTabChange('address')}
+                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  activeTab === 'address'
+                    ? 'bg-primary text-white border-primary shadow-sm ring-2 ring-primary/20'
+                    : 'bg-white hover:bg-accent-50 text-neutral-800 border-accent-200 shadow-2xs'
+                }`}
+                title="Manage Delivery Locations"
+              >
+                <HiOutlineLocationMarker className="w-4 h-4 text-accent-600" />
+                <span>Saved Addresses</span>
+                <span className={`ml-0.5 text-[11px] px-1.5 py-0.5 rounded-full ${
+                  activeTab === 'address' ? 'bg-white/20 text-white' : 'bg-accent-100 text-accent-800'
+                }`}>
+                  {user?.savedAddresses?.length || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange('track')}
+                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border cursor-pointer ${
+                  activeTab === 'track'
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-accent-50 text-accent-800 hover:bg-accent-100 border-accent-200'
+                }`}
               >
                 <HiOutlineTruck className="w-4 h-4 text-primary" />
                 <span>Track Live Order</span>
@@ -814,11 +876,11 @@ const Account = () => {
         )}
 
         {/* Tab Controls */}
-        <div className="border-b border-accent-200/60 pb-3 mb-8">
+        <div id="account-tab-content" className="border-b border-accent-200/60 pb-3 mb-8">
           <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
             {user && (
               <button
-                onClick={() => setActiveTab('orders')}
+                onClick={() => handleTabChange('orders')}
                 className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
                   activeTab === 'orders' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
                 }`}
@@ -831,7 +893,7 @@ const Account = () => {
             )}
 
             <button
-              onClick={() => setActiveTab('phone_lookup')}
+              onClick={() => handleTabChange('phone_lookup')}
               className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
                 activeTab === 'phone_lookup' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
               }`}
@@ -843,7 +905,7 @@ const Account = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('track')}
+              onClick={() => handleTabChange('track')}
               className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'track' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
               }`}
@@ -857,12 +919,13 @@ const Account = () => {
 
             {user && (
               <button
-                onClick={() => setActiveTab('address')}
-                className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer ${
+                onClick={() => handleTabChange('address')}
+                className={`font-serif text-base sm:text-lg font-bold pb-2 transition-all relative cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'address' ? 'text-primary' : 'text-neutral-400 hover:text-neutral-700'
                 }`}
               >
-                Saved Addresses {user.savedAddresses?.length > 0 ? `(${user.savedAddresses.length})` : ''}
+                <HiOutlineLocationMarker className="w-4 h-4" />
+                <span>Saved Addresses {user.savedAddresses?.length > 0 ? `(${user.savedAddresses.length})` : ''}</span>
                 {activeTab === 'address' && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
                 )}
@@ -1602,6 +1665,10 @@ const Account = () => {
           isOpen={isEditProfileOpen}
           onClose={() => setIsEditProfileOpen(false)}
           user={user}
+          onNavigateToAddresses={() => {
+            setIsEditProfileOpen(false);
+            handleTabChange('address');
+          }}
           onSuccess={(updatedUser) => {
             if (updatedUser) {
               updateUser(updatedUser);
