@@ -244,26 +244,44 @@ const ProductDetail = () => {
     : product.sizes || [];
 
   const getFinalSize = () => {
-    return selectedSize || (product?.sizes?.[0] || '');
+    return selectedSize || (product?.sizes?.[0] || (product?.variants?.[0]?.size || ''));
   };
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
     setIsProcessing(true);
-    const finalSize = getFinalSize();
-    addToCart(product, quantity, finalSize, selectedColor);
-    setAdded(true);
-    setTimeout(() => {
-      setAdded(false);
+    try {
+      const finalSize = getFinalSize();
+      const success = addToCart(product, quantity, finalSize, selectedColor);
+      if (success !== false) {
+        setAdded(true);
+        setTimeout(() => {
+          setAdded(false);
+          setIsProcessing(false);
+        }, 1000);
+      } else {
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      console.error('Error adding product to cart:', err);
       setIsProcessing(false);
-    }, 1000);
+    }
   };
 
   const handleBuyNow = () => {
     if (isOutOfStock || isProcessing) return;
     setIsProcessing(true);
-    addToCart(product, quantity, getFinalSize(), selectedColor);
-    navigate('/checkout');
+    try {
+      const finalSize = getFinalSize();
+      const success = addToCart(product, quantity, finalSize, selectedColor);
+      if (success !== false) {
+        navigate('/checkout');
+      }
+    } catch (err) {
+      console.error('Error in Buy Now:', err);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const whatsappMessage = encodeURIComponent(

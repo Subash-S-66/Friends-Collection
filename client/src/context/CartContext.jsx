@@ -172,9 +172,10 @@ export const CartProvider = ({ children }) => {
 
     // Derive variant-specific stock with graceful fallbacks
     let itemStock = product.stock !== undefined && product.stock !== null ? Number(product.stock) : 99;
+    let match = null;
     if (product.variants && product.variants.length > 0) {
       // 1. Exact match (size + color)
-      let match = product.variants.find((v) => {
+      match = product.variants.find((v) => {
         const vSize = norm(v.size);
         const vColor = norm(v.color);
         return (
@@ -224,11 +225,14 @@ export const CartProvider = ({ children }) => {
       resolvedVariantImage = product.images?.[0] || '';
     }
 
+    const resolvedSize = cleanSize || (match?.size ? match.size.trim() : (product.sizes?.[0] || ''));
+    const resolvedColor = cleanColor || (match?.color ? match.color.trim() : (product.colors?.[0] || ''));
+
     const prodId = String(product._id || product);
     const targetItem = {
       product: prodId,
-      size: cleanSize,
-      color: cleanColor
+      size: resolvedSize,
+      color: resolvedColor
     };
 
     setItems((prev) => {
@@ -263,8 +267,8 @@ export const CartProvider = ({ children }) => {
             title: product.title,
             price: product.salePrice || product.price,
             originalPrice: product.price,
-            size: cleanSize,
-            color: cleanColor,
+            size: resolvedSize,
+            color: resolvedColor,
             quantity: Math.min(itemStock, quantity),
             image: resolvedVariantImage,
             slug: product.slug,

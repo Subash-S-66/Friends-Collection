@@ -525,21 +525,28 @@ const Checkout = () => {
           }
         };
 
-        const rzp = new window.Razorpay(rzpOptions);
-        rzp.on('payment.failed', function (resp) {
-          setSubmitting(false);
-          API.post('/payment/failure', {
-            razorpayOrderId: rzpOrderData.razorpayOrderId,
-            errorReason: resp.error?.description || 'Transaction failed'
-          }).catch(() => {});
-          toast.error(`Payment Failed: ${resp.error?.description || 'Payment was unsuccessful'}. No order was placed, and your cart items are saved.`, {
-            duration: 6000
+        try {
+          const rzp = new window.Razorpay(rzpOptions);
+          rzp.on('payment.failed', function (resp) {
+            setSubmitting(false);
+            API.post('/payment/failure', {
+              razorpayOrderId: rzpOrderData.razorpayOrderId,
+              errorReason: resp.error?.description || 'Transaction failed'
+            }).catch(() => {});
+            toast.error(`Payment Failed: ${resp.error?.description || 'Payment was unsuccessful'}. No order was placed, and your cart items are saved.`, {
+              duration: 6000
+            });
+            // CRITICAL: DO NOT CLEAR CART!
           });
-          // CRITICAL: DO NOT CLEAR CART!
-        });
 
-        rzp.open();
-        return;
+          rzp.open();
+          return;
+        } catch (rzpOpenErr) {
+          setSubmitting(false);
+          console.error('Failed to open Razorpay gateway:', rzpOpenErr);
+          toast.error('Could not initialize payment gateway. Please choose Cash on Delivery or refresh.');
+          return;
+        }
       }
 
       // 2. CASH ON DELIVERY (COD)
@@ -562,6 +569,7 @@ const Checkout = () => {
         state: { order: placedOrder }
       });
     } catch (err) {
+      setSubmitting(false);
       console.error('Checkout error:', err);
       const msg =
         err.response?.data?.message ||

@@ -64,40 +64,51 @@ const ProductCard = ({ product }) => {
     if (isAdding || added || isOutOfStock) return;
     setIsAdding(true);
 
-    // Pick first available in-stock variant or size, preferring active swatch color if selected
-    let defaultSize = '';
-    let defaultColor = selectedColorOverride || '';
-    if (product.variants && product.variants.length > 0) {
-      let inStock = null;
-      if (defaultColor) {
-        inStock = product.variants.find(
-          (v) => (v.color || '').trim().toLowerCase() === defaultColor.toLowerCase() && v.stock > 0
-        );
+    try {
+      // Pick first available in-stock variant or size, preferring active swatch color if selected
+      let defaultSize = '';
+      let defaultColor = selectedColorOverride || '';
+      if (product.variants && product.variants.length > 0) {
+        let inStock = null;
+        if (defaultColor) {
+          inStock = product.variants.find(
+            (v) => (v.color || '').trim().toLowerCase() === defaultColor.toLowerCase() && v.stock > 0
+          );
+        }
+        if (!inStock) {
+          inStock = product.variants.find((v) => v.stock > 0);
+        }
+        if (!inStock) {
+          setIsAdding(false);
+          setNotifyOpen(true);
+          return;
+        }
+        defaultSize = inStock.size || '';
+        defaultColor = inStock.color || '';
+      } else {
+        if (product.stock <= 0) {
+          setIsAdding(false);
+          setNotifyOpen(true);
+          return;
+        }
+        defaultSize = product.sizes?.[0] || '';
+        defaultColor = defaultColor || product.colors?.[0] || '';
       }
-      if (!inStock) {
-        inStock = product.variants.find((v) => v.stock > 0);
-      }
-      if (!inStock) {
-        setNotifyOpen(true);
-        return;
-      }
-      defaultSize = inStock.size || '';
-      defaultColor = inStock.color || '';
-    } else {
-      if (product.stock <= 0) {
-        setNotifyOpen(true);
-        return;
-      }
-      defaultSize = product.sizes?.[0] || '';
-      defaultColor = defaultColor || product.colors?.[0] || '';
-    }
 
-    addToCart(product, 1, defaultSize, defaultColor);
-    setAdded(true);
-    setTimeout(() => {
-      setAdded(false);
+      const success = addToCart(product, 1, defaultSize, defaultColor);
+      if (success !== false) {
+        setAdded(true);
+        setTimeout(() => {
+          setAdded(false);
+          setIsAdding(false);
+        }, 1500);
+      } else {
+        setIsAdding(false);
+      }
+    } catch (err) {
+      console.error('Error adding to bag from card:', err);
       setIsAdding(false);
-    }, 1500);
+    }
   };
 
   // Clean product images: remove any store logo mistakenly placed in product images
