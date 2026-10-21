@@ -13,6 +13,8 @@ import {
   HiOutlineEye,
   HiOutlineEyeOff,
   HiOutlineShieldCheck,
+  HiOutlineClock,
+  HiOutlineRefresh,
   HiArrowRight
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -51,10 +53,31 @@ const AuthModal = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
+  // Escalating cooldown based on retry count
+  const getRetryCooldown = (retries) => {
+    if (retries <= 0) return 30; // 30s initial cooldown
+    if (retries === 1) return 60; // 60s (1m) on 1st retry
+    if (retries === 2) return 120; // 120s (2m) on 2nd retry
+    return 300; // 300s (5m) on 3rd+ retry
+  };
+
+  const formatTimer = (seconds) => {
+    if (seconds <= 0) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${secs}s`;
+  };
+
   // Email Token login states
   const [tokenStep, setTokenStep] = useState('request'); // 'request' | 'verify'
   const [tokenCode, setTokenCode] = useState('');
   const [tokenName, setTokenName] = useState('');
+  const [tokenRetries, setTokenRetries] = useState(0);
+  const [tokenCooldown, setTokenCooldown] = useState(0);
+  const [tokenResending, setTokenResending] = useState(false);
 
   // Register form states
   const [regName, setRegName] = useState('');
@@ -70,6 +93,7 @@ const AuthModal = () => {
   const [verifyStatus, setVerifyStatus] = useState('input'); // 'input' | 'celebrate'
   const [countdown, setCountdown] = useState(3);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [verifyRetries, setVerifyRetries] = useState(0);
 
   // Forgot Password states
   const [forgotEmail, setForgotEmail] = useState('');
@@ -77,6 +101,34 @@ const AuthModal = () => {
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'verify'
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotRetries, setForgotRetries] = useState(0);
+  const [forgotCooldown, setForgotCooldown] = useState(0);
+  const [forgotResending, setForgotResending] = useState(false);
+
+  // Cooldown countdown timers
+  useEffect(() => {
+    if (tokenCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setTokenCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [tokenCooldown]);
+
+  useEffect(() => {
+    if (forgotCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setForgotCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [forgotCooldown]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
 
   // Reset or clear fields on modal mode changes
   useEffect(() => {
@@ -88,6 +140,14 @@ const AuthModal = () => {
       setTokenStep('request');
       setForgotStep('request');
       setVerifyCode('');
+      setTokenRetries(0);
+      setTokenCooldown(0);
+      setTokenResending(false);
+      setForgotRetries(0);
+      setForgotCooldown(0);
+      setForgotResending(false);
+      setVerifyRetries(0);
+      setResendCooldown(0);
     }
   }, [authModalOpen]);
 
@@ -142,6 +202,8 @@ const AuthModal = () => {
       const res = await requestToken(loginEmail.trim().toLowerCase());
       toast.success(res.message || '6-digit code sent to your email!', { icon: '📬' });
       setTokenStep('verify');
+      setTokenRetries(0);
+      setTokenCooldown(getRetryCooldown(0)); // Start initial 30s countdown
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to dispatch code';
       toast.error(msg);
@@ -154,6 +216,34 @@ const AuthModal = () => {
       });
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  // Resend 6-digit email token with retry escalation
+  const handleResendTokenCode = async () => {
+    if (tokenCooldown > 0 || tokenResending) return;
+    if (!loginEmail.trim() || !/\S+@\S+\.\S+/.test(loginEmail.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setTokenResending(true);
+    try {
+      const res = await requestToken(loginEmail.trim().toLowerCase());
+      const nextRetries = tokenRetries + 1;
+      setTokenRetries(nextRetries);
+      const cooldownSecs = getRetryCooldown(nextRetries);
+      setTokenCooldown(cooldownSecs);
+      toast.success(res.message || 'New 6-digit code sent to your email!', { icon: '📬' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to resend code';
+      toast.error(msg);
+      const serverRetry = err.response?.data?.retryAfter;
+      if (serverRetry) {
+        setTokenCooldown(serverRetry);
+      }
+    } finally {
+      setTokenResending(false);
     }
   };
 
@@ -227,6 +317,8 @@ const AuthModal = () => {
       });
 
       setVerifyEmail(regEmail.trim().toLowerCase());
+      setVerifyRetries(0);
+      setResendCooldown(getRetryCooldown(0)); // Start initial 30s countdown
       switchAuthMode('verify-email');
       if (res?.mailDeliveryWarning) {
         showMailErrorAlert(res.message, regEmail.trim().toLowerCase());
@@ -312,23 +404,17 @@ const AuthModal = () => {
     }, 1000);
   };
 
-  // Resend verification code
+  // Resend verification code with retry escalation
   const handleResend = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0 || verifyLoading) return;
     setVerifyLoading(true);
     try {
       const res = await resendVerification(verifyEmail);
+      const nextRetries = verifyRetries + 1;
+      setVerifyRetries(nextRetries);
+      const cooldownSecs = getRetryCooldown(nextRetries);
+      setResendCooldown(cooldownSecs);
       toast.success(res.message || 'Verification code resent!', { icon: '📬' });
-      setResendCooldown(60);
-      const interval = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend verification code';
       toast.error(msg);
@@ -357,6 +443,8 @@ const AuthModal = () => {
       const res = await forgotPasswordRequest(forgotEmail.trim().toLowerCase());
       toast.success(res.message || 'Password reset OTP dispatched!', { icon: '📬' });
       setForgotStep('verify');
+      setForgotRetries(0);
+      setForgotCooldown(getRetryCooldown(0)); // Start initial 30s countdown
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to send reset code';
       toast.error(msg);
@@ -369,6 +457,34 @@ const AuthModal = () => {
       });
     } finally {
       setForgotLoading(false);
+    }
+  };
+
+  // Resend forgot password OTP with retry escalation
+  const handleResendForgotCode = async () => {
+    if (forgotCooldown > 0 || forgotResending) return;
+    if (!forgotEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setForgotResending(true);
+    try {
+      const res = await forgotPasswordRequest(forgotEmail.trim().toLowerCase());
+      const nextRetries = forgotRetries + 1;
+      setForgotRetries(nextRetries);
+      const cooldownSecs = getRetryCooldown(nextRetries);
+      setForgotCooldown(cooldownSecs);
+      toast.success(res.message || 'New reset code sent to your email!', { icon: '📬' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to resend reset code';
+      toast.error(msg);
+      const serverRetry = err.response?.data?.retryAfter;
+      if (serverRetry) {
+        setForgotCooldown(serverRetry);
+      }
+    } finally {
+      setForgotResending(false);
     }
   };
 
@@ -686,13 +802,57 @@ const AuthModal = () => {
                           <span>Verify & Sign In</span>
                         )}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setTokenStep('request')}
-                        className="text-[11px] text-neutral-400 hover:text-primary font-semibold block mx-auto pt-1"
-                      >
-                        ← Change Email or Resend
-                      </button>
+                      {/* Resend button with timer & retry escalation */}
+                      <div className="pt-2 border-t border-accent-100/80 flex flex-col items-center gap-1.5">
+                        <div className="flex items-center justify-between w-full text-xs">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTokenStep('request');
+                              setTokenCode('');
+                            }}
+                            className="text-neutral-500 hover:text-primary font-medium transition-colors"
+                          >
+                            ← Change Email
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={tokenCooldown > 0 || tokenResending}
+                            onClick={handleResendTokenCode}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              tokenCooldown > 0
+                                ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
+                                : 'bg-accent-50 text-accent hover:bg-accent hover:text-white border border-accent-200 active:scale-95 cursor-pointer shadow-2xs'
+                            }`}
+                          >
+                            {tokenResending ? (
+                              <>
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <span>Sending...</span>
+                              </>
+                            ) : tokenCooldown > 0 ? (
+                              <>
+                                <HiOutlineClock className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
+                                <span>Resend in <strong className="font-mono text-neutral-700">{formatTimer(tokenCooldown)}</strong></span>
+                              </>
+                            ) : (
+                              <>
+                                <HiOutlineRefresh className="w-3.5 h-3.5" />
+                                <span>Resend Code</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {tokenRetries > 0 && (
+                          <div className="text-[10px] text-neutral-400 text-center flex items-center gap-1 justify-center">
+                            <span>Attempt {tokenRetries + 1}</span>
+                            <span>•</span>
+                            <span>Cooldown increased to prevent spam</span>
+                          </div>
+                        )}
+                      </div>
                     </form>
                   )}
                 </div>
@@ -929,22 +1089,53 @@ const AuthModal = () => {
                     )}
                   </button>
 
-                  <div className="flex items-center justify-between text-xs pt-1 text-neutral-500">
-                    <button
-                      type="button"
-                      onClick={() => switchAuthMode('login')}
-                      className="hover:text-primary transition-colors font-medium"
-                    >
-                      ← Back to Sign In
-                    </button>
-                    <button
-                      type="button"
-                      disabled={resendCooldown > 0 || verifyLoading}
-                      onClick={handleResend}
-                      className="text-accent hover:text-primary font-bold disabled:opacity-50"
-                    >
-                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
-                    </button>
+                  {/* Resend button with timer & retry escalation */}
+                  <div className="pt-2 border-t border-accent-100/80 flex flex-col items-center gap-1.5">
+                    <div className="flex items-center justify-between w-full text-xs">
+                      <button
+                        type="button"
+                        onClick={() => switchAuthMode('login')}
+                        className="text-neutral-500 hover:text-primary font-medium transition-colors"
+                      >
+                        ← Back to Sign In
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={resendCooldown > 0 || verifyLoading}
+                        onClick={handleResend}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          resendCooldown > 0
+                            ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
+                            : 'bg-accent-50 text-accent hover:bg-accent hover:text-white border border-accent-200 active:scale-95 cursor-pointer shadow-2xs'
+                        }`}
+                      >
+                        {verifyLoading ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Sending...</span>
+                          </>
+                        ) : resendCooldown > 0 ? (
+                          <>
+                            <HiOutlineClock className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
+                            <span>Resend in <strong className="font-mono text-neutral-700">{formatTimer(resendCooldown)}</strong></span>
+                          </>
+                        ) : (
+                          <>
+                            <HiOutlineRefresh className="w-3.5 h-3.5" />
+                            <span>Resend Code</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {verifyRetries > 0 && (
+                      <div className="text-[10px] text-neutral-400 text-center flex items-center gap-1 justify-center">
+                        <span>Attempt {verifyRetries + 1}</span>
+                        <span>•</span>
+                        <span>Cooldown increased to prevent spam</span>
+                      </div>
+                    )}
                   </div>
                 </form>
               )}
@@ -1044,13 +1235,57 @@ const AuthModal = () => {
                     )}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setForgotStep('request')}
-                    className="text-[11px] text-neutral-400 hover:text-primary font-semibold block mx-auto pt-1"
-                  >
-                    ← Change Email or Resend
-                  </button>
+                  {/* Resend button with timer & retry escalation */}
+                  <div className="pt-2 border-t border-accent-100/80 flex flex-col items-center gap-1.5">
+                    <div className="flex items-center justify-between w-full text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotStep('request');
+                          setForgotCode('');
+                        }}
+                        className="text-neutral-500 hover:text-primary font-medium transition-colors"
+                      >
+                        ← Change Email
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={forgotCooldown > 0 || forgotResending}
+                        onClick={handleResendForgotCode}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          forgotCooldown > 0
+                            ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
+                            : 'bg-accent-50 text-accent hover:bg-accent hover:text-white border border-accent-200 active:scale-95 cursor-pointer shadow-2xs'
+                        }`}
+                      >
+                        {forgotResending ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Sending...</span>
+                          </>
+                        ) : forgotCooldown > 0 ? (
+                          <>
+                            <HiOutlineClock className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
+                            <span>Resend in <strong className="font-mono text-neutral-700">{formatTimer(forgotCooldown)}</strong></span>
+                          </>
+                        ) : (
+                          <>
+                            <HiOutlineRefresh className="w-3.5 h-3.5" />
+                            <span>Resend OTP</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {forgotRetries > 0 && (
+                      <div className="text-[10px] text-neutral-400 text-center flex items-center gap-1 justify-center">
+                        <span>Attempt {forgotRetries + 1}</span>
+                        <span>•</span>
+                        <span>Cooldown increased to prevent spam</span>
+                      </div>
+                    )}
+                  </div>
                 </form>
               )}
             </div>
