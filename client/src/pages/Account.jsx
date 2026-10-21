@@ -29,12 +29,11 @@ import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
-import InvoiceView from '../components/InvoiceView';
 import AddressModal from '../components/AddressModal';
 import EditProfileModal from '../components/EditProfileModal';
 
 const TRACKING_STEPS = [
-  { step: 1, title: 'Order Placed', desc: 'Received at Jamalia boutique' },
+  { step: 1, title: 'Order Received', desc: 'Order placed & received at Jamalia boutique' },
   { step: 2, title: 'Confirmed & Packaged', desc: 'Quality checked & packed' },
   { step: 3, title: 'Shipped / Dispatched', desc: 'In transit with courier' },
   { step: 4, title: 'Delivered', desc: 'Delivered to your doorstep' },
@@ -50,6 +49,7 @@ const getStepProgress = (status) => {
       return 4;
     case 'cancelled':
       return -1;
+    case 'order_received':
     case 'yet_to_move':
     case 'pending':
     default:
@@ -59,7 +59,7 @@ const getStepProgress = (status) => {
 
 const Account = () => {
   const { user, logout, updateUser } = useAuth();
-  const { confirm } = useConfirm();
+  const { confirm, confirmDownload } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -138,9 +138,20 @@ const Account = () => {
   const [hasSearchedPhone, setHasSearchedPhone] = useState(false);
 
   // Modal states
-  const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
   const [trackingOrder, setTrackingOrder] = useState(null);
+
+  const handleDownloadInvoice = async (targetOrder) => {
+    if (!targetOrder?.orderId) return;
+    await confirmDownload({
+      title: 'Download Tax Invoice',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${targetOrder.orderId}?`,
+      orderId: targetOrder.orderId,
+      downloadUrl: `/api/orders/${targetOrder.orderId}/invoice.pdf`,
+      fileName: `Invoice-${targetOrder.orderId}.pdf`,
+      details: `Friends Collections • Order #${targetOrder.orderId}`
+    });
+  };
 
   // In-page search and status filter for Orders tab
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -253,12 +264,13 @@ const Account = () => {
 
   const getFulfillmentBadge = (status) => {
     switch (status) {
+      case 'order_received':
       case 'yet_to_move':
       case 'pending':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            Yet to Move
+            Order Received
           </span>
         );
       case 'confirmed':
@@ -694,9 +706,9 @@ const Account = () => {
             {/* Single, clean Invoice action */}
             <button
               type="button"
-              onClick={() => setInvoiceOrder(order)}
+              onClick={() => handleDownloadInvoice(order)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-colors cursor-pointer"
-              title="View & Download Invoice"
+              title="Download Tax Invoice"
             >
               <HiOutlineDownload className="w-3.5 h-3.5 text-accent-700" />
               <span>Invoice</span>
@@ -1161,8 +1173,9 @@ const Account = () => {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setInvoiceOrder(trackedOrderResult)}
+                      onClick={() => handleDownloadInvoice(trackedOrderResult)}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                      title="Download Tax Invoice"
                     >
                       <HiOutlineDownload className="w-4 h-4 text-accent-700" />
                       <span>Invoice</span>
@@ -1572,15 +1585,6 @@ const Account = () => {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Tax Invoice Modal */}
-        {invoiceOrder && (
-          <InvoiceView
-            order={invoiceOrder}
-            isOpen={Boolean(invoiceOrder)}
-            onClose={() => setInvoiceOrder(null)}
-          />
         )}
 
         {/* Address Modal (Add / Edit) */}

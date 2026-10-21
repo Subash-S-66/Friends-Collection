@@ -143,7 +143,20 @@ export const ConfirmProvider = ({ children }) => {
       } else if (config.downloadUrl) {
         // Fetch blob or anchor click
         try {
-          const res = await fetch(config.downloadUrl);
+          let targetUrl = config.downloadUrl;
+          if (
+            targetUrl &&
+            targetUrl.startsWith('/api') &&
+            import.meta.env.VITE_API_URL &&
+            import.meta.env.VITE_API_URL !== '/api'
+          ) {
+            targetUrl = `${import.meta.env.VITE_API_URL}${targetUrl.replace(/^\/api/, '')}`;
+          }
+          const headers = {};
+          const token = localStorage.getItem('fc_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const res = await fetch(targetUrl, { headers });
           if (!res.ok) throw new Error('Download failed from server');
           const blob = await res.blob();
           const blobUrl = window.URL.createObjectURL(blob);

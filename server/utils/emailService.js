@@ -1116,6 +1116,8 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
     const trackUrl = `${clientUrl}/account?tab=track&orderId=${order.orderId}`;
+    const whatsappComplaintMsg = `Hi Friends Collections Support, I need assistance or want to raise a complaint regarding my Order #${order.orderId}.\nCustomer: ${customer.name || ''}\nPhone: +91 ${customer.phone || ''}`;
+    const whatsappComplaintUrl = `https://wa.me/919500757024?text=${encodeURIComponent(whatsappComplaintMsg)}`;
 
     const itemsHtml = (order.items || []).map((it) => {
       const varTxt = [it.color, it.size].filter(Boolean).join(' • ');
@@ -1142,13 +1144,13 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     const contentHtml = `
       <div style="text-align: center; margin-bottom: 24px;">
         <span style="display: inline-block; background: #E6F4EA; color: #137333; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; padding: 5px 14px; border-radius: 9999px; border: 1px solid #CEEAD6;">
-          ✦ Order Confirmed & Received ✦
+          ✦ Order Received & Confirmed ✦
         </span>
         <h2 class="content-title" style="margin-top: 14px; margin-bottom: 8px;">
-          Thank You for Shopping with Us!
+          Thanks for Shopping with Us!
         </h2>
-        <p class="content-text" style="text-align: center; max-width: 460px; margin: 0 auto 16px;">
-          Dear <strong>${customer.name || 'Valued Customer'}</strong>, your order has been successfully placed. Our boutique artisans at Jamalia, Chennai are packing your garments with supreme care.
+        <p class="content-text" style="text-align: center; max-width: 480px; margin: 0 auto 16px;">
+          Dear <strong>${customer.name || 'Valued Customer'}</strong>, your order has been received and confirmed. Our boutique artisans at Jamalia, Chennai are packing your garments with supreme care.
         </p>
       </div>
 
@@ -1230,22 +1232,38 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
         </table>
       </div>
 
+      <!-- WhatsApp Complaint & Support Card -->
+      <div style="background: #F0FDF4; border: 2px solid #86EFAC; border-radius: 18px; padding: 22px 24px; text-align: center; margin: 26px 0; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.08);">
+        <span style="display: inline-block; background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 14px; border-radius: 9999px; margin-bottom: 10px; border: 1px solid #BBF7D0;">
+          Direct Boutique Support & Resolution
+        </span>
+        <h3 style="font-family: Georgia, serif; font-size: 17px; color: #14532D; margin: 0 0 8px; font-weight: 700;">
+          Have Any Issues or Need Help with Your Order?
+        </h3>
+        <p style="font-size: 13px; color: #374151; margin: 0 0 18px; line-height: 1.5; max-width: 460px; margin-left: auto; margin-right: auto;">
+          If any issue arises, you have delivery questions, or wish to raise a complaint, click the button below to chat directly with our store manager on WhatsApp. We resolve all customer concerns promptly!
+        </p>
+        <a href="${whatsappComplaintUrl}" target="_blank" style="display: inline-block; background: #25D366; color: #FFFFFF !important; text-decoration: none; padding: 14px 34px; font-size: 13px; font-weight: 800; border-radius: 9999px; box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35); text-transform: uppercase; letter-spacing: 0.06em; font-family: -apple-system, sans-serif;">
+          💬 Raise a Complaint on WhatsApp →
+        </a>
+      </div>
+
       <!-- CTA Track Button -->
-      <div style="text-align: center; margin: 28px 0 16px;">
-        <a href="${trackUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
+      <div style="text-align: center; margin: 20px 0 16px;">
+        <a href="${trackUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 14px 34px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
           Track Live Order Status →
         </a>
       </div>
 
       <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 20px;">
-        Questions or need tailoring adjustments? Reach our Jamalia boutique team on WhatsApp at 
-        <a href="https://wa.me/919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a>.
+        Friends Collections Boutique • 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012<br>
+        Direct Hotline: <a href="tel:+919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a>
       </p>
     `;
 
     const html = wrapInFriendsTheme({
-      title: `Order Confirmation #${order.orderId} - Friends Collections`,
-      preheader: `Thank you for your order #${order.orderId}! Expected arrival: ${deliveryRange}. Tax Invoice attached.`,
+      title: `Order Received & Confirmed #${order.orderId} - Friends Collections`,
+      preheader: `Thank you for shopping with us! Order #${order.orderId} is confirmed. Expected arrival: ${deliveryRange}. Invoice attached.`,
       contentHtml
     });
 
@@ -1273,6 +1291,266 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     return { success: true, messageId: info?.messageId };
   } catch (error) {
     console.error('❌ [Email Error] sendOrderConfirmationEmail:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// 6. Send Customer Inquiry Notification to Boutique Business Email
+exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
+  try {
+    const mailClient = await getTransporter();
+    const businessEmail =
+      process.env.BUSINESS_EMAIL ||
+      process.env.ADMIN_EMAIL ||
+      'friends.collection06@gmail.com';
+
+    const safeName = inquiry.name || 'Valued Customer';
+    const safeEmail = inquiry.email || 'N/A';
+    const safePhone = inquiry.phone || 'N/A';
+    const safeSubject = inquiry.subject || 'General Inquiry';
+    const safeInquiryId = inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`;
+    const safeMessage = (inquiry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    const cleanPhoneDigits = safePhone.replace(/\D/g, '');
+    const whatsappLink = `https://wa.me/91${cleanPhoneDigits}?text=${encodeURIComponent(`Hi ${safeName}, this is Friends Collections replying to your inquiry #${safeInquiryId}.`)}`;
+    const mailtoReply = `mailto:${safeEmail}?subject=${encodeURIComponent(`Re: [Inquiry #${safeInquiryId}] ${safeSubject} - Friends Collections`)}`;
+    const formattedDate = new Date().toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+
+    const contentHtml = `
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="display: inline-block; background: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; padding: 5px 16px; border-radius: 9999px; border: 1px solid #FDE68A;">
+          📩 New Customer Request / Inquiry
+        </span>
+        <h2 class="content-title" style="margin-top: 14px; font-size: 22px;">New Request from ${safeName}</h2>
+        <p class="content-text" style="text-align: center; color: #6B7280; margin-top: 4px;">
+          Reference ID: <strong style="color: #4A0E17; font-family: monospace;">#${safeInquiryId}</strong> • Received: ${formattedDate} (IST)
+        </p>
+      </div>
+
+      <!-- Customer Details Card -->
+      <div style="background: #FDFBF7; border: 1px solid #EAD8B1; border-radius: 16px; padding: 20px 22px; margin-bottom: 22px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; width: 130px; font-weight: 600;">Customer Name:</td>
+            <td style="padding: 6px 0; color: #1C1917; font-weight: 700;">${safeName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; font-weight: 600;">Customer Email:</td>
+            <td style="padding: 6px 0;">
+              <a href="${mailtoReply}" style="color: #4A0E17; font-weight: 700; text-decoration: underline;">${safeEmail}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; font-weight: 600;">Mobile Phone:</td>
+            <td style="padding: 6px 0; color: #1C1917; font-weight: 600;">
+              ${safePhone !== 'N/A' ? `<a href="tel:${safePhone.replace(/\s/g, '')}" style="color: #1C1917; text-decoration: none;">📞 +91 ${safePhone}</a>` : 'Not provided'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; font-weight: 600;">Inquiry Topic:</td>
+            <td style="padding: 6px 0; color: #991B1B; font-weight: 700;">${safeSubject}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Customer's Message Block -->
+      <div style="margin-bottom: 26px;">
+        <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #78716C; margin-bottom: 8px;">
+          Customer's Message:
+        </div>
+        <div style="background: #FFFFFF; border-left: 4px solid #D4AF37; border-top: 1px solid #F3F4F6; border-right: 1px solid #F3F4F6; border-bottom: 1px solid #F3F4F6; border-radius: 0 14px 14px 0; padding: 18px 20px; font-size: 14px; line-height: 1.6; color: #1F2937; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+          ${safeMessage}
+        </div>
+      </div>
+
+      <!-- Quick Action Reply Buttons -->
+      <div style="text-align: center; margin: 26px 0 16px; padding: 18px; background: #F8FAFC; border-radius: 16px; border: 1px dashed #CBD5E1;">
+        <div style="font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.08em;">
+          Fast Boutique Response Actions
+        </div>
+        <div>
+          <a href="${mailtoReply}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 12px 26px; font-size: 13px; font-weight: 700; border-radius: 9999px; margin: 4px 6px; box-shadow: 0 4px 12px rgba(74, 14, 23, 0.25);">
+            ✉️ Reply via Email
+          </a>
+          ${cleanPhoneDigits ? `
+          <a href="${whatsappLink}" target="_blank" style="display: inline-block; background: #25D366; color: #FFFFFF !important; text-decoration: none; padding: 12px 26px; font-size: 13px; font-weight: 700; border-radius: 9999px; margin: 4px 6px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);">
+            💬 Reply on WhatsApp
+          </a>` : ''}
+        </div>
+      </div>
+
+      <p class="content-text" style="font-size: 11px; color: #9CA3AF; text-align: center; margin-top: 20px;">
+        Notification generated by Friends Collections Boutique Portal • Jamalia, Chennai – 600012
+      </p>
+    `;
+
+    const subject = `📩 [New Request #${safeInquiryId}] ${safeSubject} from ${safeName}`;
+    const html = wrapInFriendsTheme({
+      title: `New Customer Inquiry #${safeInquiryId}`,
+      preheader: `Inquiry from ${safeName} (${safeEmail}): ${inquiry.message?.slice(0, 80) || ''}...`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to: businessEmail,
+      replyTo: safeEmail !== 'N/A' ? `${safeName} <${safeEmail}>` : undefined,
+      subject,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    let previewUrl = null;
+    if (info && nodemailer.getTestMessageUrl) {
+      try {
+        previewUrl = nodemailer.getTestMessageUrl(info) || null;
+      } catch (e) {}
+      if (previewUrl) console.log('📬 [Business Inquiry Preview URL]:', previewUrl);
+    }
+
+    return {
+      success: true,
+      messageId: info?.messageId,
+      previewUrl,
+      to: businessEmail,
+      subject,
+      html
+    };
+  } catch (error) {
+    console.error('❌ [Email Error] sendContactInquiryToBusinessEmail:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// 7. Send Request Confirmation & Receipt Acknowledgment to Sender
+exports.sendContactInquiryConfirmationToUserEmail = async ({ inquiry }) => {
+  try {
+    const to = inquiry.email;
+    if (!to) {
+      console.log('ℹ️ [Email Skipped] Inquiry sender provided no email address.');
+      return { success: false, reason: 'No customer email provided' };
+    }
+
+    const mailClient = await getTransporter();
+    const safeName = inquiry.name || 'Valued Customer';
+    const safeSubject = inquiry.subject || 'General Inquiry';
+    const safeInquiryId = inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`;
+    const safePhone = inquiry.phone || '';
+    const safeMessage = (inquiry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    const whatsappHelpUrl = `https://wa.me/919500757024?text=${encodeURIComponent(`Hi Friends Collections, I submitted inquiry #${safeInquiryId} and would like quick assistance.`)}`;
+
+    const contentHtml = `
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="display: inline-block; background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; padding: 5px 16px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+          ✨ Request Received & Confirmed
+        </span>
+        <h2 class="content-title" style="margin-top: 14px; font-size: 22px;">We've Received Your Request!</h2>
+        <p class="content-text" style="text-align: center; max-width: 500px; margin: 8px auto 0; font-size: 14px; color: #4B5563;">
+          Hello <strong style="color: #1F2937;">${safeName}</strong>, thank you for reaching out to Friends Collections! Our boutique team in Jamalia, Chennai has safely received your message.
+        </p>
+      </div>
+
+      <!-- Request Summary Box -->
+      <div style="background: #FFFDF9; border: 2px solid #F3E8D2; border-radius: 18px; padding: 22px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(180, 83, 9, 0.05);">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-bottom: 1px solid #F3E8D2; padding-bottom: 12px; margin-bottom: 14px;">
+          <tr>
+            <td>
+              <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #92400E;">Inquiry Reference</span>
+              <div style="font-family: Georgia, serif; font-size: 17px; font-weight: 700; color: #4A0E17; margin-top: 2px;">#${safeInquiryId}</div>
+            </td>
+            <td style="text-align: right;">
+              <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #059669;">Status</span>
+              <div style="font-size: 12px; font-weight: 700; color: #047857; margin-top: 2px;">● Safely Received</div>
+            </td>
+          </tr>
+        </table>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; width: 130px; font-weight: 600;">Topic / Subject:</td>
+            <td style="padding: 6px 0; color: #1C1917; font-weight: 700;">${safeSubject}</td>
+          </tr>
+          ${safePhone ? `
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; font-weight: 600;">Contact Mobile:</td>
+            <td style="padding: 6px 0; color: #1C1917; font-weight: 600;">+91 ${safePhone}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 6px 0; color: #78716C; font-weight: 600;">Expected Response:</td>
+            <td style="padding: 6px 0; color: #047857; font-weight: 700;">Within 2 to 4 Business Hours</td>
+          </tr>
+        </table>
+
+        <div style="margin-top: 14px; border-top: 1px dashed #E5E7EB; padding-top: 12px;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9CA3AF; margin-bottom: 6px;">
+            Copy of your message:
+          </div>
+          <div style="background: #FFFFFF; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #374151; font-style: italic; border: 1px solid #F3F4F6;">
+            &ldquo;${safeMessage}&rdquo;
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp Direct Support Card -->
+      <div style="background: #F0FDF4; border: 2px solid #86EFAC; border-radius: 18px; padding: 20px 22px; text-align: center; margin: 24px 0; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.08);">
+        <span style="display: inline-block; background: #DCFCE7; color: #15803D; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 3px 12px; border-radius: 9999px; margin-bottom: 8px; border: 1px solid #BBF7D0;">
+          Need Immediate Assistance?
+        </span>
+        <h3 style="font-family: Georgia, serif; font-size: 16px; color: #14532D; margin: 0 0 6px; font-weight: 700;">
+          Chat with Our Store Artisans on WhatsApp
+        </h3>
+        <p style="font-size: 12px; color: #374151; margin: 0 0 16px; line-height: 1.5; max-width: 440px; margin-left: auto; margin-right: auto;">
+          Looking for dress size availability, matching dupattas, custom stitching, or immediate store orders? Tap below for instant live chat!
+        </p>
+        <a href="${whatsappHelpUrl}" target="_blank" style="display: inline-block; background: #25D366; color: #FFFFFF !important; text-decoration: none; padding: 12px 30px; font-size: 13px; font-weight: 800; border-radius: 9999px; box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35); text-transform: uppercase; letter-spacing: 0.06em; font-family: -apple-system, sans-serif;">
+          💬 Chat with Us on WhatsApp →
+        </a>
+      </div>
+
+      <!-- Boutique Contact Details -->
+      <div style="background: #F8FAFC; border-radius: 16px; padding: 16px 20px; font-size: 12px; color: #64748B; text-align: center; line-height: 1.6; border: 1px solid #E2E8F0;">
+        <strong style="color: #0F172A;">Friends Collections Boutique</strong><br>
+        📍 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012<br>
+        📞 Direct Helpline: <a href="tel:+919500757024" style="color: #4A0E17; font-weight: 700;">+91 95007 57024</a> • ⏰ Open All 7 Days (10:00 AM – 9:30 PM)
+      </div>
+    `;
+
+    const subject = `✨ We've Received Your Request #${safeInquiryId} - Friends Collections`;
+    const html = wrapInFriendsTheme({
+      title: `Request Received #${safeInquiryId} - Friends Collections`,
+      preheader: `Thank you for contacting Friends Collections, ${safeName}! We have received your request and will get back to you shortly.`,
+      contentHtml
+    });
+
+    const info = await mailClient.sendMail({
+      from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
+      to,
+      subject,
+      html,
+      attachments: getLogoAttachment()
+    });
+
+    let previewUrl = null;
+    if (info && nodemailer.getTestMessageUrl) {
+      try {
+        previewUrl = nodemailer.getTestMessageUrl(info) || null;
+      } catch (e) {}
+      if (previewUrl) console.log('📬 [User Confirmation Preview URL]:', previewUrl);
+    }
+
+    return {
+      success: true,
+      messageId: info?.messageId,
+      previewUrl,
+      to,
+      subject,
+      html
+    };
+  } catch (error) {
+    console.error('❌ [Email Error] sendContactInquiryConfirmationToUserEmail:', error);
     return { success: false, error: error.message };
   }
 };

@@ -7,6 +7,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice } from '../utils/formatters';
 
 export const DEFAULT_INVOICE_SETTINGS = {
@@ -35,7 +36,6 @@ const InvoiceView = ({
   asCard = false
 }) => {
   const invoiceRef = useRef(null);
-  const [downloading, setDownloading] = useState(false);
   const [fetchedSettings, setFetchedSettings] = useState(null);
 
   useEffect(() => {
@@ -71,14 +71,14 @@ const InvoiceView = ({
     year: 'numeric'
   });
 
-  const isPaid = order.paymentStatus === 'paid';
-  const isYetToMove = order.status === 'yet_to_move' || order.status === 'pending';
+  const isOrderReceived = order.status === 'order_received' || order.status === 'yet_to_move' || order.status === 'pending';
 
   const getFulfillmentLabel = (st) => {
     switch (st) {
+      case 'order_received':
       case 'yet_to_move':
       case 'pending':
-        return 'YET TO MOVE';
+        return 'ORDER RECEIVED';
       case 'confirmed':
         return 'CONFIRMED / PACKED';
       case 'shipped':
@@ -88,7 +88,7 @@ const InvoiceView = ({
       case 'cancelled':
         return 'CANCELLED';
       default:
-        return (st || 'PENDING').toUpperCase();
+        return (st || 'ORDER RECEIVED').toUpperCase();
     }
   };
 
@@ -99,27 +99,18 @@ const InvoiceView = ({
     ? '/api/orders/invoice/sample/pdf'
     : `/api/orders/${order.orderId}/invoice.pdf`;
 
+  const { confirmDownload } = useConfirm();
+
   const handleDownloadPdf = async (e) => {
     if (e) e.preventDefault();
-    setDownloading(true);
-    toast.success('Downloading Tax Invoice PDF...', { icon: '📄', id: 'inv-download' });
-    try {
-      const res = await fetch(downloadPdfUrl);
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Invoice-${order.orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      window.open(downloadPdfUrl, '_blank');
-    } finally {
-      setDownloading(false);
-    }
+    await confirmDownload({
+      title: 'Download Tax Invoice',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
+      orderId: order.orderId,
+      downloadUrl: downloadPdfUrl,
+      fileName: `Invoice-${order.orderId}.pdf`,
+      details: `Friends Collections • Order #${order.orderId}`
+    });
   };
 
   const invoiceSheet = (
@@ -457,12 +448,11 @@ const InvoiceView = ({
             <button
               type="button"
               onClick={handleDownloadPdf}
-              disabled={downloading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all shadow-xs cursor-pointer border border-white/20 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all shadow-xs cursor-pointer border border-white/20"
               title="Download PDF Invoice"
             >
-              <HiOutlineDownload className={`w-4 h-4 text-accent-300 ${downloading ? 'animate-bounce' : ''}`} />
-              <span>{downloading ? 'Downloading...' : 'Download PDF'}</span>
+              <HiOutlineDownload className="w-4 h-4 text-accent-300" />
+              <span>Download PDF</span>
             </button>
             <button
               type="button"

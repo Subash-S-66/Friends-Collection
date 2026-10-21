@@ -152,6 +152,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/cart', require('./routes/cart'));
+app.use('/api/contact', require('./routes/contact'));
 
 const mongoose = require('mongoose');
 

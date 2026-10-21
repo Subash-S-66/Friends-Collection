@@ -46,8 +46,8 @@ const orderSchema = new mongoose.Schema({
   shippingCharge: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ['pending', 'yet_to_move', 'confirmed', 'shipped', 'delivered', 'cancelled'],
-    default: 'yet_to_move'
+    enum: ['pending', 'yet_to_move', 'order_received', 'confirmed', 'shipped', 'delivered', 'cancelled'],
+    default: 'order_received'
   },
   paymentStatus: {
     type: String,

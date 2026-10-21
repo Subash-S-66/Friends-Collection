@@ -10,16 +10,16 @@ import {
   HiOutlineClipboardCopy,
   HiOutlineShoppingBag,
   HiArrowRight,
-  HiOutlineDownload,
-  HiOutlinePrinter
+  HiOutlineDownload
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
-import InvoiceView from '../components/InvoiceView';
 
 const OrderTracking = () => {
+  const { confirmDownload } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlOrderId = searchParams.get('orderId') || '';
   const urlPhone = searchParams.get('phone') || '';
@@ -30,7 +30,6 @@ const OrderTracking = () => {
   const [order, setOrder] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
-  const [showInvoice, setShowInvoice] = useState(false);
 
   const fetchTracking = async (id, phone) => {
     if (!id || !id.trim()) {
@@ -79,6 +78,18 @@ const OrderTracking = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownloadInvoice = async () => {
+    if (!order?.orderId) return;
+    await confirmDownload({
+      title: 'Download Tax Invoice',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
+      orderId: order.orderId,
+      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
+      fileName: `Invoice-${order.orderId}.pdf`,
+      details: `Friends Collections • Order #${order.orderId}`
+    });
+  };
+
   // Helper for tracking steps progress
   const getStepProgress = (status) => {
     switch (status) {
@@ -90,6 +101,8 @@ const OrderTracking = () => {
         return 4;
       case 'cancelled':
         return -1;
+      case 'order_received':
+      case 'yet_to_move':
       case 'pending':
       default:
         return 1;
@@ -99,8 +112,8 @@ const OrderTracking = () => {
   const currentStep = order ? getStepProgress(order.status) : 1;
 
   const trackingSteps = [
-    { step: 1, title: 'Order Placed', desc: 'Received & queued for processing' },
-    { step: 2, title: 'Confirmed', desc: 'Packed & inspected at boutique' },
+    { step: 1, title: 'Order Received', desc: 'Order placed & received at boutique' },
+    { step: 2, title: 'Confirmed / Packed', desc: 'Packed & inspected with boutique care' },
     { step: 3, title: 'Dispatched / In Transit', desc: order?.tracking?.courier ? `Handed over to ${order.tracking.courier}` : 'Dispatched from Jamalia store' },
     { step: 4, title: 'Delivered', desc: 'Delivered to your doorstep' }
   ];
@@ -211,10 +224,14 @@ const OrderTracking = () => {
                       : 'bg-amber-100 text-amber-900'
                   }`}>
                     {order.status === 'shipped'
-                      ? 'Dispatched'
-                      : order.status === 'yet_to_move' || order.status === 'pending'
-                      ? 'Yet to Move'
-                      : order.status}
+                      ? 'Dispatched / In Transit'
+                      : order.status === 'confirmed'
+                      ? 'Confirmed / Packed'
+                      : order.status === 'delivered'
+                      ? 'Delivered'
+                      : order.status === 'cancelled'
+                      ? 'Cancelled'
+                      : 'Order Received'}
                   </span>
 
                   <span
@@ -251,7 +268,7 @@ const OrderTracking = () => {
 
                 <button
                   type="button"
-                  onClick={() => setShowInvoice(true)}
+                  onClick={handleDownloadInvoice}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
                 >
                   <HiOutlineDownload className="w-4 h-4 text-accent-700" />
@@ -484,15 +501,6 @@ const OrderTracking = () => {
               </Link>
             </div>
           </div>
-        )}
-
-        {/* Tax Invoice Modal */}
-        {order && (
-          <InvoiceView
-            order={order}
-            isOpen={showInvoice}
-            onClose={() => setShowInvoice(false)}
-          />
         )}
       </div>
     </div>

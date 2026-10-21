@@ -541,10 +541,10 @@ const Dashboard = () => {
                     </td>
                     <td className="py-4 px-6 space-y-1.5">
                       <select
-                        value={order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move')}
+                        value={order.status === 'pending' || order.status === 'yet_to_move' ? 'order_received' : (order.status || 'order_received')}
                         onChange={(e) => handleQuickStatusChange(order._id, e.target.value)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer block ${
-                          order.status === 'pending' || order.status === 'yet_to_move'
+                          order.status === 'pending' || order.status === 'yet_to_move' || order.status === 'order_received'
                             ? 'bg-amber-50 text-amber-800 border-amber-300'
                             : order.status === 'confirmed'
                             ? 'bg-blue-50 text-blue-800 border-blue-300'
@@ -555,7 +555,7 @@ const Dashboard = () => {
                             : 'bg-red-50 text-red-800 border-red-300'
                         }`}
                       >
-                        <option value="yet_to_move">Yet to Move</option>
+                        <option value="order_received">Order Received</option>
                         <option value="confirmed">Confirmed</option>
                         <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>

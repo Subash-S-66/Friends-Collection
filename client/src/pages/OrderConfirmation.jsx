@@ -70,26 +70,14 @@ const OrderConfirmation = () => {
 
   const handleDownloadPdf = async () => {
     if (!order?.orderId) return;
-    setDownloadingPdf(true);
-    toast.success('Downloading Tax Invoice PDF...', { icon: '📄', id: 'confirm-dl' });
-    try {
-      const downloadUrl = `/api/orders/${order.orderId}/invoice.pdf`;
-      const res = await fetch(downloadUrl);
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Invoice-${order.orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      window.open(`/api/orders/${order.orderId}/invoice.pdf`, '_blank');
-    } finally {
-      setDownloadingPdf(false);
-    }
+    await confirmDownload({
+      title: 'Download Tax Invoice',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
+      orderId: order.orderId,
+      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
+      fileName: `Invoice-${order.orderId}.pdf`,
+      details: `Friends Collections • Order #${order.orderId}`
+    });
   };
 
   if (loading) {
@@ -142,13 +130,13 @@ const OrderConfirmation = () => {
           {/* Heading & Thank You Message */}
           <div className="space-y-2 max-w-xl mx-auto">
             <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200 inline-block">
-              {isPaid ? '✦ Payment Verified & Order Confirmed ✦' : '✦ Order Received • Cash on Delivery ✦'}
+              ✦ Order Received & Placed Successfully ✦
             </span>
             <h1 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 leading-tight">
               Thank You for Shopping with Us!
             </h1>
             <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Valued Customer'}</strong>, your order has been received. Our boutique artisans at Jamalia, Chennai are packing your garments with supreme care.
+              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Valued Customer'}</strong>, your order has been received and placed. Our boutique artisans at Jamalia, Chennai will confirm your order and pack your garments with supreme care.
             </p>
           </div>
 

@@ -19,7 +19,6 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
-import InvoiceView from '../components/InvoiceView';
 
 const COURIER_OPTIONS = [
   { value: 'Delhivery', label: 'Delhivery' },
@@ -50,7 +49,7 @@ const OrderManager = () => {
   const [rowUpdating, setRowUpdating] = useState({}); // { [orderId]: 'status' | 'payment' }
 
   // Tracking & Status form states
-  const [modalStatus, setModalStatus] = useState('yet_to_move');
+  const [modalStatus, setModalStatus] = useState('order_received');
   const [modalPaymentStatus, setModalPaymentStatus] = useState('payment_pending');
   const [modalPaymentNotes, setModalPaymentNotes] = useState('');
   const [trackingCourier, setTrackingCourier] = useState('');
@@ -59,8 +58,17 @@ const OrderManager = () => {
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [trackingMessage, setTrackingMessage] = useState('');
 
-  // Invoice state
-  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const handleDownloadInvoice = async (targetOrder) => {
+    if (!targetOrder?.orderId) return;
+    await confirmDownload({
+      title: 'Download Tax Invoice',
+      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${targetOrder.orderId}?`,
+      orderId: targetOrder.orderId,
+      downloadUrl: `/api/orders/${targetOrder.orderId}/invoice.pdf`,
+      fileName: `Invoice-${targetOrder.orderId}.pdf`,
+      details: `Friends Collections • Order #${targetOrder.orderId}`
+    });
+  };
 
   const fetchOrders = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -95,7 +103,7 @@ const OrderManager = () => {
 
   const openOrderModal = (order) => {
     setSelectedOrder(order);
-    setModalStatus(order.status || 'yet_to_move');
+    setModalStatus(order.status === 'yet_to_move' || order.status === 'pending' ? 'order_received' : (order.status || 'order_received'));
     setModalPaymentStatus(order.paymentStatus || 'payment_pending');
     setModalPaymentNotes(order.paymentNotes || '');
     setAdminNotes(order.notes || '');
@@ -133,7 +141,11 @@ const OrderManager = () => {
     setRowUpdating((prev) => ({ ...prev, [orderId]: 'status' }));
     try {
       const res = await API.put(`/orders/admin/${orderId}/status`, { status: newStatus });
-      toast.success(`Fulfillment status updated to ${newStatus.replace('_', ' ')}`);
+      if (newStatus === 'confirmed') {
+        toast.success('Order confirmed & confirmation email dispatched to customer!');
+      } else {
+        toast.success(`Fulfillment status updated to ${newStatus.replace('_', ' ')}`);
+      }
       // Update order in state directly in background - no full table reload!
       setOrders((prev) =>
         prev.map((o) => (o._id === orderId ? { ...o, ...res.data } : o))
@@ -232,7 +244,11 @@ const OrderManager = () => {
       };
 
       const res = await API.put(`/orders/admin/${selectedOrder._id}/status`, payload);
-      toast.success('Order status, payment & tracking saved successfully!');
+      if (modalStatus === 'confirmed' && selectedOrder.status !== 'confirmed') {
+        toast.success('Order confirmed & confirmation email dispatched to customer!');
+      } else {
+        toast.success('Order status, payment & tracking saved successfully!');
+      }
       setSelectedOrder(res.data);
       // Update table data in-place without triggering full table reload spinner
       setOrders((prev) =>
@@ -259,7 +275,7 @@ const OrderManager = () => {
         <div>
           <h1 className="font-serif text-2xl font-bold text-neutral-900">Order Management</h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Update fulfillment (Yet to Move, Shipped, Delivered), manage payment statuses (Payment Pending, Paid), and generate invoices
+            Update fulfillment (Order Received, Confirmed, Shipped, Delivered), manage payment statuses, and live courier tracking
           </p>
         </div>
 
@@ -303,7 +319,7 @@ const OrderManager = () => {
                 className="px-3 py-1.5 rounded-xl border border-neutral-300 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="all">All Fulfillment</option>
-                <option value="pending">Yet to Move</option>
+                <option value="order_received">Order Received</option>
                 <option value="confirmed">Confirmed / Packed</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
@@ -367,9 +383,9 @@ const OrderManager = () => {
                 orders.map((order) => {
                   const hasTracking = Boolean(order.tracking?.trackingNumber);
                   const isPaid = order.paymentStatus === 'paid';
-                  const currentStatusVal = order.status === 'pending' ? 'yet_to_move' : (order.status || 'yet_to_move');
+                  const currentStatusVal = (order.status === 'pending' || order.status === 'yet_to_move') ? 'order_received' : (order.status || 'order_received');
                   const currentPaymentVal = order.paymentStatus || 'payment_pending';
-                  const isYetToMove = currentStatusVal === 'yet_to_move';
+                  const isOrderReceived = currentStatusVal === 'order_received';
                   const isRowUpdating = Boolean(rowUpdating[order._id]);
                   const isUpdatingThisStatus = rowUpdating[order._id] === 'status';
                   const isUpdatingThisPayment = rowUpdating[order._id] === 'payment';
@@ -512,7 +528,7 @@ const OrderManager = () => {
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border focus:outline-none transition-all ${
                               isRowUpdating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
                             } ${
-                              isYetToMove
+                              isOrderReceived
                                 ? 'bg-amber-50 text-amber-800 border-amber-300'
                                 : order.status === 'confirmed'
                                 ? 'bg-blue-50 text-blue-800 border-blue-300'
@@ -523,7 +539,7 @@ const OrderManager = () => {
                                 : 'bg-red-50 text-red-800 border-red-300'
                             }`}
                           >
-                            <option value="yet_to_move">Yet to Move</option>
+                            <option value="order_received">Order Received</option>
                             <option value="confirmed">Confirmed</option>
                             <option value="shipped">Shipped</option>
                             <option value="delivered">Delivered</option>
@@ -542,11 +558,11 @@ const OrderManager = () => {
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setInvoiceOrder(order)}
+                            onClick={() => handleDownloadInvoice(order)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 font-bold text-[11px] transition-colors cursor-pointer"
-                            title="Print Tax Invoice"
+                            title="Download Tax Invoice"
                           >
-                            <HiOutlinePrinter className="w-3.5 h-3.5" />
+                            <HiOutlineDownload className="w-3.5 h-3.5 text-accent-700" />
                             <span>Invoice</span>
                           </button>
 
@@ -602,7 +618,7 @@ const OrderManager = () => {
                 <div className="flex items-center gap-3 mt-0.5">
                   <h3 className="font-serif text-2xl font-bold text-neutral-900">{selectedOrder.orderId}</h3>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-neutral-100 text-neutral-700 border">
-                    {modalStatus.replace('_', ' ')}
+                    {modalStatus === 'order_received' || modalStatus === 'yet_to_move' ? 'Order Received' : modalStatus.replace('_', ' ')}
                   </span>
                 </div>
               </div>
@@ -680,7 +696,7 @@ const OrderManager = () => {
                     onChange={(e) => setModalStatus(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                   >
-                    <option value="yet_to_move">Yet to Move</option>
+                    <option value="order_received">Order Received</option>
                     <option value="confirmed">Confirmed / Packed</option>
                     <option value="shipped">Shipped / In Transit</option>
                     <option value="delivered">Delivered</option>
@@ -900,11 +916,12 @@ const OrderManager = () => {
 
                 <button
                   type="button"
-                  onClick={() => setInvoiceOrder(selectedOrder)}
+                  onClick={() => handleDownloadInvoice(selectedOrder)}
                   className="px-4 py-2.5 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Download Tax Invoice"
                 >
-                  <HiOutlinePrinter className="w-4 h-4 text-accent-700" />
-                  <span>Invoice</span>
+                  <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                  <span>Download Invoice</span>
                 </button>
               </div>
 
@@ -938,15 +955,6 @@ const OrderManager = () => {
         </div>
       </div>
     )}
-
-      {/* Tax Invoice Modal for Admin Printing */}
-      {invoiceOrder && (
-        <InvoiceView
-          order={invoiceOrder}
-          isOpen={Boolean(invoiceOrder)}
-          onClose={() => setInvoiceOrder(null)}
-        />
-      )}
     </div>
   );
 };

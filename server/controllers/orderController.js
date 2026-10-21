@@ -243,14 +243,14 @@ exports.placeOrder = async (req, res, next) => {
         user: orderUserId,
         totalAmount,
         shippingCharge: Number(shippingCharge),
-        status: 'yet_to_move',
+        status: 'order_received',
         paymentStatus: req.body.paymentStatus || 'payment_pending',
         paymentMethod: req.body.paymentMethod || 'cod',
         paymentNotes: req.body.paymentNotes || '',
         tracking: {
           statusHistory: [{
-            status: 'yet_to_move',
-            message: 'Order placed & awaiting dispatch confirmation from Jamalia store',
+            status: 'order_received',
+            message: 'Order placed & received at boutique. Awaiting admin confirmation.',
             location: 'Jamalia Boutique, Chennai',
             timestamp: new Date()
           }]
@@ -454,8 +454,8 @@ exports.adminGetOrders = async (req, res, next) => {
     const query = {};
 
     if (status && status !== 'all') {
-      if (status === 'pending' || status === 'yet_to_move') {
-        query.status = { $in: ['pending', 'yet_to_move'] };
+      if (status === 'pending' || status === 'yet_to_move' || status === 'order_received') {
+        query.status = { $in: ['pending', 'yet_to_move', 'order_received'] };
       } else {
         query.status = status;
       }
@@ -560,6 +560,25 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    // Auto-log status transition in statusHistory if tracking was not explicitly passed
+    if (status && status !== prevStatus && !tracking) {
+      if (!order.tracking) order.tracking = { statusHistory: [] };
+      if (!Array.isArray(order.tracking.statusHistory)) order.tracking.statusHistory = [];
+      const defaultMsgs = {
+        order_received: 'Order placed & received at boutique.',
+        confirmed: 'Order received & confirmed by admin. Garments packed with boutique care.',
+        shipped: 'Order dispatched with courier partner.',
+        delivered: 'Order delivered to doorstep.',
+        cancelled: 'Order cancelled.'
+      };
+      order.tracking.statusHistory.push({
+        status,
+        message: defaultMsgs[status] || `Status updated to ${status}`,
+        location: 'Jamalia Hub, Chennai',
+        timestamp: new Date()
+      });
+    }
+
     // If cancelled, restore stock for base product and variants
     if (status === 'cancelled' && prevStatus !== 'cancelled') {
       for (const item of order.items) {
@@ -580,6 +599,19 @@ exports.updateOrderStatus = async (req, res, next) => {
     }
 
     await order.save();
+
+    // Once admin confirms order received (status === 'confirmed'), dispatch confirmation email to user
+    if (status === 'confirmed' && prevStatus !== 'confirmed') {
+      try {
+        const { sendOrderConfirmationEmail } = require('../utils/emailService');
+        sendOrderConfirmationEmail({ order }).catch((mailErr) =>
+          console.error(`⚠️ Email dispatch failed when admin confirmed order #${order.orderId}:`, mailErr)
+        );
+      } catch (mailErr) {
+        console.warn('Could not dispatch confirmation email:', mailErr);
+      }
+    }
+
     res.json(order);
   } catch (error) {
     next(error);
