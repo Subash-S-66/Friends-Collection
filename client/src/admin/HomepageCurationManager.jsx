@@ -59,20 +59,20 @@ const SECTIONS = [
     name: 'Handpicked Favorites / Trending',
     type: 'products',
     icon: HiOutlineSparkles,
-    desc: 'Customer favorites, bestsellers, and festive highlights',
+    desc: 'Customer favorites, bestsellers, and festive highlights (strictly 8 products)',
     defaultTitle: 'Trending This Season',
     defaultSubtitle: 'Handpicked Favorites',
-    minRequired: 2
+    exactRequired: 8
   },
   {
     id: 'newArrivalsSection',
     name: 'Fresh Drops / New Arrivals',
     type: 'products',
     icon: HiOutlineShoppingBag,
-    desc: 'Fresh boutique drops and newest seasonal arrivals',
+    desc: 'Fresh boutique drops and newest seasonal arrivals (strictly 8 products)',
     defaultTitle: 'New Arrivals',
     defaultSubtitle: 'Fresh Drops',
-    minRequired: 2
+    exactRequired: 8
   }
 ];
 
@@ -207,7 +207,7 @@ export default function HomepageCurationManager() {
       }
     }
 
-    // 2. Trending Section Validation
+    // 2. Trending Section Validation (Must be strictly 8 products)
     const trendSec = curation.trendingSection;
     if (trendSec.mode === 'custom') {
       if (!trendSec.title || !trendSec.title.trim()) {
@@ -218,16 +218,19 @@ export default function HomepageCurationManager() {
         });
       }
       const trendCount = (trendSec.selectedProductIds || []).length;
-      if (trendCount < 2) {
+      if (trendCount !== 8) {
         errors.push({
           sectionId: 'trendingSection',
           sectionName: 'Handpicked Favorites / Trending',
-          message: `Trending section is set to Custom Curation but has only ${trendCount} item(s). You must select at least 2 products to save.`
+          message:
+            trendCount < 8
+              ? `Trending section requires exactly 8 products (currently ${trendCount}/8 selected). Please select ${8 - trendCount} more product(s) to save.`
+              : `Trending section requires exactly 8 products (currently ${trendCount}/8 selected). Please remove ${trendCount - 8} product(s) to save.`
         });
       }
     }
 
-    // 3. New Arrivals Section Validation
+    // 3. New Arrivals Section Validation (Must be strictly 8 products)
     const newSec = curation.newArrivalsSection;
     if (newSec.mode === 'custom') {
       if (!newSec.title || !newSec.title.trim()) {
@@ -238,11 +241,14 @@ export default function HomepageCurationManager() {
         });
       }
       const newCount = (newSec.selectedProductIds || []).length;
-      if (newCount < 2) {
+      if (newCount !== 8) {
         errors.push({
           sectionId: 'newArrivalsSection',
           sectionName: 'Fresh Drops / New Arrivals',
-          message: `New Arrivals section is set to Custom Curation but has only ${newCount} item(s). You must select at least 2 products to save.`
+          message:
+            newCount < 8
+              ? `New Arrivals section requires exactly 8 products (currently ${newCount}/8 selected). Please select ${8 - newCount} more product(s) to save.`
+              : `New Arrivals section requires exactly 8 products (currently ${newCount}/8 selected). Please remove ${newCount - 8} product(s) to save.`
         });
       }
     }
@@ -257,8 +263,22 @@ export default function HomepageCurationManager() {
     return JSON.stringify(curation) !== JSON.stringify(initialCuration);
   }, [curation, initialCuration]);
 
-  // Mode changer for a section
-  const handleModeChange = (sectionId, mode) => {
+  // Mode changer for a section with confirmation prompt
+  const handleModeChange = async (sectionId, mode) => {
+    if (mode === 'default') {
+      const listKey = sectionId === 'categoriesSection' ? 'selectedCategoryIds' : 'selectedProductIds';
+      const curCount = (curation[sectionId]?.[listKey] || []).length;
+      if (curCount > 0) {
+        const ok = await confirm({
+          title: 'Switch to Default Automatic Mode?',
+          message: 'This will restore automatic rotation on the live storefront for this section. Are you sure you want to switch?',
+          type: 'primary',
+          confirmText: 'Yes, Switch to Default',
+          cancelText: 'Stay on Custom'
+        });
+        if (!ok) return;
+      }
+    }
     setCuration((prev) => ({
       ...prev,
       [sectionId]: {
@@ -363,17 +383,41 @@ export default function HomepageCurationManager() {
     }));
   };
 
-  // Add item to curated list (appends to end)
+  // Add item to curated list (strictly max 8 for product sections)
   const handleAddItem = (sectionId, idToAdd) => {
+    const isProductSection = sectionId === 'trendingSection' || sectionId === 'newArrivalsSection';
     const listKey = sectionId === 'categoriesSection' ? 'selectedCategoryIds' : 'selectedProductIds';
+
     setCuration((prev) => {
       const currentList = prev[sectionId][listKey] || [];
       if (currentList.some((id) => String(id) === String(idToAdd))) return prev;
+
+      // Strictly limit product sections to 8 products
+      if (isProductSection && currentList.length >= 8) {
+        toast.error('You can only select exactly 8 products. Please remove an existing product first before adding another.', {
+          icon: '⚠️',
+          id: 'max-8-products-toast'
+        });
+        return prev;
+      }
+
+      const updated = [...currentList, String(idToAdd)];
+      if (isProductSection) {
+        if (updated.length === 8) {
+          toast.success('🎉 Exactly 8 products selected! Section is ready to publish.', { id: 'product-count-toast' });
+        } else {
+          toast(`Selected ${updated.length} of 8 products (${8 - updated.length} more needed)`, {
+            icon: '📦',
+            id: 'product-count-toast'
+          });
+        }
+      }
+
       return {
         ...prev,
         [sectionId]: {
           ...prev[sectionId],
-          [listKey]: [...currentList, String(idToAdd)]
+          [listKey]: updated
         }
       };
     });
@@ -395,8 +439,18 @@ export default function HomepageCurationManager() {
     toast.success(`Added ${activeIds.length} active categories to curated list!`);
   };
 
-  // Clear curated items for a section
-  const handleClearSectionItems = (sectionId) => {
+  // Clear curated items for a section with confirmation popup
+  const handleClearSectionItems = async (sectionId) => {
+    const sec = SECTIONS.find((s) => s.id === sectionId);
+    const ok = await confirm({
+      title: `Clear All Items in "${sec?.name || 'Section'}"?`,
+      message: 'Are you sure you want to remove all currently curated items from this section? You will need to re-select items before saving.',
+      type: 'danger',
+      confirmText: 'Yes, Clear All',
+      cancelText: 'Cancel'
+    });
+    if (!ok) return;
+
     const listKey = sectionId === 'categoriesSection' ? 'selectedCategoryIds' : 'selectedProductIds';
     setCuration((prev) => ({
       ...prev,
@@ -405,10 +459,20 @@ export default function HomepageCurationManager() {
         [listKey]: []
       }
     }));
+    toast.success('Curated items cleared');
   };
 
-  // Revert all changes
-  const handleResetAll = () => {
+  // Revert all changes with confirmation popup
+  const handleResetAll = async () => {
+    const ok = await confirm({
+      title: 'Discard All Unsaved Changes?',
+      message: 'Are you sure you want to revert all changes made since your last publish? Any uncommitted edits to homepage sections will be lost.',
+      type: 'warning',
+      confirmText: 'Yes, Discard Changes',
+      cancelText: 'Keep Editing'
+    });
+    if (!ok) return;
+
     setCuration(JSON.parse(JSON.stringify(initialCuration)));
     toast('Reverted all unsaved changes', { icon: '↩️' });
   };
@@ -604,7 +668,7 @@ export default function HomepageCurationManager() {
                 ))}
               </ul>
               <p className="text-[11px] text-amber-700 italic pt-1">
-                Note: All sections in Custom Mode must have at least 2 items selected so your storefront sections never appear empty or broken.
+                Note: Trending Favorites and Fresh Drops sections must have strictly 8 products selected (not more, not less) to completely fill the 4×2 storefront layout.
               </p>
             </div>
           </div>
@@ -658,11 +722,21 @@ export default function HomepageCurationManager() {
                     </span>
                   ) : isCustom ? (
                     <span
-                      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        isTabActive ? 'bg-accent-500 text-white' : 'bg-accent-100 text-accent-800'
+                      className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        sec.type === 'products'
+                          ? count === 8
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-amber-500 text-white shadow-xs'
+                          : isTabActive
+                          ? 'bg-accent-500 text-white'
+                          : 'bg-accent-100 text-accent-800'
                       }`}
                     >
-                      Curated ({count})
+                      {sec.type === 'products'
+                        ? count === 8
+                          ? '8/8 Complete ✓'
+                          : `Need 8 (${count}/8)`
+                        : `Curated (${count})`}
                     </span>
                   ) : (
                     <span
@@ -804,17 +878,40 @@ export default function HomepageCurationManager() {
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="font-bold text-sm text-neutral-900 flex items-center gap-2">
-                    <span>Curated Display Order</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-primary text-white">
-                      {currentSection.type === 'categories'
-                        ? `${(currentSectionData.selectedCategoryIds || []).length} Categories`
-                        : `${(currentSectionData.selectedProductIds || []).length} Products`}
-                    </span>
-                  </h4>
-                  <p className="text-xs text-neutral-500">
-                    Use <span className="font-semibold text-neutral-700">Move Up (▲)</span> and{' '}
-                    <span className="font-semibold text-neutral-700">Move Down (▼)</span> to change exact display position (#1, #2, #3...) on the homepage.
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-sm text-neutral-900">Curated Display Order</h4>
+                    {currentSection.type === 'products' ? (
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1 ${
+                          (currentSectionData.selectedProductIds || []).length === 8
+                            ? 'bg-emerald-600 text-white'
+                            : (currentSectionData.selectedProductIds || []).length < 8
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-red-100 text-red-900 border border-red-300'
+                        }`}
+                      >
+                        {(currentSectionData.selectedProductIds || []).length === 8
+                          ? '8/8 Selected (Complete ✓)'
+                          : (currentSectionData.selectedProductIds || []).length < 8
+                          ? `${(currentSectionData.selectedProductIds || []).length}/8 Selected (Need ${8 - (currentSectionData.selectedProductIds || []).length} more)`
+                          : `${(currentSectionData.selectedProductIds || []).length}/8 Selected (Remove ${(currentSectionData.selectedProductIds || []).length - 8})`}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-primary text-white">
+                        {(currentSectionData.selectedCategoryIds || []).length} Categories
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {currentSection.type === 'products' ? (
+                      <>
+                        Select <span className="font-bold text-neutral-800">exactly 8 products</span> (not more or less) to fill the 4×2 storefront layout. Use <span className="font-semibold text-neutral-700">Move Up (▲)</span> and <span className="font-semibold text-neutral-700">Move Down (▼)</span> to change order (#1 to #8).
+                      </>
+                    ) : (
+                      <>
+                        Use <span className="font-semibold text-neutral-700">Move Up (▲)</span> and <span className="font-semibold text-neutral-700">Move Down (▼)</span> to change exact display position (#1, #2, #3...) on the homepage.
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -1142,9 +1239,19 @@ export default function HomepageCurationManager() {
                               <button
                                 type="button"
                                 onClick={() => handleAddItem(currentSection.id, prod._id)}
-                                className="w-full py-1.5 rounded-xl text-[11px] font-bold text-primary bg-primary-50 hover:bg-primary hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1"
+                                disabled={(currentSectionData.selectedProductIds || []).length >= 8}
+                                className={`w-full py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                                  (currentSectionData.selectedProductIds || []).length >= 8
+                                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
+                                    : 'text-primary bg-primary-50 hover:bg-primary hover:text-white cursor-pointer shadow-2xs'
+                                }`}
+                                title={
+                                  (currentSectionData.selectedProductIds || []).length >= 8
+                                    ? '8 products are already selected. Remove one from the curated list above to add this one.'
+                                    : 'Add to curated products'
+                                }
                               >
-                                <span>+ Add</span>
+                                <span>{(currentSectionData.selectedProductIds || []).length >= 8 ? '8/8 Max Selected' : '+ Add'}</span>
                               </button>
                             )}
                           </div>
@@ -1306,7 +1413,7 @@ function CuratedProductList({
       <div className="p-8 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300 text-center space-y-2">
         <p className="text-xs font-bold text-neutral-700">No products selected yet</p>
         <p className="text-[11px] text-neutral-400 max-w-sm mx-auto">
-          Choose dresses and products from the catalog list below to showcase in this section. You must select at least 2 items.
+          Choose dresses and products from the catalog list below to showcase in this section. You must select <span className="font-bold text-neutral-800">exactly 8 products</span> (not more or less).
         </p>
       </div>
     );
