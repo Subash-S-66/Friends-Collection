@@ -503,7 +503,7 @@ exports.adminGetOrder = async (req, res, next) => {
 // @route   PUT /api/orders/admin/:id/status
 exports.updateOrderStatus = async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentNotes, notes, tracking } = req.body;
+    const { status, paymentStatus, paymentNotes, notes, tracking, expectedDeliveryDate } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -519,6 +519,14 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (paymentNotes !== undefined) order.paymentNotes = paymentNotes;
     if (notes !== undefined) order.notes = notes;
 
+    // Handle expectedDeliveryDate directly
+    if (expectedDeliveryDate !== undefined) {
+      const trimmedDate = typeof expectedDeliveryDate === 'string' ? expectedDeliveryDate.trim() : '';
+      order.expectedDeliveryDate = trimmedDate;
+      if (!order.tracking) order.tracking = { statusHistory: [] };
+      order.tracking.estimatedDelivery = trimmedDate;
+    }
+
     // Handle tracking info
     if (tracking) {
       if (!order.tracking) {
@@ -527,7 +535,11 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       if (tracking.courier !== undefined) order.tracking.courier = tracking.courier.trim();
       if (tracking.trackingNumber !== undefined) order.tracking.trackingNumber = tracking.trackingNumber.trim();
-      if (tracking.estimatedDelivery !== undefined) order.tracking.estimatedDelivery = tracking.estimatedDelivery.trim();
+      if (tracking.estimatedDelivery !== undefined) {
+        const trimmedEst = typeof tracking.estimatedDelivery === 'string' ? tracking.estimatedDelivery.trim() : '';
+        order.tracking.estimatedDelivery = trimmedEst;
+        order.expectedDeliveryDate = trimmedEst;
+      }
       if (tracking.notes !== undefined) order.tracking.notes = tracking.notes.trim();
 
       // Resolve tracking URL

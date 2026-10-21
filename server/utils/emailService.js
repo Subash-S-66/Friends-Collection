@@ -1111,7 +1111,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     const mailClient = await getTransporter();
     const { generateInvoicePdf, getExpectedDeliveryRange } = require('./invoiceGenerator');
 
-    const deliveryRange = getExpectedDeliveryRange(order.createdAt || new Date());
+    const deliveryRange = order.expectedDeliveryDate || order.tracking?.estimatedDelivery || getExpectedDeliveryRange(order.createdAt || new Date());
     const isPaid = order.paymentStatus === 'paid';
     const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';

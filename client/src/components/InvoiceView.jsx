@@ -260,6 +260,13 @@ const InvoiceView = ({
           )}
 
           <div className="flex items-center justify-between">
+            <span className="text-neutral-500">Expected Delivery:</span>
+            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+              {order.expectedDeliveryDate || order.tracking?.estimatedDelivery || '3 to 6 Business Days'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
             <span className="text-neutral-500">Fulfillment Status:</span>
             <span
               className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${

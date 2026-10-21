@@ -92,7 +92,7 @@ const OrderConfirmation = () => {
   }
 
   const effectiveOrderId = order?.orderId || orderId;
-  const deliveryRange = getExpectedDeliveryRange(order?.createdAt);
+  const deliveryRange = order?.expectedDeliveryDate || order?.tracking?.estimatedDelivery || getExpectedDeliveryRange(order?.createdAt);
   const isPaid = order?.paymentStatus === 'paid';
   const grandTotal = (Number(order?.totalAmount) || 0) + (Number(order?.shippingCharge) || 0);
 

@@ -12,13 +12,55 @@ import {
   HiOutlineCheckCircle,
   HiOutlinePrinter,
   HiOutlineClock,
-  HiOutlineDownload
+  HiOutlineDownload,
+  HiOutlineCalendar,
+  HiOutlineSparkles
 } from 'react-icons/hi';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useConfirm } from '../context/ConfirmContext';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+
+// Helpers for Expected Delivery Date / Range
+function toIsoDateString(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
+}
+
+function formatDeliveryDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatDeliveryRange(fromVal, toVal) {
+  if (!fromVal && !toVal) return '';
+  if (fromVal && !toVal) return formatDeliveryDate(fromVal);
+  if (!fromVal && toVal) return formatDeliveryDate(toVal);
+  const d1 = new Date(fromVal);
+  const d2 = new Date(toVal);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return `${fromVal} – ${toVal}`;
+
+  const d1Day = d1.getDate();
+  const d1Month = d1.toLocaleDateString('en-IN', { month: 'short' });
+  const d1Year = d1.getFullYear();
+
+  const d2Day = d2.getDate();
+  const d2Month = d2.toLocaleDateString('en-IN', { month: 'short' });
+  const d2Year = d2.getFullYear();
+
+  if (d1Year === d2Year && d1Month === d2Month) {
+    return `${d1Day} – ${d2Day} ${d2Month} ${d2Year}`;
+  } else if (d1Year === d2Year) {
+    return `${d1Day} ${d1Month} – ${d2Day} ${d2Month} ${d2Year}`;
+  } else {
+    return `${d1Day} ${d1Month} ${d1Year} – ${d2Day} ${d2Month} ${d2Year}`;
+  }
+}
 
 const COURIER_OPTIONS = [
   { value: 'Delhivery', label: 'Delhivery' },
@@ -57,6 +99,100 @@ const OrderManager = () => {
   const [trackingUrl, setTrackingUrl] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [trackingMessage, setTrackingMessage] = useState('');
+
+  // Expected Delivery Date Mode & Picker states (Range vs Specific Date vs Custom)
+  const [deliveryMode, setDeliveryMode] = useState('range'); // 'range' | 'specific' | 'custom'
+  const [rangeStartDate, setRangeStartDate] = useState('');
+  const [rangeEndDate, setRangeEndDate] = useState('');
+  const [specificDate, setSpecificDate] = useState('');
+  const [customDeliveryText, setCustomDeliveryText] = useState('');
+
+  const handleModeSwitch = (mode) => {
+    setDeliveryMode(mode);
+    if (mode === 'range') {
+      if (rangeStartDate && rangeEndDate) {
+        setEstimatedDelivery(formatDeliveryRange(rangeStartDate, rangeEndDate));
+      } else {
+        const d1 = new Date();
+        d1.setDate(d1.getDate() + 3);
+        const d2 = new Date();
+        d2.setDate(d2.getDate() + 6);
+        const s = toIsoDateString(d1);
+        const e = toIsoDateString(d2);
+        setRangeStartDate(s);
+        setRangeEndDate(e);
+        setEstimatedDelivery(formatDeliveryRange(s, e));
+      }
+    } else if (mode === 'specific') {
+      if (specificDate) {
+        setEstimatedDelivery(formatDeliveryDate(specificDate));
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() + 4);
+        const s = toIsoDateString(d);
+        setSpecificDate(s);
+        setEstimatedDelivery(formatDeliveryDate(s));
+      }
+    } else if (mode === 'custom') {
+      setCustomDeliveryText(estimatedDelivery);
+    }
+  };
+
+  const handleRangeChange = (start, end) => {
+    setRangeStartDate(start);
+    setRangeEndDate(end);
+    if (start && end) {
+      setEstimatedDelivery(formatDeliveryRange(start, end));
+    } else if (start) {
+      setEstimatedDelivery(formatDeliveryDate(start));
+    } else {
+      setEstimatedDelivery('');
+    }
+  };
+
+  const handleSpecificDateChange = (dateVal) => {
+    setSpecificDate(dateVal);
+    if (dateVal) {
+      setEstimatedDelivery(formatDeliveryDate(dateVal));
+    } else {
+      setEstimatedDelivery('');
+    }
+  };
+
+  const handleCustomTextChange = (txt) => {
+    setCustomDeliveryText(txt);
+    setEstimatedDelivery(txt);
+  };
+
+  const applyPresetRange = (daysStart, daysEnd) => {
+    setDeliveryMode('range');
+    const d1 = new Date();
+    d1.setDate(d1.getDate() + daysStart);
+    const d2 = new Date();
+    d2.setDate(d2.getDate() + daysEnd);
+    const startStr = toIsoDateString(d1);
+    const endStr = toIsoDateString(d2);
+    setRangeStartDate(startStr);
+    setRangeEndDate(endStr);
+    setEstimatedDelivery(formatDeliveryRange(startStr, endStr));
+  };
+
+  const applyPresetTomorrow = () => {
+    setDeliveryMode('specific');
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const dateStr = toIsoDateString(d);
+    setSpecificDate(dateStr);
+    setEstimatedDelivery(formatDeliveryDate(dateStr));
+  };
+
+  const applyPresetToday = () => {
+    setDeliveryMode('specific');
+    const d = new Date();
+    const dateStr = toIsoDateString(d);
+    setSpecificDate(dateStr);
+    setEstimatedDelivery(formatDeliveryDate(dateStr));
+  };
 
   const handleDownloadInvoice = async (targetOrder) => {
     if (!targetOrder?.orderId) return;
@@ -110,7 +246,40 @@ const OrderManager = () => {
     setTrackingCourier(order.tracking?.courier || '');
     setTrackingNumber(order.tracking?.trackingNumber || '');
     setTrackingUrl(order.tracking?.trackingUrl || '');
-    setEstimatedDelivery(order.tracking?.estimatedDelivery || '');
+
+    const existingDelivery = order.expectedDeliveryDate || order.tracking?.estimatedDelivery || '';
+    setEstimatedDelivery(existingDelivery);
+    setCustomDeliveryText(existingDelivery);
+
+    const now = new Date();
+    const defaultStart = new Date(now);
+    defaultStart.setDate(defaultStart.getDate() + 3);
+    const defaultEnd = new Date(now);
+    defaultEnd.setDate(defaultEnd.getDate() + 6);
+    const defaultSpecific = new Date(now);
+    defaultSpecific.setDate(defaultSpecific.getDate() + 4);
+
+    if (existingDelivery) {
+      if (existingDelivery.includes('–') || existingDelivery.includes(' - ')) {
+        setDeliveryMode('range');
+        setRangeStartDate(toIsoDateString(defaultStart));
+        setRangeEndDate(toIsoDateString(defaultEnd));
+      } else if (!isNaN(new Date(existingDelivery).getTime()) && existingDelivery.length >= 8) {
+        setDeliveryMode('specific');
+        setSpecificDate(toIsoDateString(new Date(existingDelivery)));
+      } else {
+        setDeliveryMode('custom');
+      }
+    } else {
+      setDeliveryMode('range');
+      const s = toIsoDateString(defaultStart);
+      const e = toIsoDateString(defaultEnd);
+      setRangeStartDate(s);
+      setRangeEndDate(e);
+      setSpecificDate(toIsoDateString(defaultSpecific));
+      setEstimatedDelivery(formatDeliveryRange(s, e));
+    }
+
     setTrackingMessage('');
   };
 
@@ -234,6 +403,7 @@ const OrderManager = () => {
         paymentStatus: modalPaymentStatus,
         paymentNotes: modalPaymentNotes,
         notes: adminNotes,
+        expectedDeliveryDate: estimatedDelivery,
         tracking: {
           courier: trackingCourier,
           trackingNumber: trackingNumber,
@@ -357,7 +527,7 @@ const OrderManager = () => {
               <tr>
                 <th className="py-3.5 px-6">Order ID & Date</th>
                 <th className="py-3.5 px-6">Customer & Phone</th>
-                <th className="py-3.5 px-6">Logistics / Courier</th>
+                <th className="py-3.5 px-6">Logistics & Delivery</th>
                 <th className="py-3.5 px-6">Garments</th>
                 <th className="py-3.5 px-6">Total</th>
                 <th className="py-3.5 px-6">Payment Status</th>
@@ -440,7 +610,7 @@ const OrderManager = () => {
                         )}
                       </td>
 
-                      {/* Courier & Tracking */}
+                      {/* Courier & Expected Delivery */}
                       <td className="py-4 px-6">
                         {hasTracking ? (
                           <div className="space-y-0.5">
@@ -458,9 +628,30 @@ const OrderManager = () => {
                             className="text-[11px] text-accent-700 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                           >
                             <HiOutlineTruck className="w-3.5 h-3.5" />
-                            + Add Tracking
+                            + Add Logistics
                           </button>
                         )}
+
+                        {/* Expected Delivery Date / Range Indicator */}
+                        <div className="mt-1.5 pt-1 border-t border-neutral-100">
+                          <button
+                            type="button"
+                            onClick={() => openOrderModal(order)}
+                            className="inline-flex items-center gap-1 text-[11px] hover:text-primary transition-colors cursor-pointer group text-left"
+                            title="Click to edit expected delivery date/range"
+                          >
+                            <HiOutlineCalendar className="w-3 h-3 text-accent group-hover:scale-110 transition-transform shrink-0" />
+                            {order.expectedDeliveryDate || order.tracking?.estimatedDelivery ? (
+                              <span className="font-bold text-neutral-800 bg-neutral-100 hover:bg-neutral-200 px-1.5 py-0.5 rounded text-[10px]">
+                                {order.expectedDeliveryDate || order.tracking.estimatedDelivery}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-400 italic text-[10px] hover:underline">
+                                + Set Delivery Date
+                              </span>
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Garments Preview */}
@@ -735,6 +926,180 @@ const OrderManager = () => {
               </div>
             </div>
 
+            {/* Expected Delivery Date / Arrival Window Card */}
+            <div className="p-5 rounded-2xl bg-cream/70 border border-accent-200/90 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <HiOutlineCalendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                      <span>Expected Delivery Date / Arrival Window</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Admin Controlled
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-neutral-500">
+                      Set a specific date or date range. Reflected live in Customer Tracking, Invoice PDF, and Confirmation Emails.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mode Selector Tabs */}
+                <div className="inline-flex rounded-xl bg-white p-1 border border-neutral-200 shadow-2xs self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleModeSwitch('range')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      deliveryMode === 'range'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    📆 Date Range
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeSwitch('specific')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      deliveryMode === 'specific'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    📅 Specific Date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeSwitch('custom')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      deliveryMode === 'custom'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    ✍️ Custom
+                  </button>
+                </div>
+              </div>
+
+              {/* Mode-Specific Pickers */}
+              {deliveryMode === 'range' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">From (Start Date)</label>
+                    <input
+                      type="date"
+                      value={rangeStartDate}
+                      onChange={(e) => handleRangeChange(e.target.value, rangeEndDate)}
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-medium text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">To (End Date)</label>
+                    <input
+                      type="date"
+                      value={rangeEndDate}
+                      min={rangeStartDate || undefined}
+                      onChange={(e) => handleRangeChange(rangeStartDate, e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-medium text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {deliveryMode === 'specific' && (
+                <div className="pt-1 max-w-sm">
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Specific Delivery Date</label>
+                  <input
+                    type="date"
+                    value={specificDate}
+                    onChange={(e) => handleSpecificDateChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-medium text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {deliveryMode === 'custom' && (
+                <div className="pt-1">
+                  <label className="block text-xs font-bold text-neutral-700 mb-1">Custom Delivery Text</label>
+                  <input
+                    type="text"
+                    value={customDeliveryText}
+                    onChange={(e) => handleCustomTextChange(e.target.value)}
+                    placeholder="e.g. 2 to 3 Business Days or Arriving by Diwali"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-medium text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Quick Presets & Preview */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-accent-200/60">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider mr-1">
+                    Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetRange(3, 6)}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 text-[11px] font-semibold text-neutral-700 hover:border-primary hover:text-primary transition-colors cursor-pointer shadow-2xs"
+                  >
+                    +3 to +6 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetRange(2, 4)}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 text-[11px] font-semibold text-neutral-700 hover:border-primary hover:text-primary transition-colors cursor-pointer shadow-2xs"
+                  >
+                    +2 to +4 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetTomorrow()}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 text-[11px] font-semibold text-neutral-700 hover:border-primary hover:text-primary transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetToday()}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 text-[11px] font-semibold text-neutral-700 hover:border-primary hover:text-primary transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Today
+                  </button>
+                  {estimatedDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEstimatedDelivery('');
+                        setCustomDeliveryText('');
+                        setSpecificDate('');
+                        setRangeStartDate('');
+                        setRangeEndDate('');
+                      }}
+                      className="px-2 py-1 rounded-lg text-[10px] text-red-600 hover:bg-red-50 font-bold transition-colors cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Customer View Live Preview Badge */}
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-accent-200 shadow-2xs text-xs">
+                  <span className="text-neutral-500 font-medium text-[11px]">Customer View:</span>
+                  {estimatedDelivery ? (
+                    <span className="font-bold text-primary flex items-center gap-1 font-numeric">
+                      <HiOutlineClock className="w-3.5 h-3.5 text-accent" />
+                      {estimatedDelivery}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-400 italic text-[11px]">Not set (Default window)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Shipment & Live Tracking Section */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-neutral-50 to-cream-light border border-accent-200 space-y-4">
               <div className="flex items-center justify-between">
@@ -743,9 +1108,9 @@ const OrderManager = () => {
                     <HiOutlineTruck className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-neutral-900">Live Shipment & Courier Tracking</h4>
+                    <h4 className="text-sm font-bold text-neutral-900">Courier Partner & Waybill Number</h4>
                     <p className="text-[11px] text-neutral-500">
-                      Enter tracking details to enable real-time order tracking for the customer
+                      Select courier partner and enter AWB tracking number
                     </p>
                   </div>
                 </div>
@@ -798,18 +1163,6 @@ const OrderManager = () => {
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Estimated Delivery */}
-                <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Estimated Delivery Date / Time</label>
-                  <input
-                    type="text"
-                    value={estimatedDelivery}
-                    onChange={(e) => setEstimatedDelivery(e.target.value)}
-                    placeholder="e.g. 21 Oct 2026 or 2 to 3 Business Days"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
-                  />
                 </div>
               </div>
 

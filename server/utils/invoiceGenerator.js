@@ -101,12 +101,10 @@ async function generateInvoicePdf(order, customSettings = null) {
         month: 'short',
         year: 'numeric'
       });
-      const deliveryRange = getExpectedDeliveryRange(order.createdAt || new Date());
+      const deliveryRange = order.expectedDeliveryDate || order.tracking?.estimatedDelivery || getExpectedDeliveryRange(order.createdAt || new Date());
       const isPaid = order.paymentStatus === 'paid';
       const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
 
-      // ==========================================
-      // 1. TOP HEADER BANNER (Page 1)
       // ==========================================
       // 1. TOP HEADER BANNER (Page 1)
       // ==========================================

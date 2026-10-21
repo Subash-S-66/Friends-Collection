@@ -456,11 +456,11 @@ const Account = () => {
               </div>
             </div>
 
-            {order.tracking?.estimatedDelivery && (
+            {(order.expectedDeliveryDate || order.tracking?.estimatedDelivery) && (
               <div className="sm:text-right bg-primary-50 px-3.5 py-1.5 rounded-xl border border-primary/20">
                 <span className="text-[10px] text-primary font-bold uppercase tracking-wider block">Expected Arrival</span>
                 <span className="text-xs sm:text-sm font-bold text-neutral-900">
-                  {order.tracking.estimatedDelivery}
+                  {order.expectedDeliveryDate || order.tracking.estimatedDelivery}
                 </span>
               </div>
             )}
@@ -661,9 +661,9 @@ const Account = () => {
               </span>
             </div>
 
-            {order.tracking?.estimatedDelivery && (
+            {(order.expectedDeliveryDate || order.tracking?.estimatedDelivery) && (
               <p className="text-[11px] text-neutral-600 pl-6">
-                Expected: <strong className="text-neutral-900">{order.tracking.estimatedDelivery}</strong>
+                Expected: <strong className="text-neutral-900">{order.expectedDeliveryDate || order.tracking.estimatedDelivery}</strong>
               </p>
             )}
 

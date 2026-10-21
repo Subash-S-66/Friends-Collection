@@ -253,6 +253,12 @@ const OrderTracking = () => {
                     minute: '2-digit'
                   })}
                 </p>
+                {(order.expectedDeliveryDate || order.tracking?.estimatedDelivery) && (
+                  <p className="text-xs text-primary font-bold flex items-center gap-1.5 pt-0.5">
+                    <HiOutlineClock className="w-3.5 h-3.5 text-accent" />
+                    <span>Expected: <strong className="text-neutral-900">{order.expectedDeliveryDate || order.tracking.estimatedDelivery}</strong></span>
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col sm:items-end justify-between gap-3">
@@ -356,11 +362,11 @@ const OrderTracking = () => {
                   </div>
                 </div>
 
-                {order.tracking?.estimatedDelivery && (
+                {(order.expectedDeliveryDate || order.tracking?.estimatedDelivery) && (
                   <div className="sm:text-right">
                     <span className="text-[11px] text-neutral-500 block">Expected Arrival:</span>
                     <span className="text-xs sm:text-sm font-bold text-primary">
-                      {order.tracking.estimatedDelivery}
+                      {order.expectedDeliveryDate || order.tracking.estimatedDelivery}
                     </span>
                   </div>
                 )}

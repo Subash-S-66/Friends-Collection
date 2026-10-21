@@ -49,6 +49,7 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'yet_to_move', 'order_received', 'confirmed', 'shipped', 'delivered', 'cancelled'],
     default: 'order_received'
   },
+  expectedDeliveryDate: { type: String, default: '' },
   paymentStatus: {
     type: String,
     enum: ['pending', 'payment_pending', 'paid', 'failed', 'refunded'],
