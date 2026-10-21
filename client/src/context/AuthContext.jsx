@@ -6,15 +6,22 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const token = localStorage.getItem('fc_token');
+      const storedUser = localStorage.getItem('fc_user');
+      return token && storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('fc_token');
     const storedUser = localStorage.getItem('fc_user');
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      // Verify token is still valid
+      // Verify token is still valid with backend
       API.get('/auth/me').then(res => {
         setUser(res.data);
         localStorage.setItem('fc_user', JSON.stringify(res.data));
@@ -102,6 +109,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('fc_token');
     localStorage.removeItem('fc_user');
+    localStorage.removeItem('fc_cart_guest');
+    localStorage.removeItem('fc_cart');
     setUser(null);
   };
 

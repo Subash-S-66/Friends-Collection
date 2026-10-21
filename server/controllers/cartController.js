@@ -182,7 +182,7 @@ exports.syncCart = async (req, res, next) => {
 
       if (existingMap.has(key)) {
         const existing = existingMap.get(key);
-        existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+        existing.quantity = Math.max(existing.quantity || 1, item.quantity || 1);
       } else {
         existingMap.set(key, {
           product: prodId,

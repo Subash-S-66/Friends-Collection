@@ -7,7 +7,8 @@ const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
-const CART_KEY = 'fc_cart';
+const GUEST_CART_KEY = 'fc_cart_guest';
+const getUserCartKey = (userId) => (userId ? `fc_cart_${userId}` : GUEST_CART_KEY);
 const ADDRESS_KEY = 'fc_saved_address';
 
 const norm = (s) => (s || '').toString().trim().toLowerCase();
@@ -21,9 +22,14 @@ const isSameCartItem = (a, b) => {
 
 export const CartProvider = ({ children }) => {
   const { user } = useAuth();
+  const prevUserIdRef = useRef(user?._id);
+
   const [items, setItems] = useState(() => {
     try {
-      const saved = localStorage.getItem(CART_KEY);
+      // Clean up legacy unscoped cart key to avoid contamination
+      localStorage.removeItem('fc_cart');
+      const key = getUserCartKey(user?._id);
+      const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : [];
       return parsed.map((item) => {
         if (item.isOutOfStock || (item.stock !== undefined && item.stock <= 0)) {
@@ -46,57 +52,103 @@ export const CartProvider = ({ children }) => {
     latestItemsRef.current = items;
   }, [items]);
 
-  // Helper to persist to localStorage immediately
-  const saveToLocal = (cartItems) => {
+  // Helper to persist to localStorage per-user or guest
+  const saveToLocal = useCallback((cartItems, targetUserId = user?._id) => {
     try {
-      localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
+      const key = getUserCartKey(targetUserId);
+      localStorage.setItem(key, JSON.stringify(cartItems));
+      localStorage.removeItem('fc_cart');
     } catch (e) {
       console.warn('LocalStorage save error:', e);
     }
-  };
+  }, [user?._id]);
 
-  // Cross-device cart sync: When user logs in or page loads with active session
+  // Handle user login, logout, and cross-device cart synchronization
   useEffect(() => {
-    if (user && user._id) {
+    const prevUserId = prevUserIdRef.current;
+    const currentUserId = user?._id;
+    prevUserIdRef.current = currentUserId;
+
+    // 1. LOGOUT: Reset cart completely so previous user's items never leak to guest or next user
+    if (prevUserId && !currentUserId) {
+      setItems([]);
+      latestItemsRef.current = [];
+      try {
+        localStorage.removeItem(GUEST_CART_KEY);
+        localStorage.removeItem('fc_cart');
+      } catch {}
+      return;
+    }
+
+    // 2. USER IS LOGGED IN: Load their unique cloud cart (cross-device sync)
+    if (currentUserId) {
       let isMounted = true;
       setIsSyncing(true);
 
-      const localItems = (() => {
-        try {
-          const saved = localStorage.getItem(CART_KEY);
-          return saved ? JSON.parse(saved) : [];
-        } catch {
-          return [];
-        }
-      })();
+      // Check if true guest items were added while logged out
+      let guestItems = [];
+      try {
+        const savedGuest = localStorage.getItem(GUEST_CART_KEY);
+        guestItems = savedGuest ? JSON.parse(savedGuest) : [];
+      } catch {}
 
-      API.post('/cart/sync', { items: localItems })
-        .then((res) => {
-          if (!isMounted) return;
-          if (Array.isArray(res.data?.items)) {
-            const sanitized = res.data.items.map((i) => {
-              if (i.isOutOfStock || (i.stock !== undefined && i.stock <= 0)) {
-                return { ...i, quantity: 1 };
-              }
-              return i;
-            });
-            setItems(sanitized);
-            saveToLocal(sanitized);
-            latestItemsRef.current = sanitized;
-          }
-        })
-        .catch((err) => {
-          console.error('Cart sync error:', err);
-        })
-        .finally(() => {
-          if (isMounted) setIsSyncing(false);
-        });
+      if (guestItems.length > 0) {
+        // Customer added items as a guest, then logged in -> merge once into their cloud cart
+        API.post('/cart/sync', { items: guestItems })
+          .then((res) => {
+            if (!isMounted) return;
+            if (Array.isArray(res.data?.items)) {
+              const sanitized = res.data.items.map((i) => {
+                if (i.isOutOfStock || (i.stock !== undefined && i.stock <= 0)) {
+                  return { ...i, quantity: 1 };
+                }
+                return i;
+              });
+              setItems(sanitized);
+              saveToLocal(sanitized, currentUserId);
+              latestItemsRef.current = sanitized;
+            }
+            // Clear guest cart so it never merges again
+            try {
+              localStorage.removeItem(GUEST_CART_KEY);
+            } catch {}
+          })
+          .catch((err) => {
+            console.error('Cart sync error:', err);
+          })
+          .finally(() => {
+            if (isMounted) setIsSyncing(false);
+          });
+      } else {
+        // No guest items -> Fetch user's own cloud cart from database (cross-device sync)
+        API.get('/cart')
+          .then((res) => {
+            if (!isMounted) return;
+            if (Array.isArray(res.data?.items)) {
+              const sanitized = res.data.items.map((i) => {
+                if (i.isOutOfStock || (i.stock !== undefined && i.stock <= 0)) {
+                  return { ...i, quantity: 1 };
+                }
+                return i;
+              });
+              setItems(sanitized);
+              saveToLocal(sanitized, currentUserId);
+              latestItemsRef.current = sanitized;
+            }
+          })
+          .catch((err) => {
+            console.error('Cart fetch error:', err);
+          })
+          .finally(() => {
+            if (isMounted) setIsSyncing(false);
+          });
+      }
 
       return () => {
         isMounted = false;
       };
     }
-  }, [user?._id]);
+  }, [user?._id, saveToLocal]);
 
   // Sync back to cloud with debouncing (350ms) to prevent competing requests on rapid clicks
   const syncToCloud = useCallback((updatedItems) => {
@@ -128,7 +180,7 @@ export const CartProvider = ({ children }) => {
         console.warn('Background cloud cart update error:', err);
       }
     }, 350);
-  }, [user]);
+  }, [user, saveToLocal]);
 
   // Refresh live stock validation directly against database stock for all shoppers (guests and logged-in)
   const refreshCartStock = useCallback(async () => {
@@ -347,7 +399,9 @@ export const CartProvider = ({ children }) => {
     saveToLocal([]);
     latestItemsRef.current = [];
     try {
-      localStorage.removeItem(CART_KEY);
+      localStorage.removeItem(getUserCartKey(user?._id));
+      localStorage.removeItem(GUEST_CART_KEY);
+      localStorage.removeItem('fc_cart');
     } catch (e) {
       console.warn('LocalStorage clear error:', e);
     }
@@ -355,7 +409,7 @@ export const CartProvider = ({ children }) => {
     if (user && user._id) {
       API.delete('/cart').catch(() => {});
     }
-  }, [user]);
+  }, [user, saveToLocal]);
 
   // Available items (strictly in stock) vs out of stock items
   const availableItems = items.filter(
