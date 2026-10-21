@@ -230,9 +230,14 @@ const CartDrawer = () => {
 
                             {isSoldOut ? (
                               <div className="mt-1">
-                                <span className="text-[11px] font-bold text-red-600 flex items-center gap-1">
-                                  <span>Currently Unavailable</span>
-                                </span>
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-xs font-bold text-neutral-400 line-through font-numeric">
+                                    {formatPrice(item.price)}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-red-600 flex items-center gap-1">
+                                    <span>Currently Unavailable</span>
+                                  </span>
+                                </div>
                                 <span className="text-[10px] text-neutral-400 block">
                                   Excluded from checkout total
                                 </span>
@@ -295,7 +300,7 @@ const CartDrawer = () => {
                                 isSoldOut ? 'text-neutral-400 line-through' : 'text-neutral-800'
                               }`}
                             >
-                              {formatPrice(item.price * item.quantity)}
+                              {formatPrice(isSoldOut ? item.price : item.price * item.quantity)}
                             </span>
                           </div>
                         </div>

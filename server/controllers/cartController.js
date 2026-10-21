@@ -109,7 +109,7 @@ const enrichItemsWithLiveStock = async (items) => {
       size: item.size || '',
       color: item.color || '',
       quantity: isOutOfStock
-        ? (item.quantity || 1)
+        ? 1
         : Math.min(item.quantity || 1, Math.max(1, currentStock)),
       image: resolvedImage,
       slug: prod.slug || item.slug || '',

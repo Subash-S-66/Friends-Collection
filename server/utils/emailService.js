@@ -180,24 +180,13 @@ const getTransporter = async () => {
   return transporter;
 };
 
-// Find logo file path
-const getLogoAttachment = () => {
-  const possiblePaths = [
-    path.join(__dirname, '../assets/logo.png'),
-    path.join(__dirname, '../../client/public/logo.png')
-  ];
+// High-resolution public CDN logo URL for emails (works across all email clients without CID attachment issues)
+const EMAIL_LOGO_URL =
+  process.env.EMAIL_LOGO_URL ||
+  'https://res.cloudinary.com/l5eruxi4/image/upload/w_200,f_auto,q_auto/v1792556054/friends_collections/logo.png';
 
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return [{
-        filename: 'logo.png',
-        path: p,
-        cid: 'friends_logo'
-      }];
-    }
-  }
-  return [];
-};
+// Return empty array because logo is served via HTTPS CDN, preventing 1.7MB file attachments on emails
+const getLogoAttachment = () => [];
 
 // Royal HTML Email Base Template
 const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
@@ -237,28 +226,32 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
     }
     .header-banner {
       background: linear-gradient(135deg, #4A0E17 0%, #30080E 100%);
-      padding: 36px 24px 28px;
+      padding: 34px 20px 26px;
       text-align: center;
       position: relative;
     }
     .logo-container {
-      width: 82px;
-      height: 82px;
+      width: 86px;
+      height: 86px;
       margin: 0 auto;
       border-radius: 50%;
-      border: 3px solid #D4AF37;
-      background-color: #FFFFFF;
-      padding: 3px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      border: 2px solid #D4AF37;
+      background-color: #4A0E17;
       display: inline-block;
       box-sizing: border-box;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
     }
     .logo-img {
-      width: 100%;
-      height: 100%;
+      width: 86px;
+      height: 86px;
+      max-width: 86px;
       border-radius: 50%;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
+      margin: 0 auto;
+      border: 0;
+      outline: none;
     }
     .brand-title {
       font-family: Georgia, 'Playfair Display', serif;
@@ -381,13 +374,22 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
       <td align="center">
         <div class="main-card">
           <!-- Royal Header -->
-          <div class="header-banner">
-            <div class="logo-container">
-              <img src="cid:friends_logo" alt="Friends Collections" class="logo-img" />
+          <div class="header-banner" style="background: linear-gradient(135deg, #4A0E17 0%, #30080E 100%); padding: 34px 20px 26px; text-align: center;">
+            <div class="logo-container" style="width: 86px; height: 86px; margin: 0 auto; border-radius: 50%; border: 2px solid #D4AF37; box-shadow: 0 4px 16px rgba(0,0,0,0.4); background-color: #4A0E17; overflow: hidden; display: inline-block;">
+              <a href="${clientUrl}" target="_blank" style="text-decoration: none; display: block;">
+                <img
+                  src="${EMAIL_LOGO_URL}"
+                  alt="Friends Collections"
+                  width="86"
+                  height="86"
+                  class="logo-img"
+                  style="width: 86px; height: 86px; max-width: 86px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; border: 0; outline: none;"
+                />
+              </a>
             </div>
-            <h1 class="brand-title">Friends Collections</h1>
-            <p class="brand-tagline">Style That Defines You</p>
-            <div class="ornament">✦ ✦ ✦</div>
+            <h1 class="brand-title" style="font-family: Georgia, 'Playfair Display', serif; font-size: 24px; color: #FFFFFF; margin: 14px 0 2px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;">Friends Collections</h1>
+            <p class="brand-tagline" style="color: #E2BFB3; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; margin: 0; font-weight: 500;">Style That Defines You</p>
+            <div class="ornament" style="color: #D4AF37; font-size: 12px; letter-spacing: 6px; margin-top: 8px;">✦ ✦ ✦</div>
           </div>
 
           <!-- Main Content -->
@@ -1276,3 +1278,4 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
 };
 
 exports.renderCampaignHtml = renderCampaignHtml;
+exports.wrapInFriendsTheme = wrapInFriendsTheme;

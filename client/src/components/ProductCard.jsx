@@ -274,62 +274,6 @@ const ProductCard = ({ product }) => {
             <h3 className="font-serif text-xs sm:text-base font-semibold text-neutral-900 group-hover:text-primary transition-colors line-clamp-1 leading-snug">
               {product.title}
             </h3>
-
-            {/* Color Swatch Dots for Multi-Color Preview */}
-            {colorSwatches.length > 1 && (
-              <div
-                className="flex items-center gap-1.5 pt-1.5 overflow-x-auto scrollbar-none"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                {colorSwatches.slice(0, 5).map((swatch) => {
-                  const isSelected = selectedColorOverride
-                    ? selectedColorOverride.toLowerCase() === swatch.color.toLowerCase()
-                    : false;
-
-                  return (
-                    <button
-                      key={swatch.color}
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedColorOverride(swatch.color);
-                      }}
-                      onMouseEnter={() => {
-                        if (swatch.image) setSelectedColorOverride(swatch.color);
-                      }}
-                      className={`relative p-0.5 rounded-full transition-transform hover:scale-110 cursor-pointer ${
-                        isSelected ? 'ring-2 ring-primary ring-offset-1' : 'hover:ring-1 hover:ring-neutral-400'
-                      }`}
-                      title={`${swatch.color}${swatch.image ? ' (View photo)' : ''}`}
-                    >
-                      {swatch.image ? (
-                        <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full overflow-hidden block border border-white shadow-2xs">
-                          <img
-                            src={getImageUrl(swatch.image)}
-                            alt={swatch.color}
-                            onError={handleImageError}
-                            className="w-full h-full object-cover object-top"
-                          />
-                        </span>
-                      ) : (
-                        <span
-                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full block border border-neutral-300 shadow-2xs bg-neutral-200"
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-                {colorSwatches.length > 5 && (
-                  <span className="text-[10px] text-neutral-400 font-semibold">
-                    +{colorSwatches.length - 5}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="mt-2 sm:mt-3 flex items-center justify-between gap-1">

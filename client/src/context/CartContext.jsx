@@ -24,7 +24,13 @@ export const CartProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
     try {
       const saved = localStorage.getItem(CART_KEY);
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      return parsed.map((item) => {
+        if (item.isOutOfStock || (item.stock !== undefined && item.stock <= 0)) {
+          return { ...item, quantity: 1 };
+        }
+        return item;
+      });
     } catch {
       return [];
     }
@@ -68,9 +74,15 @@ export const CartProvider = ({ children }) => {
         .then((res) => {
           if (!isMounted) return;
           if (Array.isArray(res.data?.items)) {
-            setItems(res.data.items);
-            saveToLocal(res.data.items);
-            latestItemsRef.current = res.data.items;
+            const sanitized = res.data.items.map((i) => {
+              if (i.isOutOfStock || (i.stock !== undefined && i.stock <= 0)) {
+                return { ...i, quantity: 1 };
+              }
+              return i;
+            });
+            setItems(sanitized);
+            saveToLocal(sanitized);
+            latestItemsRef.current = sanitized;
           }
         })
         .catch((err) => {
@@ -102,9 +114,15 @@ export const CartProvider = ({ children }) => {
         const res = await API.put('/cart', { items: updatedItems });
         // Only adopt server items if no newer local changes have happened during the request
         if (Array.isArray(res.data?.items) && latestItemsRef.current === updatedItems) {
-          setItems(res.data.items);
-          saveToLocal(res.data.items);
-          latestItemsRef.current = res.data.items;
+          const sanitized = res.data.items.map((i) => {
+            if (i.isOutOfStock || (i.stock !== undefined && i.stock <= 0)) {
+              return { ...i, quantity: 1 };
+            }
+            return i;
+          });
+          setItems(sanitized);
+          saveToLocal(sanitized);
+          latestItemsRef.current = sanitized;
         }
       } catch (err) {
         console.warn('Background cloud cart update error:', err);
@@ -126,11 +144,13 @@ export const CartProvider = ({ children }) => {
         const merged = currentLocal.map((localItem) => {
           const serverMatch = serverItems.find((s) => isSameCartItem(s, localItem));
           if (serverMatch) {
+            const isOutOfStock = Boolean(serverMatch.isOutOfStock || serverMatch.stock <= 0);
             return {
               ...localItem,
               stock: serverMatch.stock,
-              isOutOfStock: Boolean(serverMatch.isOutOfStock || serverMatch.stock <= 0),
+              isOutOfStock,
               price: serverMatch.price,
+              quantity: isOutOfStock ? 1 : Math.min(localItem.quantity || 1, serverMatch.stock || 1),
               title: serverMatch.title || localItem.title,
               image: serverMatch.image || localItem.image,
               acceptCashOnDelivery: serverMatch.acceptCashOnDelivery !== false

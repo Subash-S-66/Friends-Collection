@@ -180,7 +180,12 @@ const Cart = () => {
 
                       {isSoldOut ? (
                         <div className="text-xs">
-                          <span className="font-bold text-red-600 block">Currently Unavailable</span>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-neutral-400 line-through font-numeric">
+                              {formatPrice(item.price)}
+                            </span>
+                            <span className="font-bold text-red-600 block">Currently Unavailable</span>
+                          </div>
                           <span className="text-[11px] text-neutral-400">
                             Excluded from order total
                           </span>
@@ -247,7 +252,7 @@ const Cart = () => {
                           isSoldOut ? 'text-neutral-400 line-through' : 'text-neutral-900'
                         }`}
                       >
-                        {formatPrice(item.price * item.quantity)}
+                        {formatPrice(isSoldOut ? item.price : item.price * item.quantity)}
                       </span>
 
                       {!isSoldOut && (
