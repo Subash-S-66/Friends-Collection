@@ -26,7 +26,7 @@ const ProductCard = ({ product }) => {
         const c = (ci.color || '').trim();
         if (c && !seen.has(c.toLowerCase())) {
           seen.add(c.toLowerCase());
-          list.push({ color: c, image: ci.image });
+          list.push({ color: c, image: ci.image || (Array.isArray(ci.images) ? ci.images[0] : '') });
         }
       });
     }
@@ -36,7 +36,7 @@ const ProductCard = ({ product }) => {
         const c = (v.color || '').trim();
         if (c && !seen.has(c.toLowerCase())) {
           seen.add(c.toLowerCase());
-          list.push({ color: c, image: v.image || '' });
+          list.push({ color: c, image: v.image || (Array.isArray(v.images) ? v.images[0] : '') });
         }
       });
     }

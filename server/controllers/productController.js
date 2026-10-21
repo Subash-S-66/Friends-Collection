@@ -533,10 +533,21 @@ exports.createProduct = async (req, res, next) => {
       parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
     }
     if (Array.isArray(parsedVariants)) {
-      parsedVariants = parsedVariants.map(v => ({
-        ...v,
-        image: resolveImageRef(v.image, uploadedImages)
-      }));
+      parsedVariants = parsedVariants.map(v => {
+        const rawList = Array.isArray(v.images) && v.images.length > 0
+          ? v.images
+          : (v.image ? [v.image] : []);
+        const resolvedList = rawList.map(ref => resolveImageRef(ref, uploadedImages)).filter(Boolean);
+        const primaryImage = resolveImageRef(v.image, uploadedImages) || resolvedList[0] || '';
+        if (primaryImage && !resolvedList.includes(primaryImage)) {
+          resolvedList.unshift(primaryImage);
+        }
+        return {
+          ...v,
+          image: primaryImage,
+          images: resolvedList
+        };
+      });
     }
 
     // Parse colorImages if provided
@@ -545,10 +556,21 @@ exports.createProduct = async (req, res, next) => {
       parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
     }
     if (Array.isArray(parsedColorImages)) {
-      parsedColorImages = parsedColorImages.map(ci => ({
-        color: ci.color ? String(ci.color).trim() : '',
-        image: resolveImageRef(ci.image, uploadedImages)
-      }));
+      parsedColorImages = parsedColorImages.map(ci => {
+        const rawList = Array.isArray(ci.images) && ci.images.length > 0
+          ? ci.images
+          : (ci.image ? [ci.image] : []);
+        const resolvedList = rawList.map(ref => resolveImageRef(ref, uploadedImages)).filter(Boolean);
+        const primaryImage = resolveImageRef(ci.image, uploadedImages) || resolvedList[0] || '';
+        if (primaryImage && !resolvedList.includes(primaryImage)) {
+          resolvedList.unshift(primaryImage);
+        }
+        return {
+          color: ci.color ? String(ci.color).trim() : '',
+          image: primaryImage,
+          images: resolvedList
+        };
+      });
     }
 
     // Calculate aggregate stock from variants if defined
@@ -631,20 +653,42 @@ exports.updateProduct = async (req, res, next) => {
     if (colorImages !== undefined) {
       let parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
       if (Array.isArray(parsedColorImages)) {
-        product.colorImages = parsedColorImages.map(ci => ({
-          color: ci.color ? String(ci.color).trim() : '',
-          image: resolveImageRef(ci.image, finalImages)
-        }));
+        product.colorImages = parsedColorImages.map(ci => {
+          const rawList = Array.isArray(ci.images) && ci.images.length > 0
+            ? ci.images
+            : (ci.image ? [ci.image] : []);
+          const resolvedList = rawList.map(ref => resolveImageRef(ref, finalImages)).filter(Boolean);
+          const primaryImage = resolveImageRef(ci.image, finalImages) || resolvedList[0] || '';
+          if (primaryImage && !resolvedList.includes(primaryImage)) {
+            resolvedList.unshift(primaryImage);
+          }
+          return {
+            color: ci.color ? String(ci.color).trim() : '',
+            image: primaryImage,
+            images: resolvedList
+          };
+        });
       }
     }
 
     if (variants !== undefined) {
       let parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
       if (Array.isArray(parsedVariants)) {
-        product.variants = parsedVariants.map(v => ({
-          ...v,
-          image: resolveImageRef(v.image, finalImages)
-        }));
+        product.variants = parsedVariants.map(v => {
+          const rawList = Array.isArray(v.images) && v.images.length > 0
+            ? v.images
+            : (v.image ? [v.image] : []);
+          const resolvedList = rawList.map(ref => resolveImageRef(ref, finalImages)).filter(Boolean);
+          const primaryImage = resolveImageRef(v.image, finalImages) || resolvedList[0] || '';
+          if (primaryImage && !resolvedList.includes(primaryImage)) {
+            resolvedList.unshift(primaryImage);
+          }
+          return {
+            ...v,
+            image: primaryImage,
+            images: resolvedList
+          };
+        });
         if (parsedVariants.length > 0) {
           product.stock = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
         } else if (stock !== undefined) {

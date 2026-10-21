@@ -18,11 +18,13 @@ const productSchema = new mongoose.Schema({
     size: { type: String, default: '' },
     stock: { type: Number, default: 0, min: 0 },
     sku: { type: String, default: '' },
-    image: { type: String, default: '' }
+    image: { type: String, default: '' },
+    images: [{ type: String }]
   }],
   colorImages: [{
     color: { type: String, default: '' },
-    image: { type: String, default: '' }
+    image: { type: String, default: '' },
+    images: [{ type: String }]
   }],
   stock: { type: Number, default: 0, min: 0 },
   isActive: { type: Boolean, default: true },

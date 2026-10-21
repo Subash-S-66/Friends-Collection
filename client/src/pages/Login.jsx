@@ -283,7 +283,7 @@ const Login = () => {
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-accent-300 text-center text-2xl font-mono tracking-[0.3em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 border-accent-300 text-center text-base sm:text-xl font-mono tracking-[0.18em] sm:tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
                   />
                   <span className="text-[11px] text-neutral-400 mt-1 block text-center">
                     Valid for the next 10 minutes

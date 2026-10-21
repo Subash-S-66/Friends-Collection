@@ -788,7 +788,7 @@ const AuthModal = () => {
                           value={tokenCode}
                           onChange={(e) => setTokenCode(e.target.value.replace(/\D/g, ''))}
                           placeholder="123456"
-                          className="w-full py-2.5 rounded-xl border-2 border-accent-300 text-center text-xl font-mono tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
+                          className="w-full py-2 sm:py-2.5 rounded-xl border-2 border-accent-300 text-center text-base sm:text-xl font-mono tracking-[0.18em] sm:tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
                         />
                       </div>
                       <button
@@ -1070,7 +1070,7 @@ const AuthModal = () => {
                       value={verifyCode}
                       onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="123456"
-                      className="w-full py-3 rounded-xl border-2 border-accent-300 text-center text-2xl font-mono tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
+                      className="w-full py-2.5 sm:py-3 rounded-xl border-2 border-accent-300 text-center text-base sm:text-xl font-mono tracking-[0.18em] sm:tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
                     />
                   </div>
 
@@ -1204,7 +1204,7 @@ const AuthModal = () => {
                       value={forgotCode}
                       onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="123456"
-                      className="w-full py-2.5 rounded-xl border-2 border-accent-300 text-center text-xl font-mono tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
+                      className="w-full py-2 sm:py-2.5 rounded-xl border-2 border-accent-300 text-center text-base sm:text-xl font-mono tracking-[0.18em] sm:tracking-[0.25em] font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none bg-neutral-50/50"
                     />
                   </div>
 

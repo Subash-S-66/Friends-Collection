@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -124,54 +124,60 @@ const ProductDetail = () => {
     }
   }, [currentStock, quantity]);
 
-  // Clean and prepare product images including color and variant photos
-  const allCandidateImages = [
-    ...(product?.images || []),
-    ...(product?.colorImages || []).map((ci) => ci.image),
-    ...(product?.variants || []).map((v) => v.image)
-  ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+  // Derive the active gallery images based on selected color or variant
+  const activeColorObj = useMemo(() => {
+    if (!product || !selectedColor) return null;
+    const norm = selectedColor.trim().toLowerCase();
+    return product.colorImages?.find(
+      (ci) => (ci.color || '').trim().toLowerCase() === norm
+    );
+  }, [product, selectedColor]);
 
-  const rawImages = Array.from(new Set(allCandidateImages));
-  const displayImages =
-    rawImages.length > 0
-      ? rawImages
+  const activeColorImages = useMemo(() => {
+    if (!activeColorObj) return [];
+    const list = Array.isArray(activeColorObj.images) && activeColorObj.images.length > 0
+      ? activeColorObj.images
+      : (activeColorObj.image ? [activeColorObj.image] : []);
+    return list.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+  }, [activeColorObj]);
+
+  const allGeneralImages = useMemo(() => {
+    const list = [
+      ...(product?.images || []),
+      ...(product?.colorImages || []).flatMap((ci) => (Array.isArray(ci.images) && ci.images.length > 0 ? ci.images : [ci.image])),
+      ...(product?.variants || []).flatMap((v) => (Array.isArray(v.images) && v.images.length > 0 ? v.images : [v.image]))
+    ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+    return Array.from(new Set(list));
+  }, [product]);
+
+  const [showAllGalleryPhotos, setShowAllGalleryPhotos] = useState(false);
+
+  const displayImages = useMemo(() => {
+    if (!showAllGalleryPhotos && activeColorImages.length > 0) {
+      return activeColorImages;
+    }
+    return allGeneralImages.length > 0
+      ? allGeneralImages
       : ['/fallback-product-1.png', '/fallback-product-2.png'];
+  }, [showAllGalleryPhotos, activeColorImages, allGeneralImages]);
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
 
-  // Dynamic Image Switching:
-  // When customer selects a color or size variant, switch the active gallery photo to match!
+  // When customer switches color, reset active image index to 0 (cover photo of that color)
   useEffect(() => {
-    if (!product || displayImages.length === 0) return;
+    setShowAllGalleryPhotos(false);
+    setActiveImageIndex(0);
+  }, [selectedColor]);
 
-    // 1. Check if specific size variant has a custom image override
-    let targetImage = currentVariant?.image;
-
-    // 2. If no custom variant image, fall back to selected color's photo
-    if (!targetImage && selectedColor) {
-      const normColor = selectedColor.trim().toLowerCase();
-      const colorObj = product.colorImages?.find(
-        (ci) => (ci.color || '').trim().toLowerCase() === normColor
-      );
-      if (colorObj?.image) {
-        targetImage = colorObj.image;
-      } else {
-        const vWithImg = product.variants?.find(
-          (v) => (v.color || '').trim().toLowerCase() === normColor && v.image
-        );
-        if (vWithImg?.image) {
-          targetImage = vWithImg.image;
-        }
-      }
-    }
-
-    if (targetImage) {
-      const idx = displayImages.indexOf(targetImage);
+  // When custom variant has a specific image override
+  useEffect(() => {
+    if (currentVariant?.image) {
+      const idx = displayImages.indexOf(currentVariant.image);
       if (idx >= 0) {
         setActiveImageIndex(idx);
       }
     }
-  }, [selectedColor, selectedSize, currentVariant?.image, product, displayImages]);
+  }, [currentVariant?.image, displayImages]);
 
   if (loading) {
     return (
@@ -330,29 +336,45 @@ const ProductDetail = () => {
           {/* Gallery Column */}
           <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
             {/* Thumbnails */}
-            {displayImages.length > 1 && (
-              <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto sm:w-20 shrink-0 scrollbar-none">
-                {displayImages.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    className={`aspect-[3/4] w-16 sm:w-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                      activeImageIndex === idx
-                        ? 'border-primary ring-2 ring-primary/20 shadow-md scale-102'
-                        : 'border-neutral-200 hover:border-neutral-400 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img
-                      src={getImageUrl(img, getFallbackForIndex(idx))}
-                      alt={`View ${idx + 1}`}
-                      onError={(e) => handleImageError(e, getFallbackForIndex(idx))}
-                      className="w-full h-full object-cover object-top"
-                      loading="lazy"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-col gap-2 shrink-0 sm:w-20">
+              {displayImages.length > 1 && (
+                <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto sm:w-20 shrink-0 scrollbar-none">
+                  {displayImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`aspect-[3/4] w-16 sm:w-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                        activeImageIndex === idx
+                          ? 'border-primary ring-2 ring-primary/20 shadow-md scale-102'
+                          : 'border-neutral-200 hover:border-neutral-400 opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={getImageUrl(img, getFallbackForIndex(idx))}
+                        alt={`View ${idx + 1}`}
+                        onError={(e) => handleImageError(e, getFallbackForIndex(idx))}
+                        className="w-full h-full object-cover object-top"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* View all photos / Color gallery toggle */}
+              {activeColorImages.length > 0 && allGeneralImages.length > activeColorImages.length && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAllGalleryPhotos(!showAllGalleryPhotos);
+                    setActiveImageIndex(0);
+                  }}
+                  className="text-[10px] text-center font-bold text-accent-700 hover:text-primary transition-colors cursor-pointer py-1 px-1.5 rounded-lg bg-neutral-100/80 border border-neutral-200/80 hover:bg-neutral-200/70"
+                >
+                  {showAllGalleryPhotos ? `Show ${selectedColor} only` : `View all (${allGeneralImages.length})`}
+                </button>
+              )}
+            </div>
 
             {/* Main Featured Image with 3:4 Aspect Ratio Guard */}
             <div
@@ -485,11 +507,11 @@ const ProductDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {allColors.map((color) => {
-                      const normCol = (color || '').trim().toLowerCase();
-                      const colorImg = product.colorImages?.find(
+                      const colorMatch = product.colorImages?.find(
                         (ci) => (ci.color || '').trim().toLowerCase() === normCol
-                      )?.image || product.variants?.find(
-                        (v) => (v.color || '').trim().toLowerCase() === normCol && v.image
+                      );
+                      const colorImg = colorMatch?.image || colorMatch?.images?.[0] || product.variants?.find(
+                        (v) => (v.color || '').trim().toLowerCase() === normCol && (v.image || v.images?.[0])
                       )?.image;
 
                       const colorStock = hasVariants

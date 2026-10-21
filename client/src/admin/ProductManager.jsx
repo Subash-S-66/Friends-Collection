@@ -85,7 +85,7 @@ const ProductManager = () => {
     { color: 'Maroon', size: 'L', stock: 5, sku: 'FC-MRN-L', image: '' },
     { color: 'Maroon', size: 'XL', stock: 5, sku: 'FC-MRN-XL', image: '' },
   ]);
-  const [colorImages, setColorImages] = useState([{ color: 'Maroon', image: '' }]);
+  const [colorImages, setColorImages] = useState([{ color: 'Maroon', image: '', images: [] }]);
   const [quickColorInput, setQuickColorInput] = useState('');
   const [tags, setTags] = useState(['new-arrival']);
   const [images, setImages] = useState([]);
@@ -125,24 +125,78 @@ const ProductManager = () => {
     return ref;
   };
 
-  const getColorPhoto = (colorName) => {
-    if (!colorName) return '';
+  const getColorPhotos = (colorName) => {
+    if (!colorName) return [];
     const norm = colorName.trim().toLowerCase();
     const found = colorImages.find((ci) => (ci.color || '').trim().toLowerCase() === norm);
-    return found?.image || '';
+    if (found) {
+      if (Array.isArray(found.images) && found.images.length > 0) return found.images;
+      if (found.image) return [found.image];
+    }
+    return [];
+  };
+
+  const getColorPhoto = (colorName) => {
+    const photos = getColorPhotos(colorName);
+    return photos[0] || '';
+  };
+
+  const handleToggleColorPhoto = (colorName, photoRef) => {
+    const norm = (colorName || '').trim().toLowerCase();
+    setColorImages((prev) => {
+      const idx = prev.findIndex((ci) => (ci.color || '').trim().toLowerCase() === norm);
+      let currentItem = idx >= 0 ? prev[idx] : { color: colorName.trim(), image: '', images: [] };
+      let curImages = Array.isArray(currentItem.images) && currentItem.images.length > 0
+        ? [...currentItem.images]
+        : (currentItem.image ? [currentItem.image] : []);
+
+      if (curImages.includes(photoRef)) {
+        curImages = curImages.filter((r) => r !== photoRef);
+      } else {
+        curImages.push(photoRef);
+      }
+
+      const primary = curImages[0] || '';
+      const updatedItem = {
+        ...currentItem,
+        color: colorName.trim(),
+        image: primary,
+        images: curImages
+      };
+
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updatedItem;
+        return next;
+      }
+      return [...prev, updatedItem];
+    });
+  };
+
+  const handleSetPrimaryColorPhoto = (colorName, photoRef) => {
+    const norm = (colorName || '').trim().toLowerCase();
+    setColorImages((prev) => {
+      const idx = prev.findIndex((ci) => (ci.color || '').trim().toLowerCase() === norm);
+      if (idx < 0) return prev;
+      const currentItem = prev[idx];
+      let curImages = Array.isArray(currentItem.images) && currentItem.images.length > 0
+        ? [...currentItem.images]
+        : (currentItem.image ? [currentItem.image] : []);
+      if (!curImages.includes(photoRef)) curImages.push(photoRef);
+      curImages = [photoRef, ...curImages.filter((r) => r !== photoRef)];
+      const next = [...prev];
+      next[idx] = {
+        ...currentItem,
+        image: photoRef,
+        images: curImages
+      };
+      return next;
+    });
   };
 
   const handleColorImageChange = (colorName, imageRef) => {
-    const norm = (colorName || '').trim().toLowerCase();
-    setColorImages((prev) => {
-      const existingIdx = prev.findIndex((ci) => (ci.color || '').trim().toLowerCase() === norm);
-      if (existingIdx >= 0) {
-        const next = [...prev];
-        next[existingIdx] = { ...next[existingIdx], image: imageRef };
-        return next;
-      }
-      return [...prev, { color: colorName.trim(), image: imageRef }];
-    });
+    if (!imageRef) return;
+    handleSetPrimaryColorPhoto(colorName, imageRef);
   };
 
   const isKids = gender === 'kids';
@@ -218,7 +272,7 @@ const ProductManager = () => {
     setSelectedColors(['Maroon']);
     setCustomSizesList([]);
     setCustomSizeInput('');
-    setColorImages([{ color: 'Maroon', image: '' }]);
+    setColorImages([{ color: 'Maroon', image: '', images: [] }]);
     setVariants(
       initialSizes.map((sz) => ({
         color: 'Maroon',
@@ -278,11 +332,24 @@ const ProductManager = () => {
 
     // Populate colorImages with existing or fallback
     const loadedColorImages = Array.isArray(prod.colorImages) && prod.colorImages.length > 0
-      ? prod.colorImages.map((ci) => ({ color: ci.color || '', image: ci.image || '' }))
-      : (prod.colors && prod.colors.length > 0 ? prod.colors : ['Maroon']).map((c, i) => ({
-          color: c,
-          image: cleanExisting[i] || cleanExisting[0] || ''
-        }));
+      ? prod.colorImages.map((ci) => {
+          const imgs = Array.isArray(ci.images) && ci.images.length > 0
+            ? ci.images
+            : (ci.image ? [ci.image] : []);
+          return {
+            color: ci.color || '',
+            image: ci.image || imgs[0] || '',
+            images: imgs
+          };
+        })
+      : (prod.colors && prod.colors.length > 0 ? prod.colors : ['Maroon']).map((c, i) => {
+          const fallbackImg = cleanExisting[i] || cleanExisting[0] || '';
+          return {
+            color: c,
+            image: fallbackImg,
+            images: fallbackImg ? [fallbackImg] : []
+          };
+        });
     setColorImages(loadedColorImages);
 
     // Populate variant stock matrix
@@ -764,10 +831,14 @@ const ProductManager = () => {
       const sanitizedColorImages = (distinctColors.length > 0 ? distinctColors : ['Standard']).map((color, idx) => {
         const norm = color.toLowerCase();
         const existing = colorImages.find((ci) => (ci.color || '').trim().toLowerCase() === norm);
-        const chosenImage = existing?.image || allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
+        const imagesList = Array.isArray(existing?.images) && existing.images.length > 0
+          ? existing.images
+          : (existing?.image ? [existing.image] : (allPhotoPool[idx]?.ref ? [allPhotoPool[idx].ref] : [allPhotoPool[0]?.ref]).filter(Boolean));
+        const chosenImage = existing?.image || imagesList[0] || allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
         return {
           color,
-          image: chosenImage
+          image: chosenImage,
+          images: imagesList
         };
       });
       formData.append('colorImages', JSON.stringify(sanitizedColorImages));
@@ -1979,34 +2050,17 @@ const ProductManager = () => {
                 {distinctModalColors.length === 0 ? (
                   <p className="text-xs text-neutral-400 italic">No colors defined yet.</p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {distinctModalColors.map((colorName, idx) => {
-                      const assignedRef = getColorPhoto(colorName) || allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
-                      const previewUrl = resolvePreviewUrl(assignedRef) || (allPhotoPool[0]?.url || '');
-
+                      const assignedPhotos = getColorPhotos(colorName);
                       return (
                         <div
                           key={colorName}
-                          className="p-3 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center gap-3 shadow-2xs hover:border-neutral-300 transition-colors"
+                          className="p-3.5 rounded-2xl border border-neutral-200 bg-neutral-50/80 space-y-2.5 shadow-2xs hover:border-neutral-300 transition-colors"
                         >
-                          {/* Photo Preview Thumbnail */}
-                          <div className="w-12 h-16 rounded-lg overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 relative aspect-[3/4]">
-                            {previewUrl ? (
-                              <img
-                                src={getImageUrl(previewUrl)}
-                                alt={colorName}
-                                onError={(e) => handleImageError(e, '/fallback-product.png')}
-                                className="w-full h-full object-cover object-top"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400">
-                                No Photo
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center justify-between gap-1">
+                          {/* Color Title and Badge */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
                               <span className="text-xs font-bold text-neutral-900 truncate">
                                 {colorName}
                               </span>
@@ -2014,22 +2068,129 @@ const ProductManager = () => {
                                 #{idx + 1}
                               </span>
                             </div>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border shrink-0 ${
+                              assignedPhotos.length > 0
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                            }`}>
+                              {assignedPhotos.length > 0
+                                ? `${assignedPhotos.length} photo${assignedPhotos.length > 1 ? 's' : ''}`
+                                : '0 photos'}
+                            </span>
+                          </div>
 
-                            <select
-                              value={assignedRef}
-                              onChange={(e) => handleColorImageChange(colorName, e.target.value)}
-                              className="w-full px-2 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-medium text-neutral-800 focus:ring-2 focus:ring-primary shadow-2xs cursor-pointer"
-                            >
-                              {allPhotoPool.length === 0 ? (
-                                <option value="">Upload photos first</option>
-                              ) : (
-                                allPhotoPool.map((p) => (
-                                  <option key={p.id} value={p.ref}>
-                                    {p.label}
-                                  </option>
-                                ))
-                              )}
-                            </select>
+                          {/* Assigned Photos Thumbnail Strip */}
+                          {assignedPhotos.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 pt-0.5">
+                              {assignedPhotos.map((photoRef, pIdx) => {
+                                const previewUrl = resolvePreviewUrl(photoRef);
+                                const isCover = pIdx === 0;
+                                return (
+                                  <div
+                                    key={pIdx}
+                                    className="relative group w-14 h-18 rounded-lg overflow-hidden border border-neutral-300 bg-white aspect-[3/4] shrink-0 shadow-2xs"
+                                  >
+                                    <img
+                                      src={getImageUrl(previewUrl)}
+                                      alt={`${colorName} ${pIdx + 1}`}
+                                      onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                      className="w-full h-full object-cover object-top"
+                                    />
+                                    {isCover ? (
+                                      <span className="absolute top-1 left-1 bg-primary text-white text-[8px] font-black px-1 py-0.2 rounded shadow-xs">
+                                        Cover
+                                      </span>
+                                    ) : (
+                                      <span className="absolute top-1 left-1 bg-neutral-900/70 text-white text-[8px] font-mono px-1 rounded">
+                                        #{pIdx + 1}
+                                      </span>
+                                    )}
+                                    {/* Quick Hover Actions Overlay */}
+                                    <div className="absolute inset-0 bg-neutral-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-0.5">
+                                      {!isCover && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSetPrimaryColorPhoto(colorName, photoRef)}
+                                          className="px-1 py-0.5 rounded bg-white text-neutral-900 text-[8px] font-bold hover:bg-neutral-100 cursor-pointer shadow-xs"
+                                          title="Set as Cover Photo for this color"
+                                        >
+                                          ★ Cover
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleColorPhoto(colorName, photoRef)}
+                                        className="p-1 rounded-full bg-red-600 text-white hover:bg-red-700 cursor-pointer shadow-xs"
+                                        title="Remove photo from this color"
+                                      >
+                                        <HiOutlineX className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl border border-dashed border-neutral-300 bg-white/70 text-center">
+                              <p className="text-[11px] text-neutral-500 font-medium">No photos selected for {colorName}.</p>
+                              <p className="text-[10px] text-neutral-400">Click photos in the tray below to attach them.</p>
+                            </div>
+                          )}
+
+                          {/* Quick Interactive Photo Tray */}
+                          <div className="pt-2 border-t border-neutral-200/80 space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="font-bold text-neutral-600 uppercase tracking-wider">
+                                Click photo to toggle for {colorName}:
+                              </span>
+                              <span className="text-neutral-400 font-mono">
+                                {allPhotoPool.length} available
+                              </span>
+                            </div>
+
+                            {allPhotoPool.length === 0 ? (
+                              <p className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                                Please upload photos in the Photos section first.
+                              </p>
+                            ) : (
+                              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                                {allPhotoPool.map((p, pIdx) => {
+                                  const isSelected = assignedPhotos.includes(p.ref);
+                                  return (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => handleToggleColorPhoto(colorName, p.ref)}
+                                      className={`relative w-12 h-16 rounded-lg overflow-hidden border-2 shrink-0 aspect-[3/4] transition-all cursor-pointer group ${
+                                        isSelected
+                                          ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                                          : 'border-neutral-200 opacity-60 hover:opacity-100 hover:border-neutral-400'
+                                      }`}
+                                      title={`Click to ${isSelected ? 'remove' : 'add'} ${p.label} to ${colorName}`}
+                                    >
+                                      <img
+                                        src={getImageUrl(p.url)}
+                                        alt={p.label}
+                                        onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                        className="w-full h-full object-cover object-top"
+                                      />
+                                      <span className="absolute bottom-0 inset-x-0 bg-neutral-900/80 text-white text-[8px] font-mono text-center truncate px-0.5">
+                                        #{pIdx + 1}
+                                      </span>
+                                      {isSelected ? (
+                                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                                          <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                                        </div>
+                                      ) : (
+                                        <div className="absolute inset-0 bg-neutral-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold">
+                                          + Add
+                                        </div>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

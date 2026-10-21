@@ -285,12 +285,12 @@ export const CartProvider = ({ children }) => {
 
     // Resolve variant or color specific image
     let resolvedVariantImage = '';
-    if (match && match.image) {
-      resolvedVariantImage = match.image;
+    if (match && (match.image || match.images?.[0])) {
+      resolvedVariantImage = match.image || match.images[0];
     } else if (targetColor && product.colorImages && product.colorImages.length > 0) {
       const colorMatch = product.colorImages.find((ci) => norm(ci.color) === targetColor);
-      if (colorMatch && colorMatch.image) {
-        resolvedVariantImage = colorMatch.image;
+      if (colorMatch) {
+        resolvedVariantImage = colorMatch.image || (Array.isArray(colorMatch.images) ? colorMatch.images[0] : '');
       }
     }
     if (!resolvedVariantImage) {
