@@ -108,7 +108,9 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       // 1. TOP HEADER BANNER (Page 1)
       // ==========================================
-      doc.rect(0, 0, doc.page.width, 92).fill(PRIMARY);
+      // 1. TOP HEADER BANNER (Page 1)
+      // ==========================================
+      doc.rect(0, 0, doc.page.width, 94).fill(PRIMARY);
 
       // Check for store logo image
       const possibleLogoPaths = [
@@ -126,63 +128,94 @@ async function generateInvoicePdf(order, customSettings = null) {
       let textStartX = 32;
       if (resolvedLogo) {
         try {
-          doc.roundedRect(32, 15, 62, 62, 8).fillAndStroke('#FFFFFF', ACCENT);
-          doc.image(resolvedLogo, 35, 18, { fit: [56, 56], align: 'center', valign: 'center' });
-          textStartX = 104;
+          doc.roundedRect(32, 14, 64, 64, 8).fillAndStroke('#FFFFFF', ACCENT);
+          doc.image(resolvedLogo, 36, 18, { fit: [56, 56], align: 'center', valign: 'center' });
+          textStartX = 106;
         } catch (logoErr) {
           console.warn('Could not draw logo in PDF:', logoErr.message);
           textStartX = 32;
         }
       }
 
-      // Store Title
-      doc.fillColor('#FFFFFF')
-        .font('Helvetica-Bold')
-        .fontSize(textStartX > 32 ? 18 : 20)
-        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), textStartX, 18, { characterSpacing: 1.1 });
-
-      // Tagline
-      doc.fillColor('#E2BFB3')
-        .font('Helvetica')
-        .fontSize(7.5)
-        .text((cfg.tagline || 'TRADITIONAL SILK SAREES • DESIGNER KURTIS • LEHENGAS • KIDS WEAR').toUpperCase(), textStartX, 40, {
-          characterSpacing: 0.6,
-          width: doc.page.width - textStartX - 200,
-          lineBreak: false
-        });
-
-      // Contact & Address
-      const contactLine = `${cfg.address || '7/4 Perambur High Road, Jamalia, Chennai – 600012'} | Phone: ${cfg.phone || '+91 95007 57024'}`;
-      doc.fillColor('#F5EDE4')
-        .font('Helvetica')
-        .fontSize(7.2)
-        .text(contactLine, textStartX, 53, { width: doc.page.width - textStartX - 200, lineBreak: false });
-
-      if (cfg.email) {
-        doc.fillColor('#E2BFB3')
-          .font('Helvetica')
-          .fontSize(7)
-          .text(`Email: ${cfg.email}`, textStartX, 66);
-      }
-
       // Invoice Badge on Top Right
-      doc.rect(doc.page.width - 190, 16, 158, 60).fillAndStroke('#2E060C', ACCENT);
+      const badgeWidth = 142;
+      const badgeHeight = 64;
+      const badgeX = doc.page.width - 32 - badgeWidth;
+      const badgeY = 14;
+
+      doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 6).fillAndStroke('#2E060C', ACCENT);
       const shortTitle = (cfg.invoiceTitle || 'TAX INVOICE').split('&')[0].trim();
       doc.fillColor('#FFFFFF')
         .font('Helvetica-Bold')
-        .fontSize(9)
-        .text(shortTitle, doc.page.width - 180, 23, { align: 'center', width: 138 });
+        .fontSize(8.5)
+        .text(shortTitle, badgeX, badgeY + 10, { align: 'center', width: badgeWidth, lineBreak: false });
 
       doc.fillColor('#D4AF37')
         .font('Helvetica-Bold')
-        .fontSize(10.5)
-        .text(order.orderId || 'FC-ORDER', doc.page.width - 180, 38, { align: 'center', width: 138 });
+        .fontSize(10)
+        .text(order.orderId || 'FC-ORDER', badgeX, badgeY + 25, { align: 'center', width: badgeWidth, lineBreak: false });
 
       if (cfg.gstin) {
         doc.fillColor('#E2BFB3')
           .font('Helvetica')
-          .fontSize(7.5)
-          .text(`GSTIN: ${cfg.gstin}`, doc.page.width - 180, 54, { align: 'center', width: 138 });
+          .fontSize(7.2)
+          .text(`GSTIN: ${cfg.gstin}`, badgeX, badgeY + 42, { align: 'center', width: badgeWidth, lineBreak: false });
+      }
+
+      // Available width between logo and badge (with breathing room)
+      const headerTextRightLimit = badgeX - 12;
+      const maxTextWidth = Math.max(260, headerTextRightLimit - textStartX);
+
+      // Store Title
+      doc.fillColor('#FFFFFF')
+        .font('Helvetica-Bold')
+        .fontSize(textStartX > 32 ? 15.5 : 17.5)
+        .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), textStartX, 15, {
+          characterSpacing: 0.8,
+          width: maxTextWidth,
+          lineBreak: false,
+          ellipsis: true
+        });
+
+      // Tagline / Categories
+      doc.fillColor('#E2BFB3')
+        .font('Helvetica')
+        .fontSize(7)
+        .text((cfg.tagline || 'TRADITIONAL SILK SAREES • DESIGNER KURTIS • LEHENGAS • KIDS WEAR').toUpperCase(), textStartX, 35, {
+          characterSpacing: 0.1,
+          width: maxTextWidth,
+          lineBreak: false,
+          ellipsis: true
+        });
+
+      // Address
+      doc.fillColor('#F5EDE4')
+        .font('Helvetica')
+        .fontSize(7.2)
+        .text(cfg.address || '7/4 Perambur High Road, Jamalia, Chennai – 600012', textStartX, 48, {
+          width: maxTextWidth,
+          lineBreak: true,
+          height: 18,
+          ellipsis: true
+        });
+
+      // Contact Line: Phone & Email
+      const contactParts = [];
+      if (cfg.phone) contactParts.push(`Phone: ${cfg.phone}`);
+      if (cfg.email) contactParts.push(`Email: ${cfg.email}`);
+      const contactText = contactParts.join('   •   ');
+
+      if (contactText) {
+        const addressHeight = doc.heightOfString(cfg.address || '', { width: maxTextWidth });
+        const contactY = Math.min(73, Math.max(61, 48 + addressHeight + 4));
+        doc.fillColor('#E2BFB3')
+          .font('Helvetica')
+          .fontSize(7.2)
+          .text(contactText, textStartX, contactY, {
+            width: maxTextWidth,
+            lineBreak: false,
+            ellipsis: true
+          });
       }
 
       // ==========================================
@@ -205,19 +238,19 @@ async function generateInvoicePdf(order, customSettings = null) {
       doc.fillColor(DARK)
         .font('Helvetica-Bold')
         .fontSize(9.5)
-        .text(customer.name || 'Valued Customer', 44, boxY + 24);
+        .text(customer.name || 'Valued Customer', 44, boxY + 24, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
         .fontSize(8)
-        .text(addr.street || '', 44, boxY + 38, { width: boxWidth - 24 })
-        .text(`${addr.city || 'Chennai'}, ${addr.state || 'Tamil Nadu'} - ${addr.pincode || ''}`, 44, boxY + 50)
-        .text(`Primary Phone: +91 ${customer.phone || ''}`, 44, boxY + 63);
+        .text(addr.street || '', 44, boxY + 38, { width: boxWidth - 24, lineBreak: false, ellipsis: true })
+        .text(`${addr.city || 'Chennai'}, ${addr.state || 'Tamil Nadu'} - ${addr.pincode || ''}`, 44, boxY + 50, { width: boxWidth - 24, lineBreak: false, ellipsis: true })
+        .text(`Primary Phone: +91 ${customer.phone || ''}`, 44, boxY + 63, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
 
       if (customer.secondaryPhone) {
-        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 76);
+        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 76, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       } else if (customer.email) {
-        doc.text(`Email: ${customer.email}`, 44, boxY + 76);
+        doc.text(`Email: ${customer.email}`, 44, boxY + 76, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       }
 
       // Right Box: Order & Payment Info
@@ -246,10 +279,10 @@ async function generateInvoicePdf(order, customSettings = null) {
 
       if (order.paymentDetails?.razorpayPaymentId) {
         doc.fillColor(MUTED).font('Helvetica').text('Transaction ID:', rightBoxX + 12, boxY + 77);
-        doc.fillColor(DARK).font('Helvetica').text(order.paymentDetails.razorpayPaymentId, rightBoxX + 88, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').text(order.paymentDetails.razorpayPaymentId, rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
       } else {
         doc.fillColor(MUTED).font('Helvetica').text('Fulfillment:', rightBoxX + 12, boxY + 77);
-        doc.fillColor(DARK).font('Helvetica').text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 88, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
       }
 
       if (cfg.gstin) {
@@ -460,10 +493,10 @@ async function generateInvoicePdf(order, customSettings = null) {
       for (let i = range.start; i < range.start + totalPages; i++) {
         doc.switchToPage(i);
         if (totalPages > 1) {
-          doc.fillColor(i === 0 ? '#E2BFB3' : '#D4AF37')
-            .font('Helvetica-Bold')
-            .fontSize(7.5)
-            .text(`Page ${i + 1} of ${totalPages}`, doc.page.width - 100, i === 0 ? 76 : 28, { align: 'right', width: 68 });
+          doc.fillColor(MUTED)
+            .font('Helvetica')
+            .fontSize(7)
+            .text(`Page ${i + 1} of ${totalPages}`, doc.page.width - 120, doc.page.height - 22, { align: 'right', width: 88 });
         }
       }
 
