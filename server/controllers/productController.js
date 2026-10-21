@@ -394,13 +394,87 @@ exports.getHomepageBundle = async (req, res, next) => {
       return true;
     };
 
-    const filteredFeatured = (featured || []).filter(isProductVisible).slice(0, 12);
-    const filteredNewArrivals = (newArrivals || []).filter(isProductVisible).slice(0, 12);
+    let finalCategories = filteredCategories;
+    let finalFeatured = (featured || []).filter(isProductVisible).slice(0, 12);
+    let finalNewArrivals = (newArrivals || []).filter(isProductVisible).slice(0, 12);
+
+    // Support admin homepage curation (custom items and display order)
+    const curation = settings.homepageCuration;
+    if (curation && typeof curation === 'object') {
+      // 1. Categories Curation
+      if (
+        curation.categoriesSection?.mode === 'custom' &&
+        Array.isArray(curation.categoriesSection.selectedCategoryIds) &&
+        curation.categoriesSection.selectedCategoryIds.length > 0
+      ) {
+        const catIdOrder = curation.categoriesSection.selectedCategoryIds.map((id) => String(id));
+        const catMap = new Map((categories || []).map((c) => [String(c._id), c]));
+
+        const missingCatIds = catIdOrder.filter((id) => !catMap.has(id));
+        if (missingCatIds.length > 0) {
+          const extraCats = await Category.find({ _id: { $in: missingCatIds }, isActive: true })
+            .populate('parent', 'name slug gender isActive')
+            .lean();
+          extraCats.forEach((c) => catMap.set(String(c._id), c));
+        }
+
+        const orderedCats = catIdOrder
+          .map((id) => catMap.get(id))
+          .filter(Boolean)
+          .filter((c) => !isDeptHidden(c.gender));
+
+        if (orderedCats.length > 0) {
+          finalCategories = orderedCats;
+        }
+      }
+
+      // 2. Trending Products Curation
+      if (
+        curation.trendingSection?.mode === 'custom' &&
+        Array.isArray(curation.trendingSection.selectedProductIds) &&
+        curation.trendingSection.selectedProductIds.length > 0
+      ) {
+        const prodIdOrder = curation.trendingSection.selectedProductIds.map((id) => String(id));
+        const curProducts = await Product.find({ _id: { $in: prodIdOrder }, isActive: true })
+          .populate('category', 'name slug gender isActive parent')
+          .populate('subcategory', 'name slug gender isActive parent')
+          .lean();
+        const curMap = new Map(curProducts.map((p) => [String(p._id), p]));
+        const ordered = prodIdOrder
+          .map((id) => curMap.get(id))
+          .filter(Boolean)
+          .filter(isProductVisible);
+        if (ordered.length > 0) {
+          finalFeatured = ordered;
+        }
+      }
+
+      // 3. New Arrivals Products Curation
+      if (
+        curation.newArrivalsSection?.mode === 'custom' &&
+        Array.isArray(curation.newArrivalsSection.selectedProductIds) &&
+        curation.newArrivalsSection.selectedProductIds.length > 0
+      ) {
+        const prodIdOrder = curation.newArrivalsSection.selectedProductIds.map((id) => String(id));
+        const curProducts = await Product.find({ _id: { $in: prodIdOrder }, isActive: true })
+          .populate('category', 'name slug gender isActive parent')
+          .populate('subcategory', 'name slug gender isActive parent')
+          .lean();
+        const curMap = new Map(curProducts.map((p) => [String(p._id), p]));
+        const ordered = prodIdOrder
+          .map((id) => curMap.get(id))
+          .filter(Boolean)
+          .filter(isProductVisible);
+        if (ordered.length > 0) {
+          finalNewArrivals = ordered;
+        }
+      }
+    }
 
     res.json({
-      categories: filteredCategories,
-      featured: filteredFeatured,
-      newArrivals: filteredNewArrivals,
+      categories: finalCategories,
+      featured: finalFeatured,
+      newArrivals: finalNewArrivals,
       settings: settings || {},
       banners: banners || []
     });

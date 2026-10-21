@@ -70,14 +70,26 @@ const OrderConfirmation = () => {
 
   const handleDownloadPdf = async () => {
     if (!order?.orderId) return;
-    await confirmDownload({
-      title: 'Download Tax Invoice?',
-      message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
-      orderId: order.orderId,
-      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
-      fileName: `Invoice-${order.orderId}.pdf`,
-      details: `Friends Collections • Order #${order.orderId}`
-    });
+    setDownloadingPdf(true);
+    toast.success('Downloading Tax Invoice PDF...', { icon: '📄', id: 'confirm-dl' });
+    try {
+      const downloadUrl = `/api/orders/${order.orderId}/invoice.pdf`;
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${order.orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      window.open(`/api/orders/${order.orderId}/invoice.pdf`, '_blank');
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   if (loading) {

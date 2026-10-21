@@ -10,6 +10,7 @@ import {
   HiOutlineChevronDown,
   HiOutlineChevronUp,
   HiOutlineExclamationCircle,
+  HiOutlineCheck,
   HiOutlineCheckCircle,
   HiOutlineBell,
   HiOutlineArrowLeft,
@@ -92,6 +93,8 @@ const ProductManager = () => {
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [editingVariantPhotoIdx, setEditingVariantPhotoIdx] = useState(null);
+  const [editingColorTarget, setEditingColorTarget] = useState(null);
+  const [editingColorInput, setEditingColorInput] = useState('');
 
   // Pagination states (10 / 20 / 30 per table)
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -351,6 +354,8 @@ const ProductManager = () => {
   const openAddModal = (preselectedCatId = '') => {
     setEditingProduct(null);
     setEditingVariantPhotoIdx(null);
+    setEditingColorTarget(null);
+    setEditingColorInput('');
     setTitle('');
     setDescription('');
     const catToUse = preselectedCatId || selectedCat || parentCategories[0]?._id || '';
@@ -391,6 +396,8 @@ const ProductManager = () => {
   const openEditModal = (prod) => {
     setEditingProduct(prod);
     setEditingVariantPhotoIdx(null);
+    setEditingColorTarget(null);
+    setEditingColorInput('');
     setTitle(prod.title);
     setDescription(prod.description || '');
     setIsActive(prod.isActive !== false);
@@ -642,6 +649,116 @@ const ProductManager = () => {
       `Auto-generated ${newRows.length} variant(s) for "${trimmed}"! Please enter stock quantities (0 is allowed, but not empty).`,
       { icon: '🎨' }
     );
+  };
+
+  // Edit / Rename Color across variants, selectedColors, and colorImages
+  const handleSaveEditColor = (oldColorName, newColorInput) => {
+    const trimmedNew = (newColorInput || '').trim();
+    if (!trimmedNew) {
+      toast.error('Color name cannot be empty');
+      return;
+    }
+    if (trimmedNew.toLowerCase() === oldColorName.trim().toLowerCase()) {
+      setEditingColorTarget(null);
+      setEditingColorInput('');
+      return;
+    }
+
+    const oldNorm = oldColorName.trim().toLowerCase();
+
+    // Check if new color already exists in distinctModalColors
+    const alreadyExists = distinctModalColors.some(
+      (c) => c.trim().toLowerCase() === trimmedNew.toLowerCase() && c.trim().toLowerCase() !== oldNorm
+    );
+    if (alreadyExists) {
+      toast.error(`Color "${trimmedNew}" already exists.`);
+      return;
+    }
+
+    // 1. Update in variants
+    setVariants((prev) =>
+      prev.map((v) => {
+        if ((v.color || '').trim().toLowerCase() === oldNorm) {
+          const oldColorCode = oldColorName.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const newColorCode = trimmedNew.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+          let updatedSku = v.sku;
+          if (oldColorCode && newColorCode && v.sku?.includes(oldColorCode)) {
+            updatedSku = v.sku.replace(oldColorCode, newColorCode);
+          }
+          return {
+            ...v,
+            color: trimmedNew,
+            sku: updatedSku
+          };
+        }
+        return v;
+      })
+    );
+
+    // 2. Update in selectedColors
+    setSelectedColors((prev) =>
+      prev.map((c) => ((c || '').trim().toLowerCase() === oldNorm ? trimmedNew : c))
+    );
+
+    // 3. Update in colorImages
+    setColorImages((prev) =>
+      prev.map((ci) => {
+        if ((ci.color || '').trim().toLowerCase() === oldNorm) {
+          return {
+            ...ci,
+            color: trimmedNew
+          };
+        }
+        return ci;
+      })
+    );
+
+    setEditingColorTarget(null);
+    setEditingColorInput('');
+    toast.success(`Renamed "${oldColorName}" to "${trimmedNew}"!`);
+  };
+
+  // Delete Color and all its associated variants & photo assignments
+  const handleDeleteColor = async (colorName) => {
+    if (!colorName) return;
+    const norm = colorName.trim().toLowerCase();
+    const matchingVariants = variants.filter(
+      (v) => (v.color || '').trim().toLowerCase() === norm
+    );
+
+    const ok = await confirm({
+      title: `Delete Color "${colorName}"?`,
+      message: matchingVariants.length > 0
+        ? `This will delete color "${colorName}", remove all ${matchingVariants.length} associated size variant(s), and detach its photo assignments.`
+        : `Are you sure you want to remove color "${colorName}"?`,
+      type: 'danger',
+      confirmText: `Yes, Delete ${colorName}`,
+      cancelText: 'Cancel'
+    });
+
+    if (!ok) return;
+
+    // 1. Remove from variants
+    setVariants((prev) =>
+      prev.filter((v) => (v.color || '').trim().toLowerCase() !== norm)
+    );
+
+    // 2. Remove from selectedColors
+    setSelectedColors((prev) =>
+      prev.filter((c) => (c || '').trim().toLowerCase() !== norm)
+    );
+
+    // 3. Remove from colorImages
+    setColorImages((prev) =>
+      prev.filter((ci) => (ci.color || '').trim().toLowerCase() !== norm)
+    );
+
+    if (editingColorTarget === colorName) {
+      setEditingColorTarget(null);
+      setEditingColorInput('');
+    }
+
+    toast.success(`Deleted color "${colorName}" and its variants.`);
   };
 
   // Add / Remove Variant Row
@@ -2146,16 +2263,83 @@ const ProductManager = () => {
                           key={colorName}
                           className="p-3.5 rounded-2xl border border-neutral-200 bg-neutral-50/80 space-y-2.5 shadow-2xs hover:border-neutral-300 transition-colors"
                         >
-                          {/* Color Title and Badge */}
+                          {/* Color Title and Badge with Edit / Delete Actions */}
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-xs font-bold text-neutral-900 truncate">
-                                {colorName}
-                              </span>
-                              <span className="text-[10px] text-neutral-400 font-mono">
-                                #{idx + 1}
-                              </span>
-                            </div>
+                            {editingColorTarget === colorName ? (
+                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                <input
+                                  type="text"
+                                  value={editingColorInput}
+                                  onChange={(e) => setEditingColorInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveEditColor(colorName, editingColorInput);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingColorTarget(null);
+                                      setEditingColorInput('');
+                                    }
+                                  }}
+                                  autoFocus
+                                  placeholder="Color name..."
+                                  className="px-2.5 py-1 rounded-xl border border-primary text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 w-full max-w-[170px]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditColor(colorName, editingColorInput)}
+                                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                                  title="Save color name"
+                                >
+                                  <HiOutlineCheck className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingColorTarget(null);
+                                    setEditingColorInput('');
+                                  }}
+                                  className="p-1.5 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-neutral-700 cursor-pointer"
+                                  title="Cancel"
+                                >
+                                  <HiOutlineX className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs font-bold text-neutral-900 truncate" title={colorName}>
+                                    {colorName}
+                                  </span>
+                                  <span className="text-[10px] text-neutral-400 font-mono">
+                                    #{idx + 1}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingColorTarget(colorName);
+                                      setEditingColorInput(colorName);
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-neutral-600 hover:text-primary bg-white hover:bg-neutral-100 border border-neutral-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                                    title={`Edit / Rename "${colorName}"`}
+                                  >
+                                    <HiOutlinePencil className="w-3 h-3 text-neutral-500" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteColor(colorName)}
+                                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-red-600 hover:text-red-700 bg-white hover:bg-red-50 border border-neutral-200 hover:border-red-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                                    title={`Delete "${colorName}" and its variants`}
+                                  >
+                                    <HiOutlineTrash className="w-3 h-3 text-red-500" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border shrink-0 ${
                               assignedPhotos.length > 0
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'

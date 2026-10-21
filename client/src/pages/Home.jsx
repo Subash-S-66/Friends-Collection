@@ -268,24 +268,68 @@ const Home = () => {
   );
 
   const displayedCategories = useMemo(() => {
+    const catCuration = settings?.homepageCuration?.categoriesSection;
+    if (
+      catCuration?.mode === 'custom' &&
+      Array.isArray(catCuration.selectedCategoryIds) &&
+      catCuration.selectedCategoryIds.length > 0
+    ) {
+      const catMap = new Map((categories || []).map((c) => [String(c._id), c]));
+      const ordered = catCuration.selectedCategoryIds
+        .map((id) => catMap.get(String(id)))
+        .filter(Boolean)
+        .filter((c) => !hiddenDepartments.includes((c.gender || '').toLowerCase()));
+
+      if (selectedGender !== 'all') {
+        return ordered
+          .filter((c) => c.gender === selectedGender || c.gender === 'all' || !c.gender)
+          .slice(0, 16);
+      }
+      return ordered.slice(0, 16);
+    }
+
     return selectedGender === 'all'
       ? interleaveByDepartment(rootCategories, 10)
       : rootCategories
           .filter((c) => c.gender === selectedGender || c.gender === 'all' || !c.gender)
           .slice(0, 10);
-  }, [rootCategories, selectedGender]);
+  }, [rootCategories, categories, selectedGender, settings?.homepageCuration?.categoriesSection, hiddenDepartments]);
 
-  // Interleave featured/trending products: strictly max 2 rows on desktop (8 items on 4-col grid)
-  const displayedFeatured = useMemo(
-    () => interleaveByDepartment(featured, 8),
-    [featured]
-  );
+  // Interleave featured/trending products: strictly max 2 rows on desktop by default (8 items on 4-col grid)
+  const displayedFeatured = useMemo(() => {
+    const trendCuration = settings?.homepageCuration?.trendingSection;
+    if (
+      trendCuration?.mode === 'custom' &&
+      Array.isArray(trendCuration.selectedProductIds) &&
+      trendCuration.selectedProductIds.length > 0
+    ) {
+      const prodMap = new Map((featured || []).map((p) => [String(p._id), p]));
+      const ordered = trendCuration.selectedProductIds
+        .map((id) => prodMap.get(String(id)))
+        .filter(Boolean)
+        .filter((p) => !hiddenDepartments.includes((p.gender || p.category?.gender || '').toLowerCase()));
+      if (ordered.length > 0) return ordered.slice(0, 16);
+    }
+    return interleaveByDepartment(featured, 8);
+  }, [featured, settings?.homepageCuration?.trendingSection, hiddenDepartments]);
 
-  // Interleave new arrivals products: strictly max 2 rows on desktop (8 items on 4-col grid)
-  const displayedNewArrivals = useMemo(
-    () => interleaveByDepartment(newArrivals, 8),
-    [newArrivals]
-  );
+  // Interleave new arrivals products: strictly max 2 rows on desktop by default (8 items on 4-col grid)
+  const displayedNewArrivals = useMemo(() => {
+    const newCuration = settings?.homepageCuration?.newArrivalsSection;
+    if (
+      newCuration?.mode === 'custom' &&
+      Array.isArray(newCuration.selectedProductIds) &&
+      newCuration.selectedProductIds.length > 0
+    ) {
+      const prodMap = new Map((newArrivals || []).map((p) => [String(p._id), p]));
+      const ordered = newCuration.selectedProductIds
+        .map((id) => prodMap.get(String(id)))
+        .filter(Boolean)
+        .filter((p) => !hiddenDepartments.includes((p.gender || p.category?.gender || '').toLowerCase()));
+      if (ordered.length > 0) return ordered.slice(0, 16);
+    }
+    return interleaveByDepartment(newArrivals, 8);
+  }, [newArrivals, settings?.homepageCuration?.newArrivalsSection, hiddenDepartments]);
 
   // Check if admin enabled Carousel Mode in Settings (Image Box Carousel is Default)
   const isCarouselEnabled = settings?.heroCarouselEnabled !== undefined ? Boolean(settings.heroCarouselEnabled) : true;
@@ -735,10 +779,10 @@ const Home = () => {
           <section className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
               <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold">
-                Explore Collections
+                {settings?.homepageCuration?.categoriesSection?.subtitle || 'Explore Collections'}
               </span>
               <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-                Shop by Department & Category
+                {settings?.homepageCuration?.categoriesSection?.title || 'Shop by Department & Category'}
               </h2>
               <div className="w-16 h-0.5 bg-accent-400 mx-auto rounded-full mt-2" />
             </div>
@@ -874,10 +918,10 @@ const Home = () => {
               <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
                 <div>
                   <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold block">
-                    Handpicked Favorites
+                    {settings?.homepageCuration?.trendingSection?.subtitle || 'Handpicked Favorites'}
                   </span>
                   <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-                    Trending This Season
+                    {settings?.homepageCuration?.trendingSection?.title || 'Trending This Season'}
                   </h2>
                 </div>
                 <Link
@@ -928,10 +972,10 @@ const Home = () => {
             <div className="flex items-center justify-between mb-6 sm:mb-10 gap-4">
               <div>
                 <span className="text-xs uppercase tracking-[0.25em] text-accent-700 font-semibold block">
-                  Fresh Drops
+                  {settings?.homepageCuration?.newArrivalsSection?.subtitle || 'Fresh Drops'}
                 </span>
                 <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
-                  New Arrivals
+                  {settings?.homepageCuration?.newArrivalsSection?.title || 'New Arrivals'}
                 </h2>
               </div>
               <Link

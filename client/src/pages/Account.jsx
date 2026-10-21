@@ -141,8 +141,10 @@ const Account = () => {
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [detailOrder, setDetailOrder] = useState(null);
   const [trackingOrder, setTrackingOrder] = useState(null);
-  const [allOrdersModal, setAllOrdersModal] = useState({ isOpen: false, title: '', ordersList: [] });
-  const [allOrdersSearch, setAllOrdersSearch] = useState('');
+
+  // In-page search and status filter for Orders tab
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
   const fetchOrders = () => {
     if (!user) return;
@@ -514,208 +516,201 @@ const Account = () => {
     );
   };
 
-  // Render an individual Order Card
+  // Render an individual Order Card with clean, intuitive actions
   const renderOrderCard = (order) => {
     const totalWithShipping = (order.totalAmount || 0) + (order.shippingCharge || 0);
     const whatsappMsg = encodeURIComponent(
       `Hi Friends Collections! I am checking regarding my Order #${order.orderId}.`
     );
 
+    const items = order.items || [];
+    const displayItems = items.slice(0, 2);
+    const remainingCount = items.length - displayItems.length;
+
     return (
       <div
-        key={order._id}
-        className="bg-white rounded-3xl p-6 sm:p-8 border border-accent-100 shadow-sm space-y-5 transition-all hover:shadow-md hover:border-accent-200"
+        key={order._id || order.orderId}
+        className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 border border-accent-100/90 shadow-xs hover:shadow-md hover:border-accent-200 transition-all space-y-5"
       >
-        {/* Top Header */}
+        {/* 1. Header: Order ID, Date, Badges & Total */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-neutral-100 gap-3">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-mono font-bold text-base text-neutral-900">{order.orderId}</span>
-              {getFulfillmentBadge(order.status)}
-              {getPaymentBadge(order.paymentStatus, order.paymentMethod)}
-            </div>
-            <p className="text-xs text-neutral-500 mt-1">
-              Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="font-mono font-bold text-sm sm:text-base text-neutral-900 tracking-tight">
+              #{order.orderId}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleCopy(order.orderId)}
+              className="text-neutral-400 hover:text-primary p-1 transition-colors cursor-pointer"
+              title="Copy Order ID"
+            >
+              <HiOutlineClipboardCopy className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-neutral-300">•</span>
+            <span className="text-xs text-neutral-500">
+              {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+              })}
+            </span>
+            {getFulfillmentBadge(order.status)}
+            {getPaymentBadge(order.paymentStatus, order.paymentMethod)}
           </div>
 
-          <div className="flex items-center sm:text-right justify-between sm:justify-end gap-4">
-            <div>
-              <span className="text-xs text-neutral-500 block">Total Amount</span>
+          <div className="text-left sm:text-right">
+            <div className="flex items-baseline sm:justify-end gap-1.5">
+              <span className="text-[11px] text-neutral-500 font-medium">Total:</span>
               <span className="font-numeric text-lg sm:text-xl font-extrabold text-primary">
                 {formatPrice(totalWithShipping)}
               </span>
-              <span className="block text-[10px] text-neutral-400 font-medium uppercase">
-                {order.paymentMethod === 'razorpay' ? 'Online (Razorpay)' : (order.paymentMethod === 'cod' ? 'Cash on Delivery' : (order.paymentMethod || 'COD'))}
-              </span>
             </div>
-
-            <button
-              onClick={() => setInvoiceOrder(order)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-              title="Download or Print Tax Invoice"
-            >
-              <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-              <span>Invoice</span>
-            </button>
+            <span className="block text-[10px] text-neutral-400 font-medium uppercase tracking-wider">
+              {order.paymentMethod === 'razorpay'
+                ? 'Online (Razorpay)'
+                : order.paymentMethod === 'cod'
+                ? 'Cash on Delivery'
+                : order.paymentMethod || 'COD'}
+            </span>
           </div>
         </div>
 
-        {/* Courier & Tracking Bar */}
-        <div className="p-4 rounded-2xl bg-cream-light/80 border border-accent-200/80 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
-                <HiOutlineTruck className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-neutral-500 block">Logistics & Courier</span>
-                <span className="text-xs font-bold text-neutral-900">
-                  {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch (Jamalia Boutique)'}
-                </span>
-              </div>
+        {/* 2. Middle Section: Items list & Logistics summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Items Preview (Left / Main) */}
+          <div className="lg:col-span-7 space-y-3">
+            <div className="divide-y divide-neutral-100">
+              {displayItems.map((item, idx) => (
+                <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3.5">
+                  <img
+                    src={getImageUrl(item.image)}
+                    alt={item.title}
+                    onError={handleImageError}
+                    className="w-12 h-14 sm:w-14 sm:h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-neutral-900 truncate">
+                      {item.title}
+                    </h4>
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
+                      Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span>
+                      {item.size && ` • Size: ${item.size}`}
+                      {item.color && ` • Color: ${item.color}`}
+                    </p>
+                  </div>
+                  <span className="font-numeric text-xs sm:text-sm font-bold text-neutral-900 shrink-0">
+                    {formatPrice(item.price * item.quantity)}
+                  </span>
+                </div>
+              ))}
             </div>
 
-            {order.tracking?.estimatedDelivery && (
-              <div className="text-xs font-semibold text-primary">
-                Expected: <strong className="text-neutral-900">{order.tracking.estimatedDelivery}</strong>
-              </div>
-            )}
-          </div>
-
-          {order.tracking?.trackingNumber ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-accent-200/50">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-neutral-500">AWB / Waybill:</span>
-                <span className="font-mono font-bold text-neutral-900 bg-white px-2 py-0.5 rounded border border-accent-200">
-                  {order.tracking.trackingNumber}
-                </span>
-                <button
-                  onClick={() => handleCopy(order.tracking.trackingNumber)}
-                  className="text-primary hover:text-accent p-1 cursor-pointer"
-                  title="Copy Tracking Number"
-                >
-                  <HiOutlineClipboardCopy className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTrackingOrder(order)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-light text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer"
-                >
-                  <HiOutlineTruck className="w-3.5 h-3.5 text-accent-300" />
-                  <span>Track Status</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDetailOrder(order)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold cursor-pointer"
-                >
-                  <HiOutlineEye className="w-3 h-3" />
-                  <span>Details</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-accent-200/50 text-xs text-neutral-500">
-              <span>Packaging & quality inspection underway at Jamalia showroom</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTrackingOrder(order)}
-                  className="text-primary font-bold hover:underline text-xs flex items-center gap-1 cursor-pointer"
-                >
-                  <HiOutlineTruck className="w-3.5 h-3.5" />
-                  <span>Track Live Progress →</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDetailOrder(order)}
-                  className="text-neutral-600 hover:text-neutral-900 font-medium text-xs underline cursor-pointer"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Items Preview */}
-        <div className="divide-y divide-neutral-100">
-          {(order.items || []).slice(0, 5).map((item, idx) => (
-            <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-center gap-4">
-              <img
-                src={getImageUrl(item.image)}
-                alt={item.title}
-                onError={handleImageError}
-                className="w-14 h-16 object-cover object-top rounded-xl border border-accent-100 bg-neutral-50"
-              />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-neutral-900 truncate">{item.title}</h4>
-                <p className="text-xs text-neutral-500">
-                  Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
-                </p>
-              </div>
-              <span className="font-numeric text-xs sm:text-sm font-bold text-neutral-900">
-                {formatPrice(item.price * item.quantity)}
-              </span>
-            </div>
-          ))}
-
-          {order.items && order.items.length > 5 && (
-            <div className="pt-3 pb-1 flex items-center justify-between text-xs bg-accent-50/50 px-3.5 py-2.5 rounded-xl border border-accent-200/60 mt-2">
-              <span className="text-neutral-700 font-medium">
-                Showing 5 of {order.items.length} items (+{order.items.length - 5} more items in this order)
-              </span>
+            {remainingCount > 0 && (
               <button
                 type="button"
                 onClick={() => setDetailOrder(order)}
-                className="inline-flex items-center gap-1 font-bold text-primary hover:text-primary-light cursor-pointer hover:underline"
+                className="text-xs font-semibold text-primary hover:text-accent-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
               >
-                <span>View All Items</span>
+                <span>+{remainingCount} more item{remainingCount > 1 ? 's' : ''} in this order</span>
                 <HiOutlineArrowRight className="w-3.5 h-3.5" />
               </button>
+            )}
+          </div>
+
+          {/* Logistics Status Strip (Right) */}
+          <div className="lg:col-span-5 p-3.5 sm:p-4 rounded-2xl bg-cream-light/70 border border-accent-200/70 space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <HiOutlineTruck className="w-4 h-4 text-accent-700 shrink-0" />
+              <span className="font-bold text-neutral-900 truncate">
+                {order.tracking?.courier
+                  ? `Shipped via ${order.tracking.courier}`
+                  : 'Boutique Store Dispatch (Jamalia)'}
+              </span>
             </div>
-          )}
+
+            {order.tracking?.estimatedDelivery && (
+              <p className="text-[11px] text-neutral-600 pl-6">
+                Expected: <strong className="text-neutral-900">{order.tracking.estimatedDelivery}</strong>
+              </p>
+            )}
+
+            {order.tracking?.trackingNumber ? (
+              <div className="flex items-center gap-2 pl-6 pt-1">
+                <span className="text-[11px] text-neutral-500 font-medium">AWB:</span>
+                <span className="font-mono text-[11px] font-bold text-neutral-900 bg-white px-2 py-0.5 rounded border border-accent-200">
+                  {order.tracking.trackingNumber}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(order.tracking.trackingNumber)}
+                  className="text-primary hover:text-accent p-0.5 cursor-pointer"
+                  title="Copy Tracking Number"
+                >
+                  <HiOutlineClipboardCopy className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-neutral-500 pl-6 italic">
+                {order.status === 'delivered'
+                  ? 'Successfully delivered to customer'
+                  : 'Preparing & packing at boutique showroom'}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Footer Actions: Address, View Details, WhatsApp */}
-        <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-neutral-600">
-          <div className="flex items-center gap-2">
+        {/* 3. Footer: Address snippet & EXACTLY 3 clean, purposeful action buttons */}
+        <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
             <HiOutlineLocationMarker className="w-4 h-4 text-accent-700 shrink-0" />
-            <span className="truncate max-w-sm">
-              Deliver to: {order.customer?.name}, {order.customer?.address?.city} ({order.customer?.address?.pincode})
+            <span className="truncate max-w-xs sm:max-w-md">
+              {order.customer?.name ? `${order.customer.name} • ` : ''}
+              {order.customer?.address?.city || ''}
+              {order.customer?.address?.pincode ? ` (${order.customer.address.pincode})` : ''}
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap justify-end shrink-0">
+            {/* Primary Action: Track Order */}
             <button
-              onClick={() => setInvoiceOrder(order)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 font-bold transition-colors cursor-pointer text-xs"
-              title="View & Download Tax Invoice"
+              type="button"
+              onClick={() => setTrackingOrder(order)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
             >
-              <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-              <span>Tax Invoice</span>
+              <HiOutlineTruck className="w-3.5 h-3.5 text-accent-300" />
+              <span>Track Order</span>
             </button>
 
+            {/* Secondary Action: Order Details */}
             <button
+              type="button"
               onClick={() => setDetailOrder(order)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold transition-colors cursor-pointer"
             >
-              <HiOutlineEye className="w-4 h-4" />
-              <span>Order Details</span>
+              <HiOutlineEye className="w-3.5 h-3.5 text-neutral-600" />
+              <span>Details</span>
             </button>
 
+            {/* Single, clean Invoice action */}
+            <button
+              type="button"
+              onClick={() => setInvoiceOrder(order)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-colors cursor-pointer"
+              title="View & Download Invoice"
+            >
+              <HiOutlineDownload className="w-3.5 h-3.5 text-accent-700" />
+              <span>Invoice</span>
+            </button>
+
+            {/* Compact WhatsApp icon button */}
             <a
               href={`https://wa.me/919500757024?text=${whatsappMsg}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold hover:bg-emerald-100 transition-colors"
+              className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+              title="Need help? Chat with Boutique Support on WhatsApp"
             >
-              <FaWhatsapp className="w-4 h-4" />
-              <span>WhatsApp</span>
+              <FaWhatsapp className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
@@ -806,8 +801,8 @@ const Account = () => {
           </div>
         )}
 
-        {/* Tab Controls & Fast Search Bars */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-accent-200/60 pb-3 mb-8 gap-4">
+        {/* Tab Controls */}
+        <div className="border-b border-accent-200/60 pb-3 mb-8">
           <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
             {user && (
               <button
@@ -862,24 +857,6 @@ const Account = () => {
               </button>
             )}
           </div>
-
-          {/* Quick Search By Order ID */}
-          <form onSubmit={handleLookupOrder} className="flex items-center gap-2 w-full lg:w-auto">
-            <input
-              type="text"
-              placeholder="Find by Order ID (FC-...)"
-              value={lookupOrderId}
-              onChange={(e) => setLookupOrderId(e.target.value)}
-              className="px-3.5 py-2 text-xs font-mono rounded-xl border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-56"
-            />
-            <button
-              type="submit"
-              disabled={lookingUp}
-              className="px-3.5 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-light transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer shadow-xs"
-            >
-              {lookingUp ? 'Searching...' : 'Find Order'}
-            </button>
-          </form>
         </div>
 
         {/* Tab 1: Logged-in User Orders */}
@@ -888,6 +865,7 @@ const Account = () => {
             {loadingOrders ? (
               <div className="p-12 text-center">
                 <div className="w-10 h-10 border-4 border-accent-300 border-t-primary rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-neutral-500 mt-3 font-medium">Fetching your orders...</p>
               </div>
             ) : orders.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-accent-100 shadow-sm max-w-md mx-auto space-y-4">
@@ -896,7 +874,7 @@ const Account = () => {
                 </div>
                 <h3 className="font-serif text-xl font-bold text-neutral-900">No Orders in Account</h3>
                 <p className="text-sm text-neutral-500">
-                  If you ordered without logging in, click <strong>"Lookup by Mobile Number"</strong> above to find your orders!
+                  If you ordered without logging in, click <strong>"Lookup by Mobile"</strong> above to find your orders!
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                   <Link
@@ -915,33 +893,115 @@ const Account = () => {
               </div>
             ) : (
               <>
-                {orders.slice(0, 5).map(renderOrderCard)}
+                {/* Fast In-Page Search & Filter Controls */}
+                <div className="bg-white rounded-2xl p-3 sm:p-4 border border-accent-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <HiOutlineSearch className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      placeholder="Search by Order ID (FC-...), product name, or status..."
+                      className="w-full pl-10 pr-10 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-neutral-50/50 focus:bg-white transition-all"
+                    />
+                    {orderSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setOrderSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs font-bold cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
 
-                {orders.length > 5 && (
-                  <div className="bg-white rounded-3xl p-6 border border-accent-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left mt-2">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <HiOutlineShoppingBag className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-serif text-base sm:text-lg font-bold text-neutral-900">
-                          Showing 5 of {orders.length} Orders
-                        </h4>
-                        <p className="text-xs text-neutral-500">
-                          You have {orders.length - 5} older order{orders.length - 5 > 1 ? 's' : ''} in your account history.
-                        </p>
-                      </div>
-                    </div>
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 text-xs shrink-0">
                     <button
                       type="button"
-                      onClick={() => setAllOrdersModal({ isOpen: true, title: 'My Account Orders', ordersList: orders })}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                      onClick={() => setOrderStatusFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        orderStatusFilter === 'all'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                      }`}
                     >
-                      <HiOutlineEye className="w-4 h-4 text-accent-300" />
-                      <span>View All Orders ({orders.length})</span>
+                      All ({orders.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrderStatusFilter('in_progress')}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        orderStatusFilter === 'in_progress'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                      }`}
+                    >
+                      In Progress ({orders.filter((o) => !['delivered', 'cancelled'].includes(o.status)).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrderStatusFilter('delivered')}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        orderStatusFilter === 'delivered'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                      }`}
+                    >
+                      Delivered ({orders.filter((o) => o.status === 'delivered').length})
                     </button>
                   </div>
-                )}
+                </div>
+
+                {/* Filtered Orders List */}
+                {(() => {
+                  const q = orderSearchQuery.toLowerCase().trim();
+                  const list = orders.filter((o) => {
+                    // Status filter
+                    if (orderStatusFilter === 'in_progress' && ['delivered', 'cancelled'].includes(o.status)) return false;
+                    if (orderStatusFilter === 'delivered' && o.status !== 'delivered') return false;
+
+                    // Query filter
+                    if (!q) return true;
+                    const orderId = (o.orderId || '').toLowerCase();
+                    const status = (o.status || '').toLowerCase();
+                    const itemsMatch = (o.items || []).some((item) =>
+                      (item.title || '').toLowerCase().includes(q)
+                    );
+                    const custName = (o.customer?.name || '').toLowerCase();
+                    return orderId.includes(q) || status.includes(q) || itemsMatch || custName.includes(q);
+                  });
+
+                  if (list.length === 0) {
+                    return (
+                      <div className="bg-white rounded-3xl p-10 text-center border border-accent-100 shadow-xs max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
+                          <HiOutlineSearch className="w-6 h-6" />
+                        </div>
+                        <h4 className="font-serif text-base font-bold text-neutral-900">No Orders Found</h4>
+                        <p className="text-xs text-neutral-500">
+                          No orders match your filter. Try clearing your search term.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOrderSearchQuery('');
+                            setOrderStatusFilter('all');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold cursor-pointer"
+                        >
+                          Reset Filter
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-5">
+                      {list.map(renderOrderCard)}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -1027,33 +1087,9 @@ const Account = () => {
                   </div>
                 ) : (
                   <>
-                    {phoneOrders.slice(0, 5).map(renderOrderCard)}
-
-                    {phoneOrders.length > 5 && (
-                      <div className="bg-white rounded-3xl p-6 border border-accent-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left mt-2">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <HiOutlineShoppingBag className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h4 className="font-serif text-base sm:text-lg font-bold text-neutral-900">
-                              Showing 5 of {phoneOrders.length} Orders
-                            </h4>
-                            <p className="text-xs text-neutral-500">
-                              Found {phoneOrders.length - 5} more order{phoneOrders.length - 5 > 1 ? 's' : ''} linked to +91 {lookupPhone}.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAllOrdersModal({ isOpen: true, title: `Orders for +91 ${lookupPhone}`, ordersList: phoneOrders })}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-                        >
-                          <HiOutlineEye className="w-4 h-4 text-accent-300" />
-                          <span>View All Orders ({phoneOrders.length})</span>
-                        </button>
-                      </div>
-                    )}
+                    <div className="space-y-5">
+                      {phoneOrders.map(renderOrderCard)}
+                    </div>
                   </>
                 )}
               </div>
@@ -1434,10 +1470,10 @@ const Account = () => {
                   onClick={() => {
                     setInvoiceOrder(detailOrder);
                   }}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-light transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
                 >
-                  <HiOutlinePrinter className="w-4 h-4" />
-                  <span>Download / Print Invoice</span>
+                  <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                  <span>Invoice</span>
                 </button>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1502,174 +1538,37 @@ const Account = () => {
 
                 {/* Modal Footer Controls */}
                 <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInvoiceOrder(trackingOrder);
-                    }}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                  >
-                    <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-                    <span>Download / Print Tax Invoice</span>
-                  </button>
-
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInvoiceOrder(trackingOrder);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <HiOutlineDownload className="w-4 h-4 text-accent-700" />
+                      <span>Invoice</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
                         setDetailOrder(trackingOrder);
                         setTrackingOrder(null);
                       }}
-                      className="px-4 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
                     >
-                      View Order Details
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTrackingOrder(null)}
-                      className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold cursor-pointer shadow-xs"
-                    >
-                      Close
+                      View Details
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTrackingOrder(null)}
+                    className="w-full sm:w-auto px-5 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold cursor-pointer shadow-xs"
+                  >
+                    Close
+                  </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* All Orders Pop-up Modal */}
-        {allOrdersModal.isOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs animate-fade-in"
-            onClick={() => {
-              setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
-              setAllOrdersSearch('');
-            }}
-          >
-            <div
-              className="bg-neutral-50 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-accent-200/80 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Top Header */}
-              <div className="p-4 sm:p-6 bg-white border-b border-accent-200/60 flex items-center justify-between gap-4 shrink-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <HiOutlineShoppingBag className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-serif text-lg sm:text-xl font-bold text-neutral-900 truncate">
-                        {allOrdersModal.title || 'All Orders History'}
-                      </h3>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-accent-100 text-accent-800 border border-accent-200">
-                        {allOrdersModal.ordersList?.length || 0} Total Orders
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500 truncate">
-                      Full view of all placed orders, tracking info & tax invoices
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
-                    setAllOrdersSearch('');
-                  }}
-                  className="p-2.5 rounded-2xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors border border-neutral-200 cursor-pointer shrink-0"
-                  title="Close (ESC)"
-                >
-                  <HiOutlineX className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Fast Search & Filter Bar inside Modal */}
-              <div className="p-4 bg-white/80 border-b border-neutral-200/70 shrink-0">
-                <div className="relative max-w-md">
-                  <HiOutlineSearch className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={allOrdersSearch}
-                    onChange={(e) => setAllOrdersSearch(e.target.value)}
-                    placeholder="Search by Order ID (FC-...), product name, or status..."
-                    className="w-full pl-10 pr-16 py-2.5 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
-                  />
-                  {allOrdersSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setAllOrdersSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs font-bold cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Modal Body: Scrollable Orders List */}
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1">
-                {(() => {
-                  const query = allOrdersSearch.trim().toLowerCase();
-                  const filtered = (allOrdersModal.ordersList || []).filter((o) => {
-                    if (!query) return true;
-                    const orderId = (o.orderId || '').toLowerCase();
-                    const status = (o.status || '').toLowerCase();
-                    const payment = (o.paymentMethod || '').toLowerCase();
-                    const customerName = (o.customer?.name || '').toLowerCase();
-                    const itemsMatch = (o.items || []).some((item) =>
-                      (item.title || '').toLowerCase().includes(query)
-                    );
-                    return (
-                      orderId.includes(query) ||
-                      status.includes(query) ||
-                      payment.includes(query) ||
-                      customerName.includes(query) ||
-                      itemsMatch
-                    );
-                  });
-
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="bg-white rounded-3xl p-12 text-center border border-accent-100 shadow-xs max-w-md mx-auto space-y-3">
-                        <div className="w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
-                          <HiOutlineSearch className="w-6 h-6" />
-                        </div>
-                        <h4 className="font-serif text-base font-bold text-neutral-900">No Orders Found</h4>
-                        <p className="text-xs text-neutral-500">
-                          No orders match &ldquo;{allOrdersSearch}&rdquo;. Try another search term or clear the filter.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setAllOrdersSearch('')}
-                          className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold cursor-pointer"
-                        >
-                          Clear Search
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  return filtered.map((ord) => renderOrderCard(ord));
-                })()}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="p-4 bg-white border-t border-accent-200/60 flex items-center justify-between gap-3 shrink-0">
-                <span className="text-xs text-neutral-500 font-medium">
-                  Showing {allOrdersModal.ordersList?.length || 0} orders
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAllOrdersModal({ isOpen: false, title: '', ordersList: [] });
-                    setAllOrdersSearch('');
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-                >
-                  Close
-                </button>
               </div>
             </div>
           </div>

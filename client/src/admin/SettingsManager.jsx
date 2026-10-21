@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useTheme, THEME_PRESETS, adjustColor } from '../context/ThemeContext';
 import { useConfirm } from '../context/ConfirmContext';
+import HomepageCurationManager from './HomepageCurationManager';
 
 const SettingsManager = () => {
   const { theme, changeTheme, applyPreset, presets } = useTheme();
@@ -295,6 +296,12 @@ const SettingsManager = () => {
   const tabs = [
     { id: 'theming', name: 'Theme & Brand Colors', icon: HiOutlineColorSwatch },
     {
+      id: 'homepage_curation',
+      name: 'Homepage Sections & Display',
+      icon: HiOutlineSparkles,
+      badge: 'Curated'
+    },
+    {
       id: 'departments',
       name: 'Department Visibility',
       icon: HiOutlineEyeOff,
@@ -353,6 +360,11 @@ const SettingsManager = () => {
       </div>
 
 
+
+      {/* ============================================================== */}
+      {/* TAB: HOMEPAGE SECTIONS & CURATION                             */}
+      {/* ============================================================== */}
+      {currentTab === 'homepage_curation' && <HomepageCurationManager />}
 
       {/* ============================================================== */}
       {/* TAB: DEPARTMENT VISIBILITY                                     */}

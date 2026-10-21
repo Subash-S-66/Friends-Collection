@@ -14,6 +14,7 @@ import {
   HiOutlineX,
   HiOutlineMail,
   HiOutlineDocumentText,
+  HiOutlineSparkles,
   HiOutlineChevronDoubleLeft,
   HiOutlineChevronDoubleRight
 } from 'react-icons/hi';
@@ -103,12 +104,13 @@ const AdminLayout = () => {
       items: [
         { name: 'Festival Campaigns', path: '/admin/campaigns', icon: HiOutlineMail, badge: 'Festive', desc: 'Email blasts & festive offers' },
         { name: 'Hero Slideshow', path: '/admin/banners', icon: HiOutlinePhotograph, desc: 'Homepage banners & headlines' },
+        { name: 'Homepage Sections & Display', path: '/admin/settings?tab=homepage_curation', icon: HiOutlineSparkles, badge: 'Curated', desc: 'Curate categories, trending & new arrivals' },
       ],
     },
     {
       title: 'STORE CONFIGURATION',
       items: [
-        { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, desc: 'Theme colors, announcements & shipping' },
+        { name: 'Store & Theme Settings', path: '/admin/settings', icon: HiOutlineCog, exact: true, desc: 'Theme colors, announcements & shipping' },
         { name: 'Tax Invoice Settings', path: '/admin/invoice', icon: HiOutlineDocumentText, desc: 'Customize invoice layout & details' },
       ],
     },
