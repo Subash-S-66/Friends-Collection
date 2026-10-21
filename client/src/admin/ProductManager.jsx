@@ -15,7 +15,6 @@ import {
   HiOutlineArrowLeft,
   HiOutlineArrowRight,
   HiOutlineStar,
-  HiOutlineSparkles,
   HiOutlineTag,
   HiOutlineFilter,
   HiOutlineEye,
@@ -92,6 +91,7 @@ const ProductManager = () => {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [editingVariantPhotoIdx, setEditingVariantPhotoIdx] = useState(null);
 
   // Pagination states (10 / 20 / 30 per table)
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -103,7 +103,7 @@ const ProductManager = () => {
       id: `existing-${idx}`,
       url,
       ref: url,
-      label: `Photo #${idx + 1} (Cover/Gallery)`
+      label: `Photo #${idx + 1}`
     })),
     ...imagePreviews.map((url, idx) => ({
       id: `new-${idx}`,
@@ -199,6 +199,101 @@ const ProductManager = () => {
     handleSetPrimaryColorPhoto(colorName, imageRef);
   };
 
+  // Variant Custom Photos Helpers (for popup modal)
+  const handleToggleVariantPhoto = (variantIdx, photoRef) => {
+    setVariants((prev) => {
+      const copy = [...prev];
+      const cur = copy[variantIdx];
+      if (!cur) return prev;
+      let curImages = Array.isArray(cur.images) && cur.images.length > 0
+        ? [...cur.images]
+        : (cur.image ? [cur.image] : []);
+
+      if (curImages.includes(photoRef)) {
+        curImages = curImages.filter((r) => r !== photoRef);
+      } else {
+        curImages.push(photoRef);
+      }
+
+      const primary = cur.image && curImages.includes(cur.image) ? cur.image : (curImages[0] || '');
+      copy[variantIdx] = {
+        ...cur,
+        image: primary,
+        images: curImages
+      };
+      return copy;
+    });
+  };
+
+  const handleSetPrimaryVariantPhoto = (variantIdx, photoRef) => {
+    setVariants((prev) => {
+      const copy = [...prev];
+      const cur = copy[variantIdx];
+      if (!cur) return prev;
+      let curImages = Array.isArray(cur.images) && cur.images.length > 0
+        ? [...cur.images]
+        : (cur.image ? [cur.image] : []);
+      if (!curImages.includes(photoRef)) {
+        curImages.push(photoRef);
+      }
+      curImages = [photoRef, ...curImages.filter((r) => r !== photoRef)];
+      copy[variantIdx] = {
+        ...cur,
+        image: photoRef,
+        images: curImages
+      };
+      return copy;
+    });
+    toast.success('Set as primary cover photo for this variant');
+  };
+
+  const handleResetVariantToInherited = (variantIdx) => {
+    setVariants((prev) => {
+      const copy = [...prev];
+      if (!copy[variantIdx]) return prev;
+      copy[variantIdx] = {
+        ...copy[variantIdx],
+        image: '',
+        images: []
+      };
+      return copy;
+    });
+    toast.success('Reverted to inherited color photos');
+  };
+
+  const handleUploadVariantPhoto = (e, variantIdx) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    const newSlotIdx = existingImages.length + images.length;
+    const newRef = `__photo_${newSlotIdx}__`;
+
+    setImages((prev) => [...prev, file]);
+    setImagePreviews((prev) => [...prev, previewUrl]);
+
+    setVariants((prev) => {
+      const copy = [...prev];
+      const cur = copy[variantIdx];
+      if (!cur) return prev;
+      const curImages = Array.isArray(cur.images) && cur.images.length > 0
+        ? [...cur.images]
+        : (cur.image ? [cur.image] : []);
+      if (!curImages.includes(newRef)) {
+        curImages.push(newRef);
+      }
+      copy[variantIdx] = {
+        ...cur,
+        image: newRef,
+        images: curImages
+      };
+      return copy;
+    });
+
+    toast.success(`Photo uploaded and assigned to this variant!`);
+    e.target.value = '';
+  };
+
   const isKids = gender === 'kids';
   const baseAvailableSizes = isKids ? KIDS_SIZES : ADULT_SIZES;
   const availableSizes = Array.from(new Set([...baseAvailableSizes, ...customSizesList]));
@@ -255,6 +350,7 @@ const ProductManager = () => {
 
   const openAddModal = (preselectedCatId = '') => {
     setEditingProduct(null);
+    setEditingVariantPhotoIdx(null);
     setTitle('');
     setDescription('');
     const catToUse = preselectedCatId || selectedCat || parentCategories[0]?._id || '';
@@ -279,7 +375,8 @@ const ProductManager = () => {
         size: sz,
         stock: 5,
         sku: `FC-MRN-${sz.replace(/[^A-Z0-9]/gi, '')}`,
-        image: ''
+        image: '',
+        images: []
       }))
     );
     setTags(['new-arrival']);
@@ -293,6 +390,7 @@ const ProductManager = () => {
 
   const openEditModal = (prod) => {
     setEditingProduct(prod);
+    setEditingVariantPhotoIdx(null);
     setTitle(prod.title);
     setDescription(prod.description || '');
     setIsActive(prod.isActive !== false);
@@ -365,7 +463,8 @@ const ProductManager = () => {
             size: s,
             stock: Math.max(1, Math.floor((prod.stock || 10) / (colors.length * sizes.length))),
             sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`,
-            image: ''
+            image: '',
+            images: []
           });
         });
       });
@@ -375,9 +474,10 @@ const ProductManager = () => {
       size: v.size || (isKidsMode ? '1-2' : 'Standard'),
       stock: v.stock !== undefined ? v.stock : 5,
       sku: v.sku || '',
-      image: v.image || ''
+      image: v.image || '',
+      images: Array.isArray(v.images) ? v.images : (v.image ? [v.image] : [])
     })) : [
-      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '', image: '' }
+      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '', image: '', images: [] }
     ]);
 
     setTags(prod.tags && prod.tags.length > 0 ? prod.tags : ['new-arrival']);
@@ -843,13 +943,19 @@ const ProductManager = () => {
       });
       formData.append('colorImages', JSON.stringify(sanitizedColorImages));
 
-      const sanitizedVariants = variants.map((v) => ({
-        color: (v.color || 'Standard').trim(),
-        size: (v.size || 'Standard').trim(),
-        stock: parseInt(v.stock, 10) || 0,
-        sku: v.sku || '',
-        image: v.image || ''
-      }));
+      const sanitizedVariants = variants.map((v) => {
+        const customImgs = Array.isArray(v.images) && v.images.length > 0
+          ? v.images
+          : (v.image ? [v.image] : []);
+        return {
+          color: (v.color || 'Standard').trim(),
+          size: (v.size || 'Standard').trim(),
+          stock: parseInt(v.stock, 10) || 0,
+          sku: v.sku || '',
+          image: v.image || customImgs[0] || '',
+          images: customImgs
+        };
+      });
       formData.append('variants', JSON.stringify(sanitizedVariants));
       formData.append('tags', JSON.stringify(tags));
       formData.append('isActive', String(isActive));
@@ -1762,7 +1868,7 @@ const ProductManager = () => {
                       Product Photos & Display Sequence <span className="text-red-500">*</span>
                     </label>
                     <p className="text-[11px] text-neutral-500">
-                      Arrange photo order below. Slot 1 is the <strong>Primary Cover</strong>, Slot 2 is the <strong>Hover Animation Preview</strong>.
+                      Arrange photo sequence below. Photo #1 is the <strong>Primary Cover</strong>, followed by gallery photos #2, #3, #4...
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary w-fit border border-primary/20">
@@ -1771,18 +1877,14 @@ const ProductManager = () => {
                 </div>
 
                 {/* Explanatory slot guide pill */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-white/80 border border-accent-200 text-[11px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-xl bg-white/80 border border-accent-200 text-[11px]">
                   <div className="flex items-center gap-1.5 font-semibold text-amber-800">
                     <span className="px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10px] font-bold">#1 Cover</span>
-                    <span>Shows first in catalog</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-semibold text-indigo-800">
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 border border-indigo-300 text-[10px] font-bold">#2 Hover</span>
-                    <span>Reveals on hover</span>
+                    <span>Primary photo shown first in shop catalog</span>
                   </div>
                   <div className="flex items-center gap-1.5 font-semibold text-neutral-600">
-                    <span className="px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-300 text-[10px] font-bold">#3+ Gallery</span>
-                    <span>Detail page gallery</span>
+                    <span className="px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-300 text-[10px] font-bold">#2, #3, #4...</span>
+                    <span>Product gallery photos (use ← / → to reorder)</span>
                   </div>
                 </div>
 
@@ -1819,8 +1921,6 @@ const ProductManager = () => {
                           className={`relative flex flex-col bg-white rounded-xl overflow-hidden border shadow-xs transition-all ${
                             i === 0
                               ? 'border-amber-400 ring-2 ring-amber-300/50'
-                              : i === 1
-                              ? 'border-indigo-400 ring-2 ring-indigo-300/50'
                               : 'border-neutral-200'
                           }`}
                         >
@@ -1829,10 +1929,6 @@ const ProductManager = () => {
                             {i === 0 ? (
                               <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
                                 <HiOutlineStar className="w-3 h-3" /> #1 Cover
-                              </span>
-                            ) : i === 1 ? (
-                              <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
-                                <HiOutlineSparkles className="w-3 h-3" /> #2 Hover
                               </span>
                             ) : (
                               <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs">
@@ -1868,30 +1964,24 @@ const ProductManager = () => {
                               disabled={i === 0}
                               onClick={() => handleMoveExistingImage(i, 'left')}
                               className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
-                              title="Move left (higher priority)"
+                              title="Move left"
                             >
                               <HiOutlineArrowLeft className="w-3 h-3" />
                             </button>
 
-                            {i !== 0 && (
+                            {i !== 0 ? (
                               <button
                                 type="button"
                                 onClick={() => handleMakeCoverExisting(i)}
-                                className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px]"
-                                title="Set as primary cover photo"
+                                className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px] flex items-center gap-1"
+                                title="Make this photo the primary cover (#1)"
                               >
-                                Set #1
+                                <HiOutlineStar className="w-3 h-3 text-amber-600" /> Make Cover
                               </button>
-                            )}
-                            {i !== 1 && existingImages.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleMakeHoverExisting(i)}
-                                className="px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold border border-indigo-200 text-[9px]"
-                                title="Set as hover preview photo"
-                              >
-                                Set #2
-                              </button>
+                            ) : (
+                              <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">
+                                Cover Photo
+                              </span>
                             )}
 
                             <button
@@ -1899,7 +1989,7 @@ const ProductManager = () => {
                               disabled={i === existingImages.length - 1}
                               onClick={() => handleMoveExistingImage(i, 'right')}
                               className="p-1 rounded bg-white hover:bg-neutral-200 text-neutral-700 disabled:opacity-30 border border-neutral-200 shadow-2xs"
-                              title="Move right (lower priority)"
+                              title="Move right"
                             >
                               <HiOutlineArrowRight className="w-3 h-3" />
                             </button>
@@ -1934,8 +2024,6 @@ const ProductManager = () => {
                             className={`relative flex flex-col bg-white rounded-xl overflow-hidden border shadow-xs transition-all ${
                               isCover
                                 ? 'border-amber-400 ring-2 ring-amber-300/50'
-                                : isHover
-                                ? 'border-indigo-400 ring-2 ring-indigo-300/50'
                                 : 'border-neutral-200'
                             }`}
                           >
@@ -1945,12 +2033,8 @@ const ProductManager = () => {
                                 <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
                                   <HiOutlineStar className="w-3 h-3" /> #1 Cover
                                 </span>
-                              ) : isHover ? (
-                                <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-1">
-                                  <HiOutlineSparkles className="w-3 h-3" /> #2 Hover
-                                </span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs">
+                                <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-white text-[9px] font-bold tracking-wider uppercase shadow-xs">
                                   #{effectiveSlot}
                                 </span>
                               )}
@@ -1987,15 +2071,19 @@ const ProductManager = () => {
                                 <HiOutlineArrowLeft className="w-3 h-3" />
                               </button>
 
-                              {!isCover && (
+                              {!isCover ? (
                                 <button
                                   type="button"
                                   onClick={() => handleMakeCoverNew(i)}
-                                  className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px]"
-                                  title="Promote to top"
+                                  className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 text-[9px] flex items-center gap-1"
+                                  title="Make this photo the primary cover (#1)"
                                 >
-                                  Make #1
+                                  <HiOutlineStar className="w-3 h-3 text-amber-600" /> Make Cover
                                 </button>
+                              ) : (
+                                <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">
+                                  Cover Photo
+                                </span>
                               )}
 
                               <button
@@ -2462,43 +2550,56 @@ const ProductManager = () => {
                             className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-mono shrink-0"
                           />
 
-                          {/* Variant Photo: Inherited Color Photo or Custom Size Override */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="w-7 h-9 rounded-md overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 aspect-[3/4] relative">
-                              {variantPreviewUrl ? (
-                                <img
-                                  src={getImageUrl(variantPreviewUrl)}
-                                  alt={`${v.color} ${v.size}`}
-                                  onError={(e) => handleImageError(e, '/fallback-product.png')}
-                                  className="w-full h-full object-cover object-top"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[8px] text-neutral-400">
-                                  —
-                                </div>
-                              )}
-                            </div>
+                          {/* Variant Photo Trigger: Opens Custom Photo Popup Modal */}
+                          {(() => {
+                            const customImgs = Array.isArray(v.images) && v.images.length > 0
+                              ? v.images
+                              : (v.image ? [v.image] : []);
+                            const hasCustom = customImgs.length > 0;
 
-                            <select
-                              value={v.image || ''}
-                              onChange={(e) => handleVariantChange(idx, 'image', e.target.value)}
-                              className={`w-36 px-2 py-2 rounded-xl border text-[11px] font-medium transition-all cursor-pointer ${
-                                v.image
-                                  ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold ring-1 ring-amber-300'
-                                  : 'border-neutral-200 bg-neutral-50 text-neutral-700'
-                              }`}
-                              title={v.image ? 'Custom photo set for this size variant' : `Using default ${v.color || 'color'} photo`}
-                            >
-                              <option value="">
-                                🎨 {v.color ? `${v.color} Photo` : 'Color Photo'} (Inherited)
-                              </option>
-                              {allPhotoPool.map((p) => (
-                                <option key={p.id} value={p.ref}>
-                                  📷 Custom: {p.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setEditingVariantPhotoIdx(idx)}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer hover:shadow-xs shrink-0 ${
+                                  hasCustom
+                                    ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-200'
+                                    : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50'
+                                }`}
+                                title={hasCustom ? `${customImgs.length} custom photo(s) assigned. Click to configure.` : `Using inherited ${v.color || 'color'} photos. Click to customize.`}
+                              >
+                                <div className="w-6 h-8 rounded-md overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 aspect-[3/4] relative">
+                                  {variantPreviewUrl ? (
+                                    <img
+                                      src={getImageUrl(variantPreviewUrl)}
+                                      alt={`${v.color} ${v.size}`}
+                                      onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                      className="w-full h-full object-cover object-top"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-neutral-400">
+                                      —
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col text-left leading-tight">
+                                  <span className="text-[10px] font-bold flex items-center gap-1">
+                                    {hasCustom ? (
+                                      <>
+                                        <HiOutlineStar className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                        <span>Custom ({customImgs.length})</span>
+                                      </>
+                                    ) : (
+                                      <span>🎨 Inherited</span>
+                                    )}
+                                  </span>
+                                  <span className="text-[8.5px] text-neutral-400 font-normal">
+                                    {hasCustom ? 'Edit Photos' : `${v.color || 'Color'} photo`}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })()}
 
                           <button
                             type="button"
@@ -2584,6 +2685,303 @@ const ProductManager = () => {
         </div>
       </div>
     )}
+
+      {/* Variant Custom Photo Popup Modal */}
+      {editingVariantPhotoIdx !== null && variants[editingVariantPhotoIdx] && (() => {
+        const vIdx = editingVariantPhotoIdx;
+        const v = variants[vIdx];
+        const assignedPhotos = Array.isArray(v.images) && v.images.length > 0
+          ? v.images
+          : (v.image ? [v.image] : []);
+        const hasCustom = assignedPhotos.length > 0;
+        const colorInheritedPhotos = getColorPhotos(v.color);
+        const activeCoverRef = v.image || assignedPhotos[0] || '';
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-neutral-200">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50/70 shrink-0">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    Variant Photo Studio
+                  </span>
+                  <h3 className="font-serif text-lg sm:text-xl font-bold text-neutral-900">
+                    {v.color || 'Standard'} <span className="text-neutral-400">·</span> Size {v.size}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingVariantPhotoIdx(null)}
+                  className="p-1.5 text-neutral-400 hover:text-neutral-800 rounded-xl hover:bg-neutral-200 transition-all cursor-pointer"
+                  title="Close popup"
+                >
+                  <HiOutlineX className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                {/* Mode status indicator */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-cream border border-accent-200">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl">🎨</span>
+                    <div>
+                      <p className="text-xs font-bold text-neutral-900">
+                        {hasCustom ? 'Using Custom Variant Photos' : `Using Inherited Photos from Color (${v.color || 'Standard'})`}
+                      </p>
+                      <p className="text-[11px] text-neutral-500">
+                        {hasCustom
+                          ? `${assignedPhotos.length} custom photo(s) assigned specifically to this size variant.`
+                          : `Currently inherits ${colorInheritedPhotos.length} photo(s) assigned to ${v.color || 'Standard'}.`}
+                      </p>
+                    </div>
+                  </div>
+                  {hasCustom ? (
+                    <button
+                      type="button"
+                      onClick={() => handleResetVariantToInherited(vIdx)}
+                      className="px-3 py-1.5 rounded-xl bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-100 text-[11px] font-bold shadow-2xs whitespace-nowrap cursor-pointer transition-all self-start sm:self-center"
+                    >
+                      ↺ Use Inherited
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const initial = colorInheritedPhotos.length > 0 ? colorInheritedPhotos : (allPhotoPool[0]?.ref ? [allPhotoPool[0].ref] : []);
+                        setVariants((prev) => {
+                          const copy = [...prev];
+                          copy[vIdx] = {
+                            ...copy[vIdx],
+                            image: initial[0] || '',
+                            images: initial
+                          };
+                          return copy;
+                        });
+                        toast.success('Custom photos enabled for this variant');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-[11px] font-bold shadow-xs whitespace-nowrap cursor-pointer transition-all self-start sm:self-center"
+                    >
+                      ✨ Customize Photos
+                    </button>
+                  )}
+                </div>
+
+                {/* If Inherited mode preview */}
+                {!hasCustom && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
+                      Preview of Inherited Photos ({colorInheritedPhotos.length}):
+                    </label>
+                    {colorInheritedPhotos.length > 0 ? (
+                      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                        {colorInheritedPhotos.map((ref, idx) => (
+                          <div
+                            key={idx}
+                            className="relative w-16 h-20 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 shrink-0 shadow-2xs aspect-[3/4]"
+                          >
+                            <img
+                              src={getImageUrl(resolvePreviewUrl(ref))}
+                              alt="Inherited"
+                              onError={(e) => handleImageError(e, '/fallback-product.png')}
+                              className="w-full h-full object-cover object-top"
+                            />
+                            {idx === 0 && (
+                              <span className="absolute bottom-1 left-1 right-1 bg-amber-500/95 text-white text-[8px] font-bold px-1 py-0.5 rounded text-center">
+                                Cover
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-neutral-400 italic">
+                        No photos assigned to color "{v.color}" yet. You can assign photos to colors in the Color Photos section above, or customize them below.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Custom Photos Section */}
+                {hasCustom && (
+                  <>
+                    {/* Assigned Photos Tray */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
+                          Assigned to this Variant ({assignedPhotos.length}):
+                        </label>
+                        <span className="text-[10px] text-neutral-500">
+                          Click ★ to choose primary cover
+                        </span>
+                      </div>
+
+                      {assignedPhotos.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                          {assignedPhotos.map((ref, i) => {
+                            const isCover = (activeCoverRef === ref) || (!activeCoverRef && i === 0);
+                            return (
+                              <div
+                                key={i}
+                                className={`relative flex flex-col bg-white rounded-xl overflow-hidden border shadow-xs transition-all ${
+                                  isCover ? 'border-amber-400 ring-2 ring-amber-300/50' : 'border-neutral-200'
+                                }`}
+                              >
+                                {/* Cover badge */}
+                                <div className="absolute top-1 left-1 z-10">
+                                  {isCover ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-bold tracking-wider uppercase shadow-xs flex items-center gap-0.5">
+                                      <HiOutlineStar className="w-2.5 h-2.5" /> Cover
+                                    </span>
+                                  ) : (
+                                    <span className="px-1 py-0.5 rounded bg-neutral-800 text-white text-[8px] font-bold shadow-xs">
+                                      #{i + 1}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Remove button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleVariantPhoto(vIdx, ref)}
+                                  className="absolute top-1 right-1 z-10 p-1 rounded-full bg-red-600/90 hover:bg-red-600 text-white shadow-xs transition-transform hover:scale-110 cursor-pointer"
+                                  title="Unassign photo from this variant"
+                                >
+                                  <HiOutlineX className="w-3 h-3" />
+                                </button>
+
+                                {/* Preview image */}
+                                <div className="aspect-[3/4] w-full overflow-hidden bg-neutral-100">
+                                  <img
+                                    src={getImageUrl(resolvePreviewUrl(ref))}
+                                    alt={`Variant photo ${i + 1}`}
+                                    onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                    className="w-full h-full object-cover object-top"
+                                  />
+                                </div>
+
+                                {/* Action control */}
+                                <div className="p-1 bg-neutral-50 border-t border-neutral-100 text-center">
+                                  {!isCover ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetPrimaryVariantPhoto(vIdx, ref)}
+                                      className="w-full py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 text-[9px] font-bold border border-amber-200 cursor-pointer flex items-center justify-center gap-1"
+                                    >
+                                      <HiOutlineStar className="w-2.5 h-2.5 text-amber-600" /> Set Cover
+                                    </button>
+                                  ) : (
+                                    <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider block py-0.5">
+                                      ★ Primary Cover
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-dashed border-neutral-300 text-center bg-neutral-50/50">
+                          <p className="text-xs text-neutral-500">No photos selected yet. Pick from product photos below or upload a new photo.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Direct Upload New Photo for this variant */}
+                    <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">📸</span>
+                        <div>
+                          <p className="text-xs font-bold text-amber-950">Add a unique photo for this variant</p>
+                          <p className="text-[10px] text-amber-800">Upload a new photo file from your device and it will be assigned right here.</p>
+                        </div>
+                      </div>
+                      <label className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 self-start sm:self-center">
+                        <HiOutlinePlus className="w-3.5 h-3.5" />
+                        <span>Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleUploadVariantPhoto(e, vIdx)}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Pool of all product photos to pick / align */}
+                    <div className="space-y-2 pt-2 border-t border-neutral-100">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
+                          Select from Product Photos ({allPhotoPool.length}):
+                        </label>
+                        <span className="text-[10px] text-neutral-500">
+                          Click photo to add / remove
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                        {allPhotoPool.map((p) => {
+                          const isAssigned = assignedPhotos.includes(p.ref);
+                          const isCover = activeCoverRef === p.ref;
+
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleToggleVariantPhoto(vIdx, p.ref)}
+                              className={`relative rounded-xl overflow-hidden border aspect-[3/4] transition-all cursor-pointer group text-left ${
+                                isAssigned
+                                  ? 'border-primary ring-2 ring-primary/40 shadow-xs'
+                                  : 'border-neutral-200 hover:border-neutral-400 opacity-60 hover:opacity-100'
+                              }`}
+                            >
+                              <img
+                                src={getImageUrl(p.url)}
+                                alt={p.label}
+                                onError={(e) => handleImageError(e, '/fallback-product.png')}
+                                className="w-full h-full object-cover object-top"
+                              />
+
+                              {/* Checked badge */}
+                              {isAssigned && (
+                                <div className="absolute top-1 right-1 z-10 w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center shadow-xs">
+                                  <HiOutlineCheckCircle className="w-3 h-3" />
+                                </div>
+                              )}
+
+                              {/* Cover indicator */}
+                              {isCover && (
+                                <span className="absolute bottom-1 left-1 bg-amber-500 text-white text-[7px] font-bold px-1 rounded shadow-xs">
+                                  ★ Cover
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3.5 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-neutral-500">
+                  {hasCustom ? `${assignedPhotos.length} photo(s) selected for this variant` : 'Using inherited color photos'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingVariantPhotoIdx(null)}
+                  className="px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

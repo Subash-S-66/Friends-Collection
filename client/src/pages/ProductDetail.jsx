@@ -134,12 +134,20 @@ const ProductDetail = () => {
   }, [product, selectedColor]);
 
   const activeColorImages = useMemo(() => {
+    // If the selected variant has custom photos, prioritize them!
+    const variantCustomImgs = Array.isArray(currentVariant?.images) && currentVariant.images.length > 0
+      ? currentVariant.images
+      : (currentVariant?.image ? [currentVariant.image] : []);
+    if (variantCustomImgs.length > 0) {
+      return variantCustomImgs.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+    }
+
     if (!activeColorObj) return [];
     const list = Array.isArray(activeColorObj.images) && activeColorObj.images.length > 0
       ? activeColorObj.images
       : (activeColorObj.image ? [activeColorObj.image] : []);
     return list.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
-  }, [activeColorObj]);
+  }, [currentVariant, activeColorObj]);
 
   const allGeneralImages = useMemo(() => {
     const list = [
@@ -163,11 +171,11 @@ const ProductDetail = () => {
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
 
-  // When customer switches color, reset active image index to 0 (cover photo of that color)
+  // When customer switches color or size, reset active image index to 0
   useEffect(() => {
     setShowAllGalleryPhotos(false);
     setActiveImageIndex(0);
-  }, [selectedColor]);
+  }, [selectedColor, selectedSize]);
 
   // When custom variant has a specific image override
   useEffect(() => {
