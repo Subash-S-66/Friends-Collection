@@ -1330,6 +1330,11 @@ const Account = () => {
                             <span>Alternate: <strong className="text-neutral-700">+91 {addr.secondaryPhone}</strong></span>
                           </p>
                         )}
+                        {addr.gstNumber && (
+                          <p className="flex items-center gap-2 text-primary font-mono text-[11px] font-bold pl-5.5 pt-0.5">
+                            <span className="bg-primary/5 px-2 py-0.5 rounded border border-primary/20">GSTIN: {addr.gstNumber}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1420,6 +1425,14 @@ const Account = () => {
                   {detailOrder.customer?.email && (
                     <p className="text-neutral-500 mt-1">{detailOrder.customer.email}</p>
                   )}
+                  {(detailOrder.customer?.gstNumber || detailOrder.gstNumber) && (
+                    <div className="mt-2 pt-1.5 border-t border-accent-200/50">
+                      <span className="text-[10px] uppercase font-bold text-neutral-500 block">Customer GSTIN:</span>
+                      <span className="font-mono font-bold text-xs text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20 inline-block mt-0.5">
+                        {detailOrder.customer?.gstNumber || detailOrder.gstNumber}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1494,12 +1507,56 @@ const Account = () => {
                     </div>
                   ))}
                 </div>
-                <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 flex items-center justify-between text-xs">
-                  <span className="font-bold text-neutral-600">Grand Total Payable</span>
-                  <span className="font-numeric text-base font-extrabold text-primary">
-                    {formatPrice((detailOrder.totalAmount || 0) + (detailOrder.shippingCharge || 0))}
-                  </span>
-                </div>
+                {(() => {
+                  const effectiveGstRate = typeof detailOrder.gstRate === 'number' ? detailOrder.gstRate : 5;
+                  const subtotal = Number(detailOrder.totalAmount || 0);
+                  const shippingCharge = Number(detailOrder.shippingCharge || 0);
+                  const grandTotal = subtotal + shippingCharge;
+                  const taxableSubtotal = effectiveGstRate > 0 ? Math.round((subtotal / (1 + effectiveGstRate / 100)) * 100) / 100 : subtotal;
+                  const estimatedGst = detailOrder.gstAmount !== undefined && detailOrder.gstAmount !== null && Number(detailOrder.gstAmount) > 0
+                    ? Number(detailOrder.gstAmount)
+                    : (effectiveGstRate > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0);
+
+                  return (
+                    <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 space-y-1.5 text-xs">
+                      <div className="flex justify-between text-neutral-600">
+                        <span>Items Subtotal:</span>
+                        <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
+                      </div>
+                      {effectiveGstRate > 0 && (
+                        <>
+                          <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                            <span>Taxable Value (Excl. Tax):</span>
+                            <span className="font-medium text-neutral-700 font-numeric">{formatPrice(taxableSubtotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                            <span>Estimated GST ({effectiveGstRate}%):</span>
+                            <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between text-neutral-600">
+                        <span>Delivery Charge:</span>
+                        <span className="font-bold text-neutral-900 font-numeric">
+                          {shippingCharge === 0 ? 'FREE' : formatPrice(shippingCharge)}
+                        </span>
+                      </div>
+                      <div className="border-t border-neutral-200 pt-1.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-neutral-900 block">Grand Total Payable</span>
+                          {effectiveGstRate > 0 && (
+                            <span className="text-[10px] text-neutral-500 font-normal block">
+                              (Inclusive of {effectiveGstRate}% GST & all taxes)
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-numeric text-base font-extrabold text-primary">
+                          {formatPrice(grandTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Action Buttons */}

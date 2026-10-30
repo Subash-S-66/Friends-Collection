@@ -95,6 +95,12 @@ const OrderConfirmation = () => {
   const deliveryRange = order?.expectedDeliveryDate || order?.tracking?.estimatedDelivery || getExpectedDeliveryRange(order?.createdAt);
   const isPaid = order?.paymentStatus === 'paid';
   const grandTotal = (Number(order?.totalAmount) || 0) + (Number(order?.shippingCharge) || 0);
+  const effectiveGstRate = typeof order?.gstRate === 'number' ? order.gstRate : 5;
+  const subtotal = Number(order?.totalAmount || 0);
+  const taxableSubtotal = effectiveGstRate > 0 ? Math.round((subtotal / (1 + effectiveGstRate / 100)) * 100) / 100 : subtotal;
+  const estimatedGst = order?.gstAmount !== undefined && order?.gstAmount !== null && Number(order?.gstAmount) > 0
+    ? Number(order.gstAmount)
+    : (effectiveGstRate > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0);
 
   const whatsappMessage = encodeURIComponent(
     `Hello Friends Collections! I placed an order with Order ID #${effectiveOrderId}. Please confirm my order details.`
@@ -288,6 +294,14 @@ const OrderConfirmation = () => {
                       Email: {order.customer.email}
                     </p>
                   )}
+                  {(order.customer?.gstNumber || order.gstNumber) && (
+                    <div className="mt-2 pt-2 border-t border-accent-200/50">
+                      <span className="text-[10px] uppercase font-bold text-neutral-500 block">Customer GSTIN:</span>
+                      <span className="font-mono font-bold text-xs text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20 inline-block mt-0.5">
+                        {order.customer?.gstNumber || order.gstNumber}
+                      </span>
+                    </div>
+                  )}
                   <p className="text-[11px] mt-2 font-medium">
                     {isConfirmedByAdmin ? (
                       <span className="text-emerald-800">✉️ Order confirmed & Tax Invoice PDF dispatched to email.</span>
@@ -337,6 +351,18 @@ const OrderConfirmation = () => {
                   <span className="text-neutral-500">Items Subtotal:</span>
                   <span className="font-bold text-neutral-900 font-numeric">{formatPrice(order.totalAmount || 0)}</span>
                 </div>
+                {effectiveGstRate > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                      <span>Taxable Value (Excl. Tax):</span>
+                      <span className="font-medium text-neutral-700 font-numeric">{formatPrice(taxableSubtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                      <span>Estimated GST ({effectiveGstRate}%):</span>
+                      <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-500">Boutique Express Delivery:</span>
                   <span className="font-bold text-emerald-700 font-numeric">
@@ -344,9 +370,16 @@ const OrderConfirmation = () => {
                   </span>
                 </div>
                 <div className="border-t border-neutral-200 pt-2 flex items-center justify-between text-sm sm:text-base">
-                  <span className="font-bold text-neutral-900">
-                    {isPaid ? 'Total Amount Paid:' : 'Total Payable upon Delivery:'}
-                  </span>
+                  <div>
+                    <span className="font-bold text-neutral-900 block">
+                      {isPaid ? 'Total Amount Paid:' : 'Total Payable upon Delivery:'}
+                    </span>
+                    {effectiveGstRate > 0 && (
+                      <span className="text-[11px] text-neutral-500 block font-normal">
+                        (Inclusive of {effectiveGstRate}% GST & all taxes)
+                      </span>
+                    )}
+                  </div>
                   <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
                     {formatPrice(grandTotal)}
                   </span>

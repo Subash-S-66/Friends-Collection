@@ -34,6 +34,7 @@ const paymentDraftSchema = new mongoose.Schema({
       lowercase: true,
       match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email address']
     },
+    gstNumber: { type: String, trim: true, uppercase: true, default: '' },
     address: {
       street: { type: String, required: true },
       city: { type: String, required: true },
@@ -51,6 +52,14 @@ const paymentDraftSchema = new mongoose.Schema({
     required: true
   },
   shippingCharge: {
+    type: Number,
+    default: 0
+  },
+  gstRate: {
+    type: Number,
+    default: 0
+  },
+  gstAmount: {
     type: Number,
     default: 0
   },

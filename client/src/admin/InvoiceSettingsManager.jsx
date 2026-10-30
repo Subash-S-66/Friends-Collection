@@ -68,6 +68,7 @@ const InvoiceSettingsManager = () => {
     phone: DEFAULT_INVOICE_SETTINGS.phone,
     email: DEFAULT_INVOICE_SETTINGS.email,
     gstin: DEFAULT_INVOICE_SETTINGS.gstin,
+    gstPercentage: DEFAULT_INVOICE_SETTINGS.gstPercentage || 5,
     authorizedSignatory: DEFAULT_INVOICE_SETTINGS.authorizedSignatory,
     signatorySubtitle: DEFAULT_INVOICE_SETTINGS.signatorySubtitle,
     signatureImage: '',
@@ -80,6 +81,7 @@ const InvoiceSettingsManager = () => {
 
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [downloadingSample, setDownloadingSample] = useState(false);
+  const [sampleHasGstNumber, setSampleHasGstNumber] = useState(true);
 
   // Security OTP state for modifying signature
   const [warningModalOpen, setWarningModalOpen] = useState(false);
@@ -429,7 +431,7 @@ const InvoiceSettingsManager = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-neutral-700 mb-1">
-                    GSTIN / Tax ID
+                    Store GSTIN / Tax ID
                   </label>
                   <input
                     type="text"
@@ -439,6 +441,57 @@ const InvoiceSettingsManager = () => {
                     className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-mono uppercase"
                   />
                 </div>
+              </div>
+
+              {/* GST Rate (%) Configuration */}
+              <div className="p-3.5 rounded-2xl bg-neutral-50/80 border border-neutral-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-neutral-800">
+                    GST Rate / Tax Percentage (%)
+                  </label>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    Applied Everywhere
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-36">
+                    <input
+                      type="number"
+                      min="0"
+                      max="28"
+                      step="0.5"
+                      value={invoiceForm.gstPercentage ?? 5}
+                      onChange={(e) => handleInvoiceFieldChange('gstPercentage', Number(e.target.value))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary font-bold font-numeric pr-8 bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-neutral-500">%</span>
+                  </div>
+                  {/* Preset quick buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: '0% (Exempt)', val: 0 },
+                      { label: '5% (Apparel)', val: 5 },
+                      { label: '12%', val: 12 },
+                      { label: '18%', val: 18 }
+                    ].map((preset) => (
+                      <button
+                        key={preset.val}
+                        type="button"
+                        onClick={() => handleInvoiceFieldChange('gstPercentage', preset.val)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                          Number(invoiceForm.gstPercentage) === preset.val
+                            ? 'bg-primary text-white border-primary shadow-xs'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Reflected live everywhere: checkout totals, bills, customer order tracking, and generated PDF invoices. Set to 0% to disable tax line items.
+                </p>
               </div>
             </div>
           </div>
@@ -731,7 +784,7 @@ const InvoiceSettingsManager = () => {
 
         {/* Right Column: Live Interactive WYSIWYG Invoice Sheet Preview (7 cols on xl) */}
         <div className="xl:col-span-7 space-y-3 xl:sticky xl:top-6">
-          <div className="flex items-center justify-between px-2">
+          <div className="flex items-center justify-between px-2 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
@@ -741,21 +794,41 @@ const InvoiceSettingsManager = () => {
                 (Sample Order #FC-SAMPLE-8899)
               </span>
             </div>
-            <button
-              type="button"
-              onClick={handleDownloadSamplePdf}
-              disabled={downloadingSample}
-              className="text-xs text-primary hover:text-primary-light font-bold flex items-center gap-1 cursor-pointer"
-            >
-              <HiOutlineDownload className="w-3.5 h-3.5" />
-              <span>Download Live Sample PDF</span>
-            </button>
+
+            <div className="flex items-center gap-3">
+              {/* Interactive toggle for customer GSTIN in preview */}
+              <label className="flex items-center gap-1.5 text-xs text-neutral-600 cursor-pointer bg-neutral-100 hover:bg-neutral-200/70 px-2.5 py-1 rounded-xl transition-colors border border-neutral-200">
+                <input
+                  type="checkbox"
+                  checked={sampleHasGstNumber}
+                  onChange={(e) => setSampleHasGstNumber(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-primary focus:ring-primary cursor-pointer"
+                />
+                <span className="text-[11px] font-semibold text-neutral-700">Preview with Customer GSTIN</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleDownloadSamplePdf}
+                disabled={downloadingSample}
+                className="text-xs text-primary hover:text-primary-light font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <HiOutlineDownload className="w-3.5 h-3.5" />
+                <span>Download Live Sample PDF</span>
+              </button>
+            </div>
           </div>
 
           {/* The Invoice View rendered as a card */}
           <div className="border border-neutral-200 rounded-3xl shadow-lg overflow-hidden bg-white">
             <InvoiceView
-              order={SAMPLE_PREVIEW_ORDER}
+              order={{
+                ...SAMPLE_PREVIEW_ORDER,
+                customer: {
+                  ...SAMPLE_PREVIEW_ORDER.customer,
+                  gstNumber: sampleHasGstNumber ? '33AAAPL1234F1Z8' : ''
+                }
+              }}
               invoiceSettings={invoiceForm}
               asCard={true}
             />

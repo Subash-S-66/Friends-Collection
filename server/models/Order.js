@@ -29,6 +29,7 @@ const orderSchema = new mongoose.Schema({
       lowercase: true,
       match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email address']
     },
+    gstNumber: { type: String, trim: true, uppercase: true, default: '' },
     address: {
       street: { type: String, required: [true, 'Street address is required'], trim: true },
       city: { type: String, required: [true, 'City is required'], trim: true },
@@ -44,6 +45,8 @@ const orderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   totalAmount: { type: Number, required: true },
   shippingCharge: { type: Number, default: 0 },
+  gstRate: { type: Number, default: 0 },
+  gstAmount: { type: Number, default: 0 },
   status: {
     type: String,
     enum: ['pending', 'yet_to_move', 'order_received', 'confirmed', 'shipped', 'delivered', 'cancelled'],

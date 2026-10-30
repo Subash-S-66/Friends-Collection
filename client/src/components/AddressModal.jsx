@@ -35,6 +35,7 @@ const AddressModal = ({
     pincode: '',
     phone: '',
     secondaryPhone: '',
+    gstNumber: '',
     isDefault: false
   });
 
@@ -53,6 +54,7 @@ const AddressModal = ({
           pincode: address.pincode || '',
           phone: address.phone || defaultPhone || '',
           secondaryPhone: address.secondaryPhone || defaultSecondaryPhone || '',
+          gstNumber: address.gstNumber || '',
           isDefault: Boolean(address.isDefault)
         });
       } else {
@@ -64,6 +66,7 @@ const AddressModal = ({
           pincode: '',
           phone: defaultPhone || '',
           secondaryPhone: defaultSecondaryPhone || '',
+          gstNumber: '',
           isDefault: false
         });
       }
@@ -147,6 +150,7 @@ const AddressModal = ({
         pincode: formData.pincode.trim(),
         phone: formData.phone.trim(),
         secondaryPhone: formData.secondaryPhone.trim(),
+        gstNumber: (formData.gstNumber || '').toString().trim().toUpperCase(),
         isDefault: Boolean(formData.isDefault)
       };
 
@@ -402,6 +406,25 @@ const AddressModal = ({
                   <p className="text-xs text-red-500 mt-1">{errors.secondaryPhone}</p>
                 )}
               </div>
+            </div>
+
+            {/* Business GSTIN (Optional) */}
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">
+                Business GST Number / GSTIN <span className="text-neutral-400 font-normal">(Optional — for tax invoice claim)</span>
+              </label>
+              <input
+                type="text"
+                name="gstNumber"
+                maxLength="15"
+                value={formData.gstNumber}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                  setFormData((prev) => ({ ...prev, gstNumber: val }));
+                }}
+                placeholder="e.g. 33AAAAA0000A1Z5"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm text-neutral-900 bg-neutral-50/50 focus:bg-white focus:outline-hidden focus:ring-2 focus:border-primary focus:ring-primary/20 transition-all font-mono tracking-wider uppercase placeholder:normal-case placeholder:tracking-normal"
+              />
             </div>
 
             {/* Set as Default Address Checkbox */}

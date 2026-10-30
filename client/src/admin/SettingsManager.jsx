@@ -50,9 +50,10 @@ const SettingsManager = () => {
   const [announcementText, setAnnouncementText] = useState('🎉 Free Shipping on Orders Above ₹999!');
   const [announcementActive, setAnnouncementActive] = useState(true);
 
-  // 3. Shipping state
+  // 3. Shipping & Taxes state
   const [shippingFee, setShippingFee] = useState('79');
   const [freeAbove, setFreeAbove] = useState('999');
+  const [storeGstRate, setStoreGstRate] = useState('5');
 
   // 4. Store Info state
   const [storeAddress, setStoreAddress] = useState('7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 12');
@@ -81,6 +82,9 @@ const SettingsManager = () => {
         if (data.shippingCharge) {
           setShippingFee(data.shippingCharge.amount?.toString() || '79');
           setFreeAbove(data.shippingCharge.freeAbove?.toString() || '999');
+        }
+        if (data.invoiceSettings?.gstPercentage !== undefined) {
+          setStoreGstRate(data.invoiceSettings.gstPercentage.toString());
         }
         if (data.contactInfo) {
           setStoreAddress(data.contactInfo.address || '');
@@ -236,15 +240,15 @@ const SettingsManager = () => {
     }
   };
 
-  // Save Shipping Settings
+  // Save Shipping & GST Settings
   const handleSaveShipping = async (e) => {
     e.preventDefault();
     if (savingShipping) return;
     const ok = await confirm({
-      title: 'Save Shipping & Delivery Rates?',
-      message: `Update standard shipping fee to ₹${shippingFee} with free delivery above ₹${freeAbove}?`,
+      title: 'Save Shipping & GST Tax Settings?',
+      message: `Update standard shipping fee to ₹${shippingFee}, free delivery above ₹${freeAbove}, and store GST rate to ${storeGstRate}%?`,
       type: 'save',
-      confirmText: 'Save Shipping Rules',
+      confirmText: 'Save Rates & Tax',
       cancelText: 'Cancel'
     });
     if (!ok) return;
@@ -254,7 +258,20 @@ const SettingsManager = () => {
       await API.put('/settings/admin/shippingCharge', {
         value: { amount: Number(shippingFee), freeAbove: Number(freeAbove) },
       });
-      toast.success('Shipping settings saved!');
+      // Also update invoiceSettings gstPercentage
+      try {
+        const curRes = await API.get('/settings');
+        const invSettings = curRes.data?.invoiceSettings || {};
+        await API.put('/settings/admin/invoiceSettings', {
+          value: {
+            ...invSettings,
+            gstPercentage: Number(storeGstRate) || 0
+          }
+        });
+      } catch (invErr) {
+        console.warn('Could not sync gstPercentage to invoiceSettings:', invErr);
+      }
+      toast.success('Shipping & GST tax settings saved!');
     } catch {
       toast.error('Failed to update shipping rules');
     } finally {
@@ -308,7 +325,7 @@ const SettingsManager = () => {
       badge: hiddenDepartments.length > 0 ? `${hiddenDepartments.length} Hidden` : null
     },
     { id: 'announcement', name: 'Announcement Bar', icon: HiOutlineSpeakerphone },
-    { id: 'shipping', name: 'Shipping Rules', icon: HiOutlineTruck },
+    { id: 'shipping', name: 'Shipping & Taxes', icon: HiOutlineTruck },
     { id: 'contact', name: 'Store Contact & Info', icon: HiOutlineOfficeBuilding },
   ];
 
@@ -701,17 +718,17 @@ const SettingsManager = () => {
       )}
 
       {/* ============================================================== */}
-      {/* TAB 4: SHIPPING RULES                                          */}
+      {/* TAB 4: SHIPPING & TAX RULES                                    */}
       {/* ============================================================== */}
       {currentTab === 'shipping' && (
-        <form onSubmit={handleSaveShipping} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-4">
+        <form onSubmit={handleSaveShipping} className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs space-y-5">
           <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <HiOutlineTruck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold text-neutral-900">Shipping Rules & Free Delivery</h2>
-              <p className="text-xs text-neutral-500">Configure delivery charges and free shipping threshold</p>
+              <h2 className="font-serif text-lg font-bold text-neutral-900">Shipping Rules & GST Taxation</h2>
+              <p className="text-xs text-neutral-500">Configure delivery charges, free shipping threshold, and store GST percentage</p>
             </div>
           </div>
 
@@ -724,7 +741,7 @@ const SettingsManager = () => {
                 required
                 value={shippingFee}
                 onChange={(e) => setShippingFee(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-bold font-numeric"
               />
             </div>
             <div>
@@ -735,9 +752,59 @@ const SettingsManager = () => {
                 required
                 value={freeAbove}
                 onChange={(e) => setFreeAbove(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary font-bold font-numeric"
               />
             </div>
+          </div>
+
+          {/* GST % Configuration */}
+          <div className="p-4 rounded-2xl bg-cream-light/70 border border-accent-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-neutral-800">
+                Store GST Rate (%)
+              </label>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                Applied to Bills & Invoices
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative w-36">
+                <input
+                  type="number"
+                  min="0"
+                  max="28"
+                  step="0.5"
+                  value={storeGstRate}
+                  onChange={(e) => setStoreGstRate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-primary font-bold font-numeric pr-8 bg-white"
+                />
+                <span className="absolute right-3 top-2.5 text-xs font-bold text-neutral-500">%</span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { label: '0% (Exempt)', val: '0' },
+                  { label: '5% (Standard Apparel)', val: '5' },
+                  { label: '12%', val: '12' },
+                  { label: '18%', val: '18' }
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => setStoreGstRate(preset.val)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
+                      storeGstRate === preset.val
+                        ? 'bg-primary text-white border-primary shadow-xs'
+                        : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11px] text-neutral-500">
+              This GST % is synced with Tax Invoice Settings and automatically reflected in checkout summaries, bill breakdowns, and generated PDF invoices.
+            </p>
           </div>
 
           <div className="text-right pt-2">
@@ -746,7 +813,7 @@ const SettingsManager = () => {
               disabled={savingShipping}
               className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-light text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
             >
-              {savingShipping ? 'Saving...' : 'Save Shipping Rates'}
+              {savingShipping ? 'Saving...' : 'Save Shipping & GST Settings'}
             </button>
           </div>
         </form>

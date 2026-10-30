@@ -18,6 +18,7 @@ export const DEFAULT_INVOICE_SETTINGS = {
   phone: '+91 95007 57024',
   email: 'friends.collection06@gmail.com',
   gstin: '33AAACF1234M1Z5',
+  gstPercentage: 5,
   authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
   signatorySubtitle: 'Friends Collections Jamalia Boutique',
   signatureImage: '',
@@ -212,6 +213,14 @@ const InvoiceView = ({
             {order.customer?.email && (
               <p className="text-neutral-500 font-mono text-[11px]">{order.customer.email}</p>
             )}
+            {(order.customer?.gstNumber || order.gstNumber) && (
+              <p className="flex items-center gap-1.5 pt-1 text-neutral-800">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Customer GSTIN:</span>
+                <strong className="font-mono font-bold text-neutral-900 bg-neutral-200/70 px-1.5 py-0.5 rounded border border-neutral-300 text-[11px]">
+                  {order.customer?.gstNumber || order.gstNumber}
+                </strong>
+              </p>
+            )}
           </div>
         </div>
 
@@ -356,28 +365,61 @@ const InvoiceView = ({
           </p>
         </div>
 
-        <div className="w-full sm:w-64 space-y-2 text-xs">
-          <div className="flex justify-between text-neutral-600">
-            <span>Items Subtotal:</span>
-            <span className="font-bold text-neutral-900 font-numeric">{formatPrice(order.totalAmount)}</span>
-          </div>
-          <div className="flex justify-between text-neutral-600">
-            <span>Shipping & Packaging:</span>
-            <span className="font-bold text-emerald-700 font-numeric">
-              {order.shippingCharge > 0 ? formatPrice(order.shippingCharge) : 'FREE'}
-            </span>
-          </div>
-          <div
-            className="flex justify-between items-center pt-2.5 border-t-2 border-neutral-300"
-            style={{ color: primaryColor }}
-          >
-            <span className="font-bold uppercase tracking-wider text-xs">Grand Total:</span>
-            <span className="font-numeric text-xl sm:text-2xl font-black">{formatPrice(totalWithShipping)}</span>
-          </div>
-          <div className="text-[10px] text-neutral-500 text-right">
-            (Inclusive of all applicable GST & taxes)
-          </div>
-        </div>
+        {(() => {
+          const effectiveGstRate = (order.gstRate !== undefined && order.gstRate !== null)
+            ? Number(order.gstRate)
+            : Number(inv.gstPercentage !== undefined ? inv.gstPercentage : 5);
+          const hasGst = effectiveGstRate > 0;
+          const orderTotalAmount = Number(order.totalAmount || 0);
+          const taxableAmount = hasGst
+            ? orderTotalAmount / (1 + effectiveGstRate / 100)
+            : orderTotalAmount;
+          const gstAmount = hasGst ? orderTotalAmount - taxableAmount : 0;
+          const cgstAmount = gstAmount / 2;
+          const sgstAmount = gstAmount / 2;
+
+          return (
+            <div className="w-full sm:w-64 space-y-2 text-xs">
+              {hasGst ? (
+                <>
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Taxable Subtotal (Excl. Tax):</span>
+                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(taxableAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-600">
+                    <span title={`CGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(cgstAmount)} | SGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(sgstAmount)}`}>
+                      Estimated GST ({effectiveGstRate}%):
+                    </span>
+                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(gstAmount)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-neutral-600">
+                  <span>Items Subtotal:</span>
+                  <span className="font-bold text-neutral-900 font-numeric">{formatPrice(orderTotalAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-neutral-600">
+                <span>Shipping & Packaging:</span>
+                <span className="font-bold text-emerald-700 font-numeric">
+                  {order.shippingCharge > 0 ? formatPrice(order.shippingCharge) : 'FREE'}
+                </span>
+              </div>
+              <div
+                className="flex justify-between items-center pt-2.5 border-t-2 border-neutral-300"
+                style={{ color: primaryColor }}
+              >
+                <span className="font-bold uppercase tracking-wider text-xs">Grand Total:</span>
+                <span className="font-numeric text-xl sm:text-2xl font-black">{formatPrice(totalWithShipping)}</span>
+              </div>
+              <div className="text-[10px] text-neutral-500 text-right">
+                {hasGst
+                  ? `(Inclusive of ${effectiveGstRate}% GST & all applicable taxes)`
+                  : '(Inclusive of all applicable GST & taxes)'}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 5. Footer Signature & Authenticity Seal */}

@@ -9,6 +9,7 @@ const addressSchema = new mongoose.Schema({
   pincode: { type: String, required: true },
   phone: { type: String, trim: true },
   secondaryPhone: { type: String, trim: true },
+  gstNumber: { type: String, trim: true, uppercase: true, default: '' },
   isDefault: { type: Boolean, default: false }
 });
 
@@ -31,6 +32,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, trim: true, sparse: true },
   secondaryPhone: { type: String, trim: true, default: '' },
+  gstNumber: { type: String, trim: true, uppercase: true, default: '' },
   password: { type: String, minlength: 6, select: false },
   googleId: { type: String, sparse: true },
   authProvider: { type: String, enum: ['local', 'google', 'token'], default: 'local' },

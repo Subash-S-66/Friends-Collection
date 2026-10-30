@@ -169,12 +169,13 @@ exports.getMe = async (req, res, next) => {
 // @route   PUT /api/auth/profile
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, secondaryPhone, address } = req.body;
+    const { name, phone, secondaryPhone, gstNumber, address } = req.body;
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name.trim();
     if (phone !== undefined) user.phone = phone.trim();
     if (secondaryPhone !== undefined) user.secondaryPhone = secondaryPhone.trim();
+    if (gstNumber !== undefined) user.gstNumber = gstNumber.trim().toUpperCase();
 
     if (address && address.street && address.city && address.pincode) {
       const cleanStreet = address.street.trim();
@@ -182,6 +183,7 @@ exports.updateProfile = async (req, res, next) => {
       const cleanState = (address.state || 'Tamil Nadu').trim();
       const cleanPincode = address.pincode.trim();
       const cleanLabel = (address.label || 'Home').trim();
+      const cleanGst = address.gstNumber ? address.gstNumber.trim().toUpperCase() : (user.gstNumber || '');
 
       const existingIdx = user.savedAddresses.findIndex(
         (a) => a.street?.toLowerCase() === cleanStreet.toLowerCase() && a.pincode === cleanPincode
@@ -193,6 +195,7 @@ exports.updateProfile = async (req, res, next) => {
         user.savedAddresses[existingIdx].state = cleanState;
         user.savedAddresses[existingIdx].phone = user.phone || '';
         user.savedAddresses[existingIdx].secondaryPhone = user.secondaryPhone || '';
+        user.savedAddresses[existingIdx].gstNumber = cleanGst;
         user.savedAddresses[existingIdx].isDefault = true;
         user.savedAddresses.forEach((a, i) => {
           if (i !== existingIdx) a.isDefault = false;
@@ -209,6 +212,7 @@ exports.updateProfile = async (req, res, next) => {
           pincode: cleanPincode,
           phone: user.phone || '',
           secondaryPhone: user.secondaryPhone || '',
+          gstNumber: cleanGst,
           isDefault: true
         });
       }
@@ -226,10 +230,15 @@ exports.updateProfile = async (req, res, next) => {
 exports.addAddress = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-    const { label, street, city, state, pincode, phone, secondaryPhone, isDefault } = req.body;
+    const { label, street, city, state, pincode, phone, secondaryPhone, gstNumber, isDefault } = req.body;
 
     if (isDefault) {
       user.savedAddresses.forEach((addr) => (addr.isDefault = false));
+    }
+
+    const cleanGst = gstNumber ? gstNumber.trim().toUpperCase() : (user.gstNumber || '');
+    if (cleanGst && !user.gstNumber) {
+      user.gstNumber = cleanGst;
     }
 
     user.savedAddresses.push({
@@ -240,6 +249,7 @@ exports.addAddress = async (req, res, next) => {
       pincode: pincode.trim(),
       phone: phone ? phone.trim() : (user.phone || ''),
       secondaryPhone: secondaryPhone ? secondaryPhone.trim() : (user.secondaryPhone || ''),
+      gstNumber: cleanGst,
       isDefault: isDefault || user.savedAddresses.length === 0
     });
     await user.save();
@@ -263,7 +273,7 @@ exports.updateAddress = async (req, res, next) => {
       return res.status(404).json({ message: 'Saved address not found' });
     }
 
-    const { label, street, city, state, pincode, phone, secondaryPhone, isDefault } = req.body;
+    const { label, street, city, state, pincode, phone, secondaryPhone, gstNumber, isDefault } = req.body;
 
     if (label !== undefined) addr.label = label.trim() || 'Home';
     if (street !== undefined) addr.street = street.trim();
@@ -272,6 +282,12 @@ exports.updateAddress = async (req, res, next) => {
     if (pincode !== undefined) addr.pincode = pincode.trim();
     if (phone !== undefined) addr.phone = phone.trim();
     if (secondaryPhone !== undefined) addr.secondaryPhone = secondaryPhone.trim();
+    if (gstNumber !== undefined) {
+      addr.gstNumber = gstNumber.trim().toUpperCase();
+      if (!user.gstNumber && addr.gstNumber) {
+        user.gstNumber = addr.gstNumber;
+      }
+    }
 
     if (isDefault) {
       user.savedAddresses.forEach((a) => {

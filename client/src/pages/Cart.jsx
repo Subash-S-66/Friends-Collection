@@ -11,6 +11,7 @@ import {
 } from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
 import { useConfirm } from '../context/ConfirmContext';
+import API from '../utils/api';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import NotifyModal from '../components/NotifyModal';
 
@@ -64,7 +65,22 @@ const Cart = () => {
     refreshCartStock();
   }, [refreshCartStock]);
 
-  const freeShippingThreshold = 999;
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+  const [gstPercentage, setGstPercentage] = useState(5);
+
+  useEffect(() => {
+    API.get('/settings').then(res => {
+      if (res.data?.freeShippingThreshold) {
+        setFreeShippingThreshold(Number(res.data.freeShippingThreshold));
+      }
+      if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
+        setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
+      } else if (res.data?.gstPercentage !== undefined) {
+        setGstPercentage(Number(res.data.gstPercentage));
+      }
+    }).catch(() => {});
+  }, []);
+
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const totalAmount = subtotal + shippingCharge;
@@ -306,7 +322,14 @@ const Cart = () => {
                 </p>
               )}
               <div className="pt-4 border-t border-neutral-100 flex justify-between items-baseline text-base">
-                <span className="font-bold text-neutral-900">Estimated Total</span>
+                <div>
+                  <span className="font-bold text-neutral-900 block">Estimated Total</span>
+                  {gstPercentage > 0 && (
+                    <span className="text-[11px] text-neutral-500 font-normal block">
+                      (Inclusive of {gstPercentage}% GST & taxes)
+                    </span>
+                  )}
+                </div>
                 <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(totalAmount)}</span>
               </div>
             </div>

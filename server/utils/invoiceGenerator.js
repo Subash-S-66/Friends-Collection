@@ -11,6 +11,7 @@ const DEFAULT_INVOICE_SETTINGS = {
   phone: '+91 95007 57024',
   email: 'friends.collection06@gmail.com',
   gstin: '33AAACF1234M1Z5',
+  gstPercentage: 5,
   authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
   signatorySubtitle: 'Friends Collections Jamalia Boutique',
   signatureImage: '',
@@ -246,9 +247,17 @@ async function generateInvoicePdf(order, customSettings = null) {
         .text(`Primary Phone: +91 ${customer.phone || ''}`, 44, boxY + 63, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
 
       if (customer.secondaryPhone) {
-        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 76, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 74, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       } else if (customer.email) {
-        doc.text(`Email: ${customer.email}`, 44, boxY + 76, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        doc.text(`Email: ${customer.email}`, 44, boxY + 74, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+      }
+
+      const custGst = (customer.gstNumber || order.gstNumber || '').toString().trim().toUpperCase();
+      if (custGst) {
+        doc.fillColor(DARK)
+          .font('Helvetica-Bold')
+          .fontSize(7.5)
+          .text(`Customer GSTIN: ${custGst}`, 44, boxY + 86, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       }
 
       // Right Box: Order & Payment Info
@@ -366,40 +375,84 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       // 4. SUMMARY & TOTALS SECTION
       // ==========================================
+      const effectiveGstRate = (order.gstRate !== undefined && order.gstRate !== null)
+        ? Number(order.gstRate)
+        : Number(cfg.gstPercentage !== undefined ? cfg.gstPercentage : 5);
+
+      const hasGst = effectiveGstRate > 0;
+      const orderSubtotal = Number(order.totalAmount || 0);
+      const taxableValue = hasGst
+        ? Math.round((orderSubtotal / (1 + effectiveGstRate / 100)) * 100) / 100
+        : orderSubtotal;
+      const totalGstAmount = hasGst
+        ? Math.round((orderSubtotal - taxableValue) * 100) / 100
+        : 0;
+
+      const totalsBoxHeight = hasGst ? 88 : 74;
       let totalsY = tableY + 10;
-      if (totalsY + 74 > doc.page.height - 95) {
+      if (totalsY + totalsBoxHeight > doc.page.height - 95) {
         doc.addPage();
         totalsY = 40;
       }
 
       const totalsWidth = 220;
       const totalsX = doc.page.width - 32 - totalsWidth;
-      doc.roundedRect(totalsX, totalsY, totalsWidth, 74, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
+      doc.roundedRect(totalsX, totalsY, totalsWidth, totalsBoxHeight, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
 
-      doc.fillColor(MUTED).font('Helvetica').fontSize(8);
-      doc.text('Subtotal:', totalsX + 14, totalsY + 10);
-      doc.fillColor(DARK).font('Helvetica-Bold')
-        .text(`INR ${Number(order.totalAmount || 0).toLocaleString('en-IN')}`, totalsX + 110, totalsY + 10, { align: 'right', width: 96 });
+      if (hasGst) {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(7.5);
+        doc.text('Taxable Subtotal (Excl. Tax):', totalsX + 12, totalsY + 8);
+        doc.fillColor(DARK).font('Helvetica-Bold')
+          .text(`INR ${taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 110, totalsY + 8, { align: 'right', width: 98 });
 
-      doc.fillColor(MUTED).font('Helvetica')
-        .text('Delivery Charge:', totalsX + 14, totalsY + 24);
-      const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
-      doc.fillColor(GREEN).font('Helvetica-Bold')
-        .text(shipTxt, totalsX + 110, totalsY + 24, { align: 'right', width: 96 });
+        doc.fillColor(MUTED).font('Helvetica')
+          .text(`Estimated GST (${effectiveGstRate}%):`, totalsX + 12, totalsY + 21);
+        doc.fillColor(DARK).font('Helvetica-Bold')
+          .text(`INR ${totalGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 110, totalsY + 21, { align: 'right', width: 98 });
 
-      // Horizontal line
-      doc.moveTo(totalsX + 14, totalsY + 39).lineTo(totalsX + totalsWidth - 14, totalsY + 39).stroke(BORDER_COLOR);
+        doc.fillColor(MUTED).font('Helvetica')
+          .text('Delivery Charge:', totalsX + 12, totalsY + 34);
+        const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
+        doc.fillColor(GREEN).font('Helvetica-Bold')
+          .text(shipTxt, totalsX + 110, totalsY + 34, { align: 'right', width: 98 });
 
-      // Grand Total
-      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10.5)
-        .text('Grand Total:', totalsX + 14, totalsY + 48);
-      doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11.5)
-        .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 90, totalsY + 47, { align: 'right', width: 116 });
+        // Line
+        doc.moveTo(totalsX + 12, totalsY + 47).lineTo(totalsX + totalsWidth - 12, totalsY + 47).stroke(BORDER_COLOR);
+
+        // Grand Total
+        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10)
+          .text('Grand Total:', totalsX + 12, totalsY + 54);
+        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
+          .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 53, { align: 'right', width: 128 });
+
+        doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(6.5)
+          .text(`(Inclusive of ${effectiveGstRate}% GST & all applicable taxes)`, totalsX + 12, totalsY + 71, { align: 'center', width: totalsWidth - 24 });
+      } else {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8);
+        doc.text('Subtotal:', totalsX + 14, totalsY + 10);
+        doc.fillColor(DARK).font('Helvetica-Bold')
+          .text(`INR ${orderSubtotal.toLocaleString('en-IN')}`, totalsX + 110, totalsY + 10, { align: 'right', width: 96 });
+
+        doc.fillColor(MUTED).font('Helvetica')
+          .text('Delivery Charge:', totalsX + 14, totalsY + 24);
+        const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
+        doc.fillColor(GREEN).font('Helvetica-Bold')
+          .text(shipTxt, totalsX + 110, totalsY + 24, { align: 'right', width: 96 });
+
+        // Horizontal line
+        doc.moveTo(totalsX + 14, totalsY + 39).lineTo(totalsX + totalsWidth - 14, totalsY + 39).stroke(BORDER_COLOR);
+
+        // Grand Total
+        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10.5)
+          .text('Grand Total:', totalsX + 14, totalsY + 48);
+        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11.5)
+          .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 90, totalsY + 47, { align: 'right', width: 116 });
+      }
 
       // Left of Totals: Delivery Guarantee Banner
       const guaranteeX = 32;
       const guaranteeWidth = totalsX - guaranteeX - 12;
-      doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, 74, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
+      doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
       doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
         .text('ESTIMATED ARRIVAL WINDOW', guaranteeX + 12, totalsY + 10);
       doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5)

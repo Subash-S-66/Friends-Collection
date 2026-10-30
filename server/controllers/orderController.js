@@ -126,6 +126,21 @@ exports.placeOrder = async (req, res, next) => {
       customer.secondaryPhone = '';
     }
 
+    // Optional Customer GST Number (uppercase & trimmed)
+    customer.gstNumber = (customer.gstNumber || '').toString().trim().toUpperCase();
+
+    // Fetch store GST percentage from settings
+    const Settings = require('../models/Settings');
+    let gstRate = 5;
+    try {
+      const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
+      if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
+        gstRate = Number(invSettings.value.gstPercentage) || 0;
+      }
+    } catch (gErr) {
+      console.warn('Could not read gstRate from settings:', gErr);
+    }
+
     // Build order items and calculate total
     let totalAmount = 0;
     const orderItems = [];
@@ -237,12 +252,18 @@ exports.placeOrder = async (req, res, next) => {
 
     let order;
     try {
+      const gstAmount = gstRate > 0
+        ? Math.round((totalAmount - (totalAmount / (1 + gstRate / 100))) * 100) / 100
+        : 0;
+
       order = await Order.create({
         items: orderItems,
         customer,
         user: orderUserId,
         totalAmount,
         shippingCharge: Number(shippingCharge),
+        gstRate,
+        gstAmount,
         status: 'order_received',
         paymentStatus: req.body.paymentStatus || 'payment_pending',
         paymentMethod: req.body.paymentMethod || 'cod',
@@ -269,6 +290,7 @@ exports.placeOrder = async (req, res, next) => {
         if (user) {
           if (!user.phone && customer.phone) user.phone = customer.phone;
           if (customer.secondaryPhone) user.secondaryPhone = customer.secondaryPhone;
+          if (customer.gstNumber) user.gstNumber = customer.gstNumber;
 
           const cleanStreet = customer.address.street.trim();
           const cleanPincode = customer.address.pincode.trim();
@@ -285,6 +307,7 @@ exports.placeOrder = async (req, res, next) => {
             user.savedAddresses[existingIdx].state = cleanState;
             user.savedAddresses[existingIdx].phone = customer.phone;
             user.savedAddresses[existingIdx].secondaryPhone = customer.secondaryPhone || '';
+            user.savedAddresses[existingIdx].gstNumber = customer.gstNumber || '';
             user.savedAddresses[existingIdx].isDefault = true;
             user.savedAddresses.forEach((a, i) => {
               if (i !== existingIdx) a.isDefault = false;
@@ -301,6 +324,7 @@ exports.placeOrder = async (req, res, next) => {
               pincode: cleanPincode,
               phone: customer.phone,
               secondaryPhone: customer.secondaryPhone || '',
+              gstNumber: customer.gstNumber || '',
               isDefault: true
             });
           }

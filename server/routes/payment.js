@@ -80,6 +80,9 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
       customer.secondaryPhone = '';
     }
 
+    // Optional Customer GST Number (uppercase & trimmed)
+    customer.gstNumber = (customer.gstNumber || '').toString().trim().toUpperCase();
+
     // Check if Razorpay keys are configured
     const razorpay = getRazorpayInstance();
     if (!razorpay) {
@@ -123,17 +126,25 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
 
     // Calculate authoritative shipping charge from store settings
     let freeShippingThreshold = 999;
+    let gstRate = 5;
     try {
       const settings = await Settings.findOne();
       if (settings?.freeShippingThreshold) {
         freeShippingThreshold = Number(settings.freeShippingThreshold);
       }
+      const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
+      if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
+        gstRate = Number(invSettings.value.gstPercentage) || 0;
+      }
     } catch (sErr) {
-      console.warn('Could not read settings threshold:', sErr);
+      console.warn('Could not read settings threshold/gstRate:', sErr);
     }
 
     const shippingCharge = subtotal >= freeShippingThreshold ? 0 : 79;
     const grandTotalPaise = Math.round((subtotal + shippingCharge) * 100);
+    const gstAmount = gstRate > 0
+      ? Math.round((subtotal - (subtotal / (1 + gstRate / 100))) * 100) / 100
+      : 0;
 
     if (grandTotalPaise <= 0) {
       return res.status(400).json({ message: 'Invalid payment amount' });
@@ -182,6 +193,8 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
       user: orderUserId,
       totalAmount: subtotal,
       shippingCharge,
+      gstRate,
+      gstAmount,
       grandTotalPaise,
       sessionId: sessionId || '',
       saveAddress: Boolean(saveAddress),
@@ -318,6 +331,8 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
         user: draft.user,
         totalAmount: draft.totalAmount,
         shippingCharge: draft.shippingCharge,
+        gstRate: draft.gstRate || 0,
+        gstAmount: draft.gstAmount || 0,
         status: 'order_received',
         paymentStatus: 'paid',
         paidAt: new Date(),
@@ -371,6 +386,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
         if (userDoc) {
           if (!userDoc.phone && draft.customer.phone) userDoc.phone = draft.customer.phone;
           if (draft.customer.secondaryPhone) userDoc.secondaryPhone = draft.customer.secondaryPhone;
+          if (draft.customer.gstNumber) userDoc.gstNumber = draft.customer.gstNumber;
 
           const cleanStreet = draft.customer.address.street.trim();
           const cleanPincode = draft.customer.address.pincode.trim();
@@ -386,6 +402,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
             userDoc.savedAddresses[existingIdx].state = cleanState;
             userDoc.savedAddresses[existingIdx].phone = draft.customer.phone;
             userDoc.savedAddresses[existingIdx].secondaryPhone = draft.customer.secondaryPhone || '';
+            userDoc.savedAddresses[existingIdx].gstNumber = draft.customer.gstNumber || '';
           } else {
             userDoc.savedAddresses.push({
               label: 'Home',
@@ -395,6 +412,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
               pincode: cleanPincode,
               phone: draft.customer.phone,
               secondaryPhone: draft.customer.secondaryPhone || '',
+              gstNumber: draft.customer.gstNumber || '',
               isDefault: userDoc.savedAddresses.length === 0
             });
           }

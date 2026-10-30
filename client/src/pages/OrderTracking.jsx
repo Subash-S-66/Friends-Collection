@@ -450,6 +450,14 @@ const OrderTracking = () => {
                 {order.customer?.email && (
                   <p className="text-neutral-500">{order.customer.email}</p>
                 )}
+                {(order.customer?.gstNumber || order.gstNumber) && (
+                  <div className="pt-1">
+                    <span className="text-[10px] uppercase font-bold text-neutral-500 block">Customer GSTIN:</span>
+                    <span className="font-mono font-bold text-xs text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20 inline-block mt-0.5">
+                      {order.customer?.gstNumber || order.gstNumber}
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2">
                   <a
                     href={`https://wa.me/919500757024?text=${encodeURIComponent(
@@ -495,6 +503,56 @@ const OrderTracking = () => {
                 ))}
               </div>
             </div>
+
+            {/* Bill Summary Breakdown */}
+            {(() => {
+              const effectiveGstRate = typeof order.gstRate === 'number' ? order.gstRate : 5;
+              const subtotal = Number(order.totalAmount || 0);
+              const shippingCharge = Number(order.shippingCharge || 0);
+              const grandTotal = subtotal + shippingCharge;
+              const taxableSubtotal = effectiveGstRate > 0 ? Math.round((subtotal / (1 + effectiveGstRate / 100)) * 100) / 100 : subtotal;
+              const estimatedGst = order.gstAmount !== undefined && order.gstAmount !== null && Number(order.gstAmount) > 0
+                ? Number(order.gstAmount)
+                : (effectiveGstRate > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0);
+
+              return (
+                <div className="p-5 rounded-2xl bg-neutral-50 border border-neutral-200 text-xs space-y-2">
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Items Subtotal:</span>
+                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
+                  </div>
+                  {effectiveGstRate > 0 && (
+                    <>
+                      <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                        <span>Taxable Value (Excl. Tax):</span>
+                        <span className="font-medium text-neutral-700 font-numeric">{formatPrice(taxableSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-accent-300">
+                        <span>Estimated GST ({effectiveGstRate}%):</span>
+                        <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Express Delivery:</span>
+                    <span className="font-bold text-neutral-900 font-numeric">
+                      {shippingCharge === 0 ? 'FREE' : formatPrice(shippingCharge)}
+                    </span>
+                  </div>
+                  <div className="border-t border-neutral-200 pt-2 flex justify-between items-baseline text-sm font-bold text-neutral-900">
+                    <div>
+                      <span>Total:</span>
+                      {effectiveGstRate > 0 && (
+                        <span className="text-[10px] text-neutral-500 font-normal block">
+                          (Inclusive of {effectiveGstRate}% GST & all taxes)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-numeric text-xl text-primary">{formatPrice(grandTotal)}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Continue Shopping button */}
             <div className="text-center pt-2">

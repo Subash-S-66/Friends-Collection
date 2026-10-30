@@ -95,10 +95,16 @@ const Checkout = () => {
   };
 
   const [threshold, setThreshold] = useState(999);
+  const [gstPercentage, setGstPercentage] = useState(5);
   useEffect(() => {
     API.get('/settings').then(res => {
       if (res.data?.freeShippingThreshold) {
         setThreshold(Number(res.data.freeShippingThreshold));
+      }
+      if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
+        setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
+      } else if (res.data?.gstPercentage !== undefined) {
+        setGstPercentage(Number(res.data.gstPercentage));
       }
     }).catch(() => {});
   }, []);
@@ -107,6 +113,8 @@ const Checkout = () => {
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const grandTotal = subtotal + shippingCharge;
+  const taxableSubtotal = gstPercentage > 0 ? Math.round((subtotal / (1 + gstPercentage / 100)) * 100) / 100 : subtotal;
+  const estimatedGst = gstPercentage > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0;
 
   // Razorpay Gateway Config
   const [razorpayConfig, setRazorpayConfig] = useState({ keyId: '', isConfigured: false });
@@ -153,6 +161,7 @@ const Checkout = () => {
     phone: '',
     secondaryPhone: '',
     email: '',
+    gstNumber: '',
     street: '',
     city: 'Chennai',
     state: 'Tamil Nadu',
@@ -224,6 +233,7 @@ const Checkout = () => {
         phone: user.phone || defaultAddr.phone || prev.phone,
         secondaryPhone: user.secondaryPhone || defaultAddr.secondaryPhone || prev.secondaryPhone,
         email: user.email || prev.email,
+        gstNumber: user.gstNumber || defaultAddr.gstNumber || saved?.gstNumber || prev.gstNumber || '',
         street: defaultAddr.street || saved?.street || prev.street,
         city: defaultAddr.city || saved?.city || prev.city,
         state: defaultAddr.state || saved?.state || prev.state,
@@ -236,6 +246,7 @@ const Checkout = () => {
         phone: saved.phone || '',
         secondaryPhone: saved.secondaryPhone || '',
         email: saved.email || '',
+        gstNumber: saved.gstNumber || '',
         street: saved.street || '',
         city: saved.city || 'Chennai',
         state: saved.state || 'Tamil Nadu',
@@ -262,6 +273,7 @@ const Checkout = () => {
       pincode: addr.pincode || prev.pincode,
       phone: addr.phone || user?.phone || prev.phone,
       secondaryPhone: addr.secondaryPhone || user?.secondaryPhone || prev.secondaryPhone,
+      gstNumber: addr.gstNumber || user?.gstNumber || prev.gstNumber || '',
     }));
     toast.success(`Loaded "${addr.label || 'Saved Address'}"! You can edit any details below.`, { icon: '📍' });
   };
@@ -333,6 +345,8 @@ const Checkout = () => {
     setSubmitting(true);
 
     try {
+      const cleanGst = (formData.gstNumber || '').toString().trim().toUpperCase();
+
       // Save address locally if opted
       if (formData.saveInfo) {
         saveAddress({
@@ -340,6 +354,7 @@ const Checkout = () => {
           phone: cleanPhone,
           secondaryPhone: cleanSecPhone,
           email: cleanEmail,
+          gstNumber: cleanGst,
           street: formData.street.trim(),
           city: formData.city.trim(),
           state: formData.state.trim(),
@@ -353,11 +368,13 @@ const Checkout = () => {
               name: formData.name.trim(),
               phone: cleanPhone,
               secondaryPhone: cleanSecPhone,
+              gstNumber: cleanGst,
               address: {
                 street: formData.street.trim(),
                 city: formData.city.trim(),
                 state: formData.state.trim(),
                 pincode: formData.pincode.trim(),
+                gstNumber: cleanGst,
                 label: 'Home'
               }
             });
@@ -384,6 +401,7 @@ const Checkout = () => {
           phone: cleanPhone,
           secondaryPhone: cleanSecPhone,
           email: cleanEmail,
+          gstNumber: cleanGst,
           address: {
             street: formData.street.trim(),
             city: formData.city.trim(),
@@ -434,6 +452,7 @@ const Checkout = () => {
               phone: cleanPhone,
               secondaryPhone: cleanSecPhone,
               email: cleanEmail,
+              gstNumber: cleanGst,
               address: {
                 street: formData.street.trim(),
                 city: formData.city.trim(),
@@ -786,6 +805,34 @@ const Checkout = () => {
                       Your official order confirmation & PDF tax invoice will be delivered here.
                     </p>
                   )}
+                </div>
+
+                {/* Optional Customer GSTIN Box */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-neutral-700">
+                      GST Number / Business GSTIN (Optional)
+                    </label>
+                    <span className="text-[10px] font-semibold text-accent-800 bg-accent-50 px-2 py-0.5 rounded-full border border-accent-200">
+                      B2B Tax Credit
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    name="gstNumber"
+                    maxLength={15}
+                    value={formData.gstNumber}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                      setFormData((prev) => ({ ...prev, gstNumber: val }));
+                      setErrorMsg('');
+                    }}
+                    placeholder="e.g. 33AAAAA0000A1Z5 (Optional)"
+                    className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50 font-mono uppercase"
+                  />
+                  <p className="text-[11px] text-neutral-400 mt-1">
+                    Enter your 15-character GSTIN if purchasing for a registered business. It will be printed on your official Tax Invoice.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1207,6 +1254,20 @@ const Checkout = () => {
                 <span>Subtotal</span>
                 <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
               </div>
+
+              {gstPercentage > 0 && (
+                <div className="bg-neutral-50/80 rounded-xl p-2.5 space-y-1.5 border border-neutral-200/60 text-xs">
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Taxable Amount (Excl. Tax)</span>
+                    <span className="font-medium text-neutral-700 font-numeric">{formatPrice(taxableSubtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Estimated GST ({gstPercentage}%)</span>
+                    <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between text-neutral-600">
                 <span>Delivery Charge</span>
                 <span className="font-bold text-neutral-900 font-numeric">
@@ -1217,8 +1278,23 @@ const Checkout = () => {
                   )}
                 </span>
               </div>
+
+              {formData.gstNumber && formData.gstNumber.trim().length >= 3 && (
+                <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-800 px-2.5 py-1.5 rounded-lg border border-emerald-200/80">
+                  <span className="font-medium">GSTIN on Invoice:</span>
+                  <span className="font-mono font-bold tracking-wider">{formData.gstNumber.trim().toUpperCase()}</span>
+                </div>
+              )}
+
               <div className="border-t border-neutral-100 pt-3 flex justify-between items-baseline text-base">
-                <span className="font-bold text-neutral-900">Total Payable</span>
+                <div>
+                  <span className="font-bold text-neutral-900 block">Total Payable</span>
+                  {gstPercentage > 0 && (
+                    <span className="text-[11px] text-neutral-500 block font-normal">
+                      (Inclusive of {gstPercentage}% GST & taxes)
+                    </span>
+                  )}
+                </div>
                 <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(grandTotal)}</span>
               </div>
             </div>
