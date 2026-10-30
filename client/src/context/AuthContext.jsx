@@ -106,7 +106,25 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await API.post('/auth/logout');
+    } catch {
+      // Ignore network/server errors during logout
+    }
+    localStorage.removeItem('fc_token');
+    localStorage.removeItem('fc_user');
+    localStorage.removeItem('fc_cart_guest');
+    localStorage.removeItem('fc_cart');
+    setUser(null);
+  };
+
+  const logoutAllDevices = async () => {
+    try {
+      await API.post('/auth/logout-all');
+    } catch {
+      // Ignore errors
+    }
     localStorage.removeItem('fc_token');
     localStorage.removeItem('fc_user');
     localStorage.removeItem('fc_cart_guest');
@@ -152,6 +170,7 @@ export const AuthProvider = ({ children }) => {
       verifyEmailToken,
       resendVerification,
       logout,
+      logoutAllDevices,
       updateUser,
       isAdmin: user?.role === 'admin',
       authModalOpen,
