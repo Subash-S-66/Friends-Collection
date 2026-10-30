@@ -75,6 +75,8 @@ const ProductManager = () => {
   const [subcategory, setSubcategory] = useState('');
   const [price, setPrice] = useState('');
   const [salePrice, setSalePrice] = useState('');
+  const [gstRate, setGstRate] = useState('');
+  const [customGstInput, setCustomGstInput] = useState('');
   const [selectedSizes, setSelectedSizes] = useState(['S', 'M', 'L', 'XL']);
   const [selectedColors, setSelectedColors] = useState(['Maroon']);
   const [customSizeInput, setCustomSizeInput] = useState('');
@@ -366,6 +368,8 @@ const ProductManager = () => {
     setSubcategory('');
     setPrice('');
     setSalePrice('');
+    setGstRate('');
+    setCustomGstInput('');
 
     const isKidsMode = initialGender === 'kids';
     const initialSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
@@ -408,6 +412,19 @@ const ProductManager = () => {
     setSubcategory(prod.subcategory?._id || prod.subcategory || '');
     setPrice(prod.price.toString());
     setSalePrice(prod.salePrice ? prod.salePrice.toString() : '');
+    if (prod.gstRate !== null && prod.gstRate !== undefined) {
+      const r = String(prod.gstRate);
+      if (['0', '5', '12', '18', '28'].includes(r)) {
+        setGstRate(r);
+        setCustomGstInput('');
+      } else {
+        setGstRate('custom');
+        setCustomGstInput(r);
+      }
+    } else {
+      setGstRate('');
+      setCustomGstInput('');
+    }
 
     const isKidsMode = prodGender === 'kids';
     const baseList = isKidsMode ? KIDS_SIZES : ADULT_SIZES;
@@ -1028,6 +1045,8 @@ const ProductManager = () => {
       formData.append('subcategory', subcategory || '');
       formData.append('price', price);
       if (salePrice) formData.append('salePrice', salePrice);
+      const effectiveGstToSave = gstRate === 'custom' ? customGstInput.trim() : gstRate;
+      formData.append('gstRate', effectiveGstToSave === '' ? '' : effectiveGstToSave);
 
       const distinctSizes = Array.from(
         new Set([
@@ -1516,6 +1535,11 @@ const ProductManager = () => {
                             </span>
                           )}
                         </div>
+                        {prod.gstRate !== null && prod.gstRate !== undefined && (
+                          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                            GST: {prod.gstRate}%
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col gap-1.5">
@@ -1889,7 +1913,7 @@ const ProductManager = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-neutral-700 mb-1">Department *</label>
                     <select
@@ -1962,6 +1986,40 @@ const ProductManager = () => {
                       placeholder="1499"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 mb-1">
+                      GST Rate (%)
+                    </label>
+                    <select
+                      value={gstRate}
+                      onChange={(e) => setGstRate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary bg-white font-medium"
+                    >
+                      <option value="">Store Default (Global)</option>
+                      <option value="0">0% (Tax Exempt)</option>
+                      <option value="5">5% (Apparel Standard)</option>
+                      <option value="12">12% (Standard Fashion)</option>
+                      <option value="18">18% (Luxury / Accessories)</option>
+                      <option value="28">28% (Special Goods)</option>
+                      <option value="custom">Custom Rate %...</option>
+                    </select>
+                    {gstRate === 'custom' && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="e.g. 8"
+                          value={customGstInput}
+                          onChange={(e) => setCustomGstInput(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-accent-300 text-xs font-bold font-numeric focus:ring-2 focus:ring-primary"
+                        />
+                        <span className="text-xs font-bold text-neutral-600">%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

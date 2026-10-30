@@ -72,7 +72,9 @@ const InvoiceView = ({
     year: 'numeric'
   });
 
-  const isOrderReceived = order.status === 'order_received' || order.status === 'yet_to_move' || order.status === 'pending';
+  const isYetToMove = order.status === 'yet_to_move' || order.status === 'order_received' || order.status === 'pending';
+  const isOrderReceived = isYetToMove;
+  const isPaid = order.paymentStatus === 'paid';
 
   const getFulfillmentLabel = (st) => {
     switch (st) {
@@ -326,9 +328,16 @@ const InvoiceView = ({
                 <td className="py-3 px-3 text-neutral-400 font-mono">{idx + 1}</td>
                 <td className="py-3 px-3">
                   <div className="font-bold text-neutral-900">{item.title}</div>
-                  <span className="text-[10px] text-neutral-400 block font-mono">
-                    SKU: {String(item.product || '').slice(-6).toUpperCase() || 'STD'}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-neutral-400 block font-mono">
+                      SKU: {String(item.product || '').slice(-6).toUpperCase() || 'STD'}
+                    </span>
+                    {item.gstRate !== undefined && item.gstRate !== null && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                        GST {item.gstRate}%
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center font-semibold text-neutral-700">
                   {item.size || 'Standard'}
@@ -369,14 +378,14 @@ const InvoiceView = ({
           const effectiveGstRate = (order.gstRate !== undefined && order.gstRate !== null)
             ? Number(order.gstRate)
             : Number(inv.gstPercentage !== undefined ? inv.gstPercentage : 5);
-          const hasGst = effectiveGstRate > 0;
           const orderTotalAmount = Number(order.totalAmount || 0);
-          const taxableAmount = hasGst
-            ? orderTotalAmount / (1 + effectiveGstRate / 100)
-            : orderTotalAmount;
-          const gstAmount = hasGst ? orderTotalAmount - taxableAmount : 0;
-          const cgstAmount = gstAmount / 2;
-          const sgstAmount = gstAmount / 2;
+          const totalGstAmount = (order.gstAmount !== undefined && order.gstAmount !== null && Number(order.gstAmount) > 0)
+            ? Number(order.gstAmount)
+            : (effectiveGstRate > 0 ? (orderTotalAmount - (orderTotalAmount / (1 + effectiveGstRate / 100))) : 0);
+          const hasGst = totalGstAmount > 0 || effectiveGstRate > 0;
+          const taxableAmount = Math.max(0, orderTotalAmount - totalGstAmount);
+          const cgstAmount = totalGstAmount / 2;
+          const sgstAmount = totalGstAmount / 2;
 
           return (
             <div className="w-full sm:w-64 space-y-2 text-xs">
@@ -390,7 +399,7 @@ const InvoiceView = ({
                     <span title={`CGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(cgstAmount)} | SGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(sgstAmount)}`}>
                       Estimated GST ({effectiveGstRate}%):
                     </span>
-                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(gstAmount)}</span>
+                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(totalGstAmount)}</span>
                   </div>
                 </>
               ) : (

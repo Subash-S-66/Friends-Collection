@@ -97,10 +97,10 @@ const OrderConfirmation = () => {
   const grandTotal = (Number(order?.totalAmount) || 0) + (Number(order?.shippingCharge) || 0);
   const effectiveGstRate = typeof order?.gstRate === 'number' ? order.gstRate : 5;
   const subtotal = Number(order?.totalAmount || 0);
-  const taxableSubtotal = effectiveGstRate > 0 ? Math.round((subtotal / (1 + effectiveGstRate / 100)) * 100) / 100 : subtotal;
   const estimatedGst = order?.gstAmount !== undefined && order?.gstAmount !== null && Number(order?.gstAmount) > 0
     ? Number(order.gstAmount)
-    : (effectiveGstRate > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0);
+    : (effectiveGstRate > 0 ? Math.round((subtotal - (subtotal / (1 + effectiveGstRate / 100))) * 100) / 100 : 0);
+  const taxableSubtotal = Math.max(0, Math.round((subtotal - estimatedGst) * 100) / 100);
 
   const whatsappMessage = encodeURIComponent(
     `Hello Friends Collections! I placed an order with Order ID #${effectiveOrderId}. Please confirm my order details.`
@@ -334,6 +334,11 @@ const OrderConfirmation = () => {
                           </p>
                           <p className="text-neutral-400 text-[10px]">
                             Unit: <strong className="font-numeric">{formatPrice(item.price)}</strong>
+                            {item.gstRate !== undefined && item.gstRate !== null && (
+                              <span className="ml-2 font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                GST: {item.gstRate}%
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>

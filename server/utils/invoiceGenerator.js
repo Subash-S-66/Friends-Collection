@@ -354,8 +354,12 @@ async function generateInvoicePdf(order, customSettings = null) {
         doc.font('Helvetica-Bold')
           .text(it.title || 'Designer Dress', colX.item, tableY + 8, { width: 200, lineBreak: false });
 
-        // Variant / Color / Size
-        const varTxt = [it.color, it.size].filter(Boolean).join(' • ') || 'Standard';
+        // Variant / Color / Size & Item GST slab
+        const varParts = [it.color, it.size].filter(Boolean);
+        if (it.gstRate !== undefined && it.gstRate !== null) {
+          varParts.push(`GST ${it.gstRate}%`);
+        }
+        const varTxt = varParts.join(' • ') || 'Standard';
         doc.font('Helvetica').fillColor(MUTED).text(varTxt, colX.variant, tableY + 8, { width: 100, lineBreak: false });
 
         // Qty
@@ -379,14 +383,12 @@ async function generateInvoicePdf(order, customSettings = null) {
         ? Number(order.gstRate)
         : Number(cfg.gstPercentage !== undefined ? cfg.gstPercentage : 5);
 
-      const hasGst = effectiveGstRate > 0;
       const orderSubtotal = Number(order.totalAmount || 0);
-      const taxableValue = hasGst
-        ? Math.round((orderSubtotal / (1 + effectiveGstRate / 100)) * 100) / 100
-        : orderSubtotal;
-      const totalGstAmount = hasGst
-        ? Math.round((orderSubtotal - taxableValue) * 100) / 100
-        : 0;
+      const totalGstAmount = (order.gstAmount !== undefined && order.gstAmount !== null && Number(order.gstAmount) > 0)
+        ? Number(order.gstAmount)
+        : (effectiveGstRate > 0 ? Math.round((orderSubtotal - (orderSubtotal / (1 + effectiveGstRate / 100))) * 100) / 100 : 0);
+      const taxableValue = Math.max(0, Math.round((orderSubtotal - totalGstAmount) * 100) / 100);
+      const hasGst = totalGstAmount > 0 || effectiveGstRate > 0;
 
       const totalsBoxHeight = hasGst ? 88 : 74;
       let totalsY = tableY + 10;

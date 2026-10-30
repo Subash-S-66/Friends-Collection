@@ -586,7 +586,15 @@ const resolveImageRef = (ref, images) => {
 // @route   POST /api/products/admin
 exports.createProduct = async (req, res, next) => {
   try {
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, acceptCashOnDelivery } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, acceptCashOnDelivery, gstRate } = req.body;
+
+    let parsedGstRate = null;
+    if (gstRate !== undefined && gstRate !== null && gstRate !== '' && gstRate !== 'null' && gstRate !== 'default') {
+      const num = Number(gstRate);
+      if (!isNaN(num) && num >= 0 && num <= 100) {
+        parsedGstRate = num;
+      }
+    }
 
     // Process uploaded images with Cloudinary / Sharp (3:4 ratio - 900x1200)
     const uploadedImages = [];
@@ -673,7 +681,8 @@ exports.createProduct = async (req, res, next) => {
       stock: calculatedStock,
       tags: tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [],
       isFeatured: isFeatured === 'true' || isFeatured === true,
-      acceptCashOnDelivery: acceptCashOnDelivery !== undefined ? (acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true) : true
+      acceptCashOnDelivery: acceptCashOnDelivery !== undefined ? (acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true) : true,
+      gstRate: parsedGstRate
     });
 
     const populated = await Product.findById(product._id)
@@ -693,7 +702,7 @@ exports.updateProduct = async (req, res, next) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     const prevStock = product.stock || 0;
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, acceptCashOnDelivery, existingImages } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, acceptCashOnDelivery, existingImages, gstRate } = req.body;
 
     if (title) product.title = title;
     if (description !== undefined) product.description = description;
@@ -778,6 +787,16 @@ exports.updateProduct = async (req, res, next) => {
     if (isActive !== undefined) product.isActive = isActive === 'true' || isActive === true;
     if (acceptCashOnDelivery !== undefined) {
       product.acceptCashOnDelivery = acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true;
+    }
+    if (gstRate !== undefined) {
+      if (gstRate === null || gstRate === '' || gstRate === 'null' || gstRate === 'default') {
+        product.gstRate = null;
+      } else {
+        const num = Number(gstRate);
+        if (!isNaN(num) && num >= 0 && num <= 100) {
+          product.gstRate = num;
+        }
+      }
     }
 
     await product.save();

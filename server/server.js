@@ -47,8 +47,10 @@ app.use(cors({
       return callback(null, true);
     }
     try {
-      const hostname = new URL(origin).hostname;
-      if (hostname.endsWith('.vercel.app')) {
+      const parsedUrl = new URL(origin);
+      const hostname = parsedUrl.hostname;
+      const clientHost = clientUrlClean ? new URL(clientUrlClean).hostname : 'friends-collection.vercel.app';
+      if (hostname === clientHost || hostname === 'friends-collection.vercel.app') {
         return callback(null, true);
       }
     } catch (e) {

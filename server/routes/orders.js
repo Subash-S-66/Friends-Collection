@@ -15,15 +15,15 @@ const {
 } = require('../controllers/orderController');
 const { auth, optionalAuth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const { orderLimiter } = require('../middleware/rateLimiter');
+const { orderLimiter, authLimiter } = require('../middleware/rateLimiter');
 
 // Public / Guest
 router.post('/reserve', optionalAuth, reserveCheckoutStock);
 router.post('/release-hold', optionalAuth, releaseCheckoutStock);
 router.get('/reservation/:sessionId', optionalAuth, getReservationStatus);
 router.post('/', orderLimiter, optionalAuth, placeOrder);
-router.get('/track/:orderId', trackOrder);
-router.get('/by-phone/:phone', getOrdersByPhone);
+router.get('/track/:orderId', authLimiter, trackOrder);
+router.get('/by-phone/:phone', authLimiter, getOrdersByPhone);
 
 // Sample Order for PDF Preview
 const SAMPLE_ORDER = {

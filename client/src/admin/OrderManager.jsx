@@ -1236,6 +1236,11 @@ const OrderManager = () => {
                         <p className="text-neutral-500">
                           Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                         </p>
+                        {item.gstRate !== undefined && item.gstRate !== null && (
+                          <span className="inline-block mt-0.5 text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                            GST: {item.gstRate}% {item.gstAmount ? `(₹${item.gstAmount})` : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <span className="font-numeric font-bold text-neutral-900">
@@ -1252,10 +1257,10 @@ const OrderManager = () => {
               const subtotal = Number(selectedOrder.totalAmount || 0);
               const shippingCharge = Number(selectedOrder.shippingCharge || 0);
               const grandTotal = subtotal + shippingCharge;
-              const taxableSubtotal = effectiveGstRate > 0 ? Math.round((subtotal / (1 + effectiveGstRate / 100)) * 100) / 100 : subtotal;
               const estimatedGst = selectedOrder.gstAmount !== undefined && selectedOrder.gstAmount !== null && Number(selectedOrder.gstAmount) > 0
                 ? Number(selectedOrder.gstAmount)
-                : (effectiveGstRate > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0);
+                : (effectiveGstRate > 0 ? Math.round((subtotal - (subtotal / (1 + effectiveGstRate / 100))) * 100) / 100 : 0);
+              const taxableSubtotal = Math.max(0, Math.round((subtotal - estimatedGst) * 100) / 100);
 
               return (
                 <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-xs space-y-1.5">

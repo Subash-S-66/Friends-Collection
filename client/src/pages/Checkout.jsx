@@ -113,8 +113,31 @@ const Checkout = () => {
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const grandTotal = subtotal + shippingCharge;
-  const taxableSubtotal = gstPercentage > 0 ? Math.round((subtotal / (1 + gstPercentage / 100)) * 100) / 100 : subtotal;
-  const estimatedGst = gstPercentage > 0 ? Math.round((subtotal - taxableSubtotal) * 100) / 100 : 0;
+
+  // Compute item-level custom GST or fallback to store global GST
+  let calculatedTaxable = 0;
+  let calculatedGst = 0;
+  let hasCustomGstItem = false;
+  (availableItems || []).forEach((item) => {
+    const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const itemRate = (item.product?.gstRate !== null && item.product?.gstRate !== undefined)
+      ? Number(item.product.gstRate)
+      : (item.gstRate !== null && item.gstRate !== undefined ? Number(item.gstRate) : gstPercentage);
+    if ((item.product?.gstRate !== null && item.product?.gstRate !== undefined && Number(item.product.gstRate) !== gstPercentage) ||
+        (item.gstRate !== null && item.gstRate !== undefined && Number(item.gstRate) !== gstPercentage)) {
+      hasCustomGstItem = true;
+    }
+    const itemTaxable = itemRate > 0 ? (itemTotal / (1 + itemRate / 100)) : itemTotal;
+    const itemTax = itemRate > 0 ? (itemTotal - itemTaxable) : 0;
+    calculatedTaxable += itemTaxable;
+    calculatedGst += itemTax;
+  });
+
+  const taxableSubtotal = Math.round(calculatedTaxable * 100) / 100;
+  const estimatedGst = Math.round(calculatedGst * 100) / 100;
+  const effectiveGstDisplayRate = (subtotal - estimatedGst) > 0
+    ? Math.round((estimatedGst / (subtotal - estimatedGst)) * 10000) / 100
+    : gstPercentage;
 
   // Razorpay Gateway Config
   const [razorpayConfig, setRazorpayConfig] = useState({ keyId: '', isConfigured: false });
@@ -1225,11 +1248,18 @@ const Checkout = () => {
                     <p className="text-[11px] text-neutral-500">
                       Qty: {item.quantity} {item.size && `• Size: ${item.size}`}
                     </p>
-                    {item.acceptCashOnDelivery === false && (
-                      <span className="inline-block mt-0.5 text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                        Online Payment Only
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      {item.acceptCashOnDelivery === false && (
+                        <span className="inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                          Online Payment Only
+                        </span>
+                      )}
+                      {((item.product?.gstRate !== null && item.product?.gstRate !== undefined) || (item.gstRate !== null && item.gstRate !== undefined)) && (
+                        <span className="inline-block text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                          GST: {item.product?.gstRate ?? item.gstRate}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-neutral-900 font-numeric">
@@ -1255,14 +1285,14 @@ const Checkout = () => {
                 <span className="font-bold text-neutral-900 font-numeric">{formatPrice(subtotal)}</span>
               </div>
 
-              {gstPercentage > 0 && (
+              {(estimatedGst > 0 || gstPercentage > 0) && (
                 <div className="bg-neutral-50/80 rounded-xl p-2.5 space-y-1.5 border border-neutral-200/60 text-xs">
                   <div className="flex justify-between text-neutral-500">
                     <span>Taxable Amount (Excl. Tax)</span>
                     <span className="font-medium text-neutral-700 font-numeric">{formatPrice(taxableSubtotal)}</span>
                   </div>
                   <div className="flex justify-between text-neutral-500">
-                    <span>Estimated GST ({gstPercentage}%)</span>
+                    <span>Estimated GST {hasCustomGstItem ? `(Item-specific / ${effectiveGstDisplayRate}%)` : `(${gstPercentage}%)`}</span>
                     <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
                   </div>
                 </div>
@@ -1289,9 +1319,11 @@ const Checkout = () => {
               <div className="border-t border-neutral-100 pt-3 flex justify-between items-baseline text-base">
                 <div>
                   <span className="font-bold text-neutral-900 block">Total Payable</span>
-                  {gstPercentage > 0 && (
+                  {(estimatedGst > 0 || gstPercentage > 0) && (
                     <span className="text-[11px] text-neutral-500 block font-normal">
-                      (Inclusive of {gstPercentage}% GST & taxes)
+                      {hasCustomGstItem
+                        ? '(Inclusive of item-specific GST slabs & taxes)'
+                        : `(Inclusive of ${gstPercentage}% GST & taxes)`}
                     </span>
                   )}
                 </div>

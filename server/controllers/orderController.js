@@ -170,7 +170,15 @@ exports.placeOrder = async (req, res, next) => {
       }
 
       const price = product.salePrice || product.price;
-      totalAmount += price * item.quantity;
+      const itemTotal = price * item.quantity;
+      totalAmount += itemTotal;
+
+      // Determine product-level or global GST rate
+      const itemGstRate = (product.gstRate !== null && product.gstRate !== undefined)
+        ? Number(product.gstRate)
+        : gstRate;
+      const itemTaxable = itemGstRate > 0 ? (itemTotal / (1 + itemGstRate / 100)) : itemTotal;
+      const itemGstAmount = itemGstRate > 0 ? Math.round((itemTotal - itemTaxable) * 100) / 100 : 0;
 
       // Resolve variant or color specific image
       const targetSize = norm(item.size);
@@ -215,7 +223,9 @@ exports.placeOrder = async (req, res, next) => {
         size: item.size || '',
         color: item.color || '',
         quantity: item.quantity,
-        image: resolvedItemImage
+        image: resolvedItemImage,
+        gstRate: itemGstRate,
+        gstAmount: itemGstAmount
       });
     }
 
@@ -252,9 +262,10 @@ exports.placeOrder = async (req, res, next) => {
 
     let order;
     try {
-      const gstAmount = gstRate > 0
-        ? Math.round((totalAmount - (totalAmount / (1 + gstRate / 100))) * 100) / 100
-        : 0;
+      const totalGstAmount = Math.round(orderItems.reduce((sum, it) => sum + (it.gstAmount || 0), 0) * 100) / 100;
+      const effectiveOrderGstRate = (totalAmount - totalGstAmount) > 0
+        ? Math.round((totalGstAmount / (totalAmount - totalGstAmount)) * 10000) / 100
+        : gstRate;
 
       order = await Order.create({
         items: orderItems,
@@ -262,8 +273,8 @@ exports.placeOrder = async (req, res, next) => {
         user: orderUserId,
         totalAmount,
         shippingCharge: Number(shippingCharge),
-        gstRate,
-        gstAmount,
+        gstRate: effectiveOrderGstRate,
+        gstAmount: totalGstAmount,
         status: 'order_received',
         paymentStatus: req.body.paymentStatus || 'payment_pending',
         paymentMethod: req.body.paymentMethod || 'cod',

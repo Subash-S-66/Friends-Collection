@@ -84,6 +84,10 @@ const Cart = () => {
   const isFreeShipping = subtotal >= freeShippingThreshold;
   const shippingCharge = isFreeShipping ? 0 : 79;
   const totalAmount = subtotal + shippingCharge;
+  const hasCustomGst = (availableItems || []).some(
+    (it) => (it.product?.gstRate !== null && it.product?.gstRate !== undefined && Number(it.product.gstRate) !== gstPercentage) ||
+            (it.gstRate !== null && it.gstRate !== undefined && Number(it.gstRate) !== gstPercentage)
+  );
 
   if (items.length === 0) {
     return (
@@ -192,6 +196,11 @@ const Cart = () => {
                           {item.size && item.color && ' • '}
                           {item.color && <span>Color: {item.color}</span>}
                         </p>
+                      )}
+                      {((item.product?.gstRate !== null && item.product?.gstRate !== undefined) || (item.gstRate !== null && item.gstRate !== undefined)) && (
+                        <span className="inline-block mt-0.5 text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                          GST: {item.product?.gstRate ?? item.gstRate}%
+                        </span>
                       )}
 
                       {isSoldOut ? (
@@ -326,7 +335,9 @@ const Cart = () => {
                   <span className="font-bold text-neutral-900 block">Estimated Total</span>
                   {gstPercentage > 0 && (
                     <span className="text-[11px] text-neutral-500 font-normal block">
-                      (Inclusive of {gstPercentage}% GST & taxes)
+                      {hasCustomGst
+                        ? '(Inclusive of item-specific GST slabs & taxes)'
+                        : `(Inclusive of ${gstPercentage}% GST & taxes)`}
                     </span>
                   )}
                 </div>

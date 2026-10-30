@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
@@ -9,6 +10,8 @@ const {
   sendOldEmailChangeOtp,
   sendNewEmailChangeOtp
 } = require('../utils/emailService');
+
+const generateSecureOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
@@ -57,7 +60,7 @@ exports.register = async (req, res, next) => {
     }
 
     // Generate 6-digit verification token
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     await VerificationToken.deleteMany({ email: cleanEmail, type: { $in: ['register', 'verify-email'] } });
@@ -435,7 +438,7 @@ exports.requestVerificationToken = async (req, res, next) => {
     const existingUser = await User.findOne({ email: cleanEmail });
 
     // Generate secure 6-digit numeric token
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Invalidate existing tokens for this email
@@ -593,7 +596,7 @@ exports.resendVerification = async (req, res, next) => {
       return res.status(400).json({ message: 'This account is already verified. Please sign in.' });
     }
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await VerificationToken.deleteMany({ email: cleanEmail, type: { $in: ['verify-email', 'register'] } });
@@ -649,7 +652,7 @@ exports.forgotPasswordRequest = async (req, res, next) => {
     }
 
     // Generate 6-digit OTP
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await VerificationToken.deleteMany({ email: cleanEmail, type: 'forgot-password' });
@@ -784,10 +787,10 @@ exports.requestEmailChange = async (req, res, next) => {
     }
 
     // Generate two distinct 6-digit OTPs
-    const oldEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    let newEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const oldEmailOtp = generateSecureOtp();
+    let newEmailOtp = generateSecureOtp();
     while (newEmailOtp === oldEmailOtp) {
-      newEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      newEmailOtp = generateSecureOtp();
     }
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes

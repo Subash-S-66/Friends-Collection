@@ -31,6 +31,7 @@ const productSchema = new mongoose.Schema({
   isFeatured: { type: Boolean, default: false },
   acceptCashOnDelivery: { type: Boolean, default: true },
   tags: [{ type: String }],
+  gstRate: { type: Number, default: null, min: 0, max: 100 },
   views: { type: Number, default: 0 }
 }, { timestamps: true });
 

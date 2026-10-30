@@ -91,6 +91,22 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
       });
     }
 
+    // Calculate authoritative shipping charge and global gstRate from store settings
+    let freeShippingThreshold = 999;
+    let gstRate = 5;
+    try {
+      const settings = await Settings.findOne();
+      if (settings?.freeShippingThreshold) {
+        freeShippingThreshold = Number(settings.freeShippingThreshold);
+      }
+      const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
+      if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
+        gstRate = Number(invSettings.value.gstPercentage) || 0;
+      }
+    } catch (sErr) {
+      console.warn('Could not read settings threshold/gstRate:', sErr);
+    }
+
     // Build verified items and calculate total strictly from database prices
     let subtotal = 0;
     const verifiedItems = [];
@@ -111,7 +127,15 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
 
       // Authoritative database price (unhackable)
       const price = product.salePrice || product.price;
-      subtotal += price * item.quantity;
+      const itemTotal = price * item.quantity;
+      subtotal += itemTotal;
+
+      // Determine product-level or global GST rate
+      const itemGstRate = (product.gstRate !== null && product.gstRate !== undefined)
+        ? Number(product.gstRate)
+        : gstRate;
+      const itemTaxable = itemGstRate > 0 ? (itemTotal / (1 + itemGstRate / 100)) : itemTotal;
+      const itemGstAmount = itemGstRate > 0 ? Math.round((itemTotal - itemTaxable) * 100) / 100 : 0;
 
       verifiedItems.push({
         product: product._id,
@@ -120,31 +144,18 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
         size: item.size || '',
         color: item.color || '',
         quantity: item.quantity,
-        image: product.images[0] || ''
+        image: product.images[0] || '',
+        gstRate: itemGstRate,
+        gstAmount: itemGstAmount
       });
-    }
-
-    // Calculate authoritative shipping charge from store settings
-    let freeShippingThreshold = 999;
-    let gstRate = 5;
-    try {
-      const settings = await Settings.findOne();
-      if (settings?.freeShippingThreshold) {
-        freeShippingThreshold = Number(settings.freeShippingThreshold);
-      }
-      const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
-      if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
-        gstRate = Number(invSettings.value.gstPercentage) || 0;
-      }
-    } catch (sErr) {
-      console.warn('Could not read settings threshold/gstRate:', sErr);
     }
 
     const shippingCharge = subtotal >= freeShippingThreshold ? 0 : 79;
     const grandTotalPaise = Math.round((subtotal + shippingCharge) * 100);
-    const gstAmount = gstRate > 0
-      ? Math.round((subtotal - (subtotal / (1 + gstRate / 100))) * 100) / 100
-      : 0;
+    const totalGstAmount = Math.round(verifiedItems.reduce((sum, it) => sum + (it.gstAmount || 0), 0) * 100) / 100;
+    const effectiveGstRate = (subtotal - totalGstAmount) > 0
+      ? Math.round((totalGstAmount / (subtotal - totalGstAmount)) * 10000) / 100
+      : gstRate;
 
     if (grandTotalPaise <= 0) {
       return res.status(400).json({ message: 'Invalid payment amount' });
@@ -193,8 +204,8 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
       user: orderUserId,
       totalAmount: subtotal,
       shippingCharge,
-      gstRate,
-      gstAmount,
+      gstRate: effectiveGstRate,
+      gstAmount: totalGstAmount,
       grandTotalPaise,
       sessionId: sessionId || '',
       saveAddress: Boolean(saveAddress),
@@ -471,7 +482,10 @@ router.post('/webhook', async (req, res) => {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
-    if (secret && signature) {
+    if (secret) {
+      if (!signature) {
+        return res.status(400).send('Missing x-razorpay-signature header');
+      }
       const rawPayload = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
       const expectedSignature = crypto
         .createHmac('sha256', secret)
@@ -512,6 +526,8 @@ router.post('/webhook', async (req, res) => {
                   user: draft.user,
                   totalAmount: draft.totalAmount,
                   shippingCharge: draft.shippingCharge,
+                  gstRate: draft.gstRate || 0,
+                  gstAmount: draft.gstAmount || 0,
                   status: 'order_received',
                   paymentStatus: 'paid',
                   paidAt: new Date(),
