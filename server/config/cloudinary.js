@@ -176,9 +176,101 @@ const uploadSignatureImage = async (fileBuffer, originalName, folder = 'friends_
   });
 };
 
+/**
+ * Extract public ID from a Cloudinary URL
+ * Handles transformations, version prefixes, subfolders, query params and hashes.
+ * Returns null if not a valid Cloudinary URL.
+ */
+const extractCloudinaryPublicId = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  if (!url.includes('cloudinary.com')) return null;
+
+  try {
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const uploadIndex = cleanUrl.indexOf('/upload/');
+    if (uploadIndex === -1) return null;
+
+    const pathAfterUpload = cleanUrl.substring(uploadIndex + '/upload/'.length);
+    const segments = pathAfterUpload.split('/');
+
+    const contentSegments = [];
+    let passedVersion = false;
+
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!passedVersion && /^v\d+$/.test(seg)) {
+        passedVersion = true;
+        continue;
+      }
+      if (!passedVersion) {
+        // Transformation parameters (e.g., c_fill,w_800 or f_auto or contains comma)
+        if (seg.includes(',') || /^(c|w|h|q|f|fl|ar|b|e|co|l|u|a|o|dpr|pg|cs)_/.test(seg)) {
+          continue;
+        }
+      }
+      contentSegments.push(seg);
+    }
+
+    if (contentSegments.length === 0) return null;
+
+    let fullPath = contentSegments.join('/');
+    const lastDotIndex = fullPath.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      fullPath = fullPath.substring(0, lastDotIndex);
+    }
+
+    return decodeURIComponent(fullPath);
+  } catch (err) {
+    return null;
+  }
+};
+
+/**
+ * Destroy a single image on Cloudinary by its public ID or full URL
+ */
+const deleteCloudinaryImage = async (urlOrPublicId) => {
+  if (!isCloudinaryConfigured() || !urlOrPublicId) return null;
+
+  const publicId = urlOrPublicId.includes('cloudinary.com')
+    ? extractCloudinaryPublicId(urlOrPublicId)
+    : urlOrPublicId;
+
+  if (!publicId) return null;
+
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
+      invalidate: true
+    });
+    return { publicId, result };
+  } catch (err) {
+    console.error(`Error deleting Cloudinary image [${publicId}]:`, err?.message || err);
+    return { publicId, error: err?.message || String(err) };
+  }
+};
+
+/**
+ * Destroy multiple images on Cloudinary by their public IDs or full URLs
+ */
+const deleteMultipleCloudinaryImages = async (urlsOrPublicIds) => {
+  if (!isCloudinaryConfigured() || !Array.isArray(urlsOrPublicIds) || urlsOrPublicIds.length === 0) {
+    return [];
+  }
+
+  const distinct = Array.from(new Set(urlsOrPublicIds.filter(Boolean)));
+  const results = await Promise.allSettled(
+    distinct.map((item) => deleteCloudinaryImage(item))
+  );
+
+  return results.map((r) => (r.status === 'fulfilled' ? r.value : { error: r.reason?.message }));
+};
+
 module.exports = {
   cloudinary,
   isCloudinaryConfigured,
   uploadAndProcessImage,
-  uploadSignatureImage
+  uploadSignatureImage,
+  extractCloudinaryPublicId,
+  deleteCloudinaryImage,
+  deleteMultipleCloudinaryImages
 };

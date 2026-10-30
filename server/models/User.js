@@ -39,6 +39,8 @@ const userSchema = new mongoose.Schema({
   avatar: { type: String },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   isVerified: { type: Boolean, default: false },
+  tokenVersion: { type: Number, default: 0 },
+  passwordChangedAt: { type: Date },
   savedAddresses: [addressSchema],
   cart: [cartItemSchema]
 }, { timestamps: true });

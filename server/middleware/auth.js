@@ -25,6 +25,14 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Token Version Verification (Session Revocation / Instant Kill Switch)
+    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== (req.user.tokenVersion || 0)) {
+      return res.status(401).json({
+        message: 'This session has been revoked or expired. Please sign in again.',
+        sessionRevoked: true
+      });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Not authorized, token invalid' });
@@ -42,7 +50,10 @@ const optionalAuth = async (req, res, next) => {
 
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-password');
+      const user = await User.findById(decoded.id).select('-password');
+      if (user && (decoded.tokenVersion === undefined || decoded.tokenVersion === (user.tokenVersion || 0))) {
+        req.user = user;
+      }
     }
   } catch (error) {
     // Silently continue — user is guest

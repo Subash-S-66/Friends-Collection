@@ -1,6 +1,6 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const { uploadAndProcessImage } = require('../config/cloudinary');
+const { uploadAndProcessImage, deleteMultipleCloudinaryImages } = require('../config/cloudinary');
 const { getHiddenDepartments } = require('../utils/settingsHelper');
 
 // @desc    Get all products (public)
@@ -870,7 +870,52 @@ exports.deleteProduct = async (req, res, next) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    // Collect all image URLs across general catalog images, color variants, and size variants
+    const rawUrls = [
+      ...(Array.isArray(product.images) ? product.images : []),
+      ...(Array.isArray(product.colorImages)
+        ? product.colorImages.flatMap((ci) => [ci?.image, ...(Array.isArray(ci?.images) ? ci.images : [])])
+        : []),
+      ...(Array.isArray(product.variants)
+        ? product.variants.flatMap((v) => [v?.image, ...(Array.isArray(v?.images) ? v.images : [])])
+        : [])
+    ].filter((u) => typeof u === 'string' && u.trim().length > 0);
+
+    const allImages = Array.from(new Set(rawUrls));
+
+    // Delete the product record from MongoDB
     await Product.findByIdAndDelete(req.params.id);
+
+    // Safely delete associated images from Cloudinary storage
+    if (allImages.length > 0) {
+      try {
+        const safeToDelete = [];
+        for (const imgUrl of allImages) {
+          // Ensure the asset is not referenced by any other product in the store
+          const isReferencedElsewhere = await Product.exists({
+            _id: { $ne: product._id },
+            $or: [
+              { images: imgUrl },
+              { 'colorImages.image': imgUrl },
+              { 'colorImages.images': imgUrl },
+              { 'variants.image': imgUrl },
+              { 'variants.images': imgUrl }
+            ]
+          });
+
+          if (!isReferencedElsewhere) {
+            safeToDelete.push(imgUrl);
+          }
+        }
+
+        if (safeToDelete.length > 0) {
+          await deleteMultipleCloudinaryImages(safeToDelete);
+        }
+      } catch (cloudErr) {
+        console.error('Error cleaning up product images from Cloudinary:', cloudErr?.message || cloudErr);
+      }
+    }
+
     res.json({ message: 'Product deleted' });
   } catch (error) {
     next(error);

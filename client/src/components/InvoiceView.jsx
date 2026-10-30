@@ -389,18 +389,18 @@ const InvoiceView = ({
                     className="text-white font-bold uppercase tracking-wider text-[10px]"
                     style={{ backgroundColor: primaryColor }}
                   >
-                    <th className="py-3 px-3">#</th>
-                    <th className="py-3 px-3">Item Description</th>
-                    <th className="py-3 px-2 text-center">Qty</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                    <th className="py-3 px-3 align-top">#</th>
+                    <th className="py-3 px-3 align-top">Item Description</th>
+                    <th className="py-3 px-2 text-center align-top">Qty</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap align-top">
                       <span>Product Price</span>
                       <span className="block text-[8px] font-normal normal-case opacity-85">(Taxable)</span>
                     </th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                    <th className="py-3 px-3 text-right whitespace-nowrap align-top">
                       <span>GST</span>
                       <span className="block text-[8px] font-normal normal-case opacity-85">(Rate & Tax)</span>
                     </th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                    <th className="py-3 px-3 text-right whitespace-nowrap align-top">
                       <span>Total</span>
                       <span className="block text-[8px] font-normal normal-case opacity-85">(Product + GST)</span>
                     </th>
@@ -409,12 +409,16 @@ const InvoiceView = ({
                 <tbody className="divide-y divide-neutral-200">
                   {processedItems.map((item, idx) => (
                     <tr key={idx} className="hover:bg-neutral-50/60 transition-colors">
-                      <td className="py-3 px-3 text-neutral-400 font-mono">{idx + 1}</td>
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-neutral-900">{item.title}</div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-neutral-500">
+                      <td className="py-3 px-3 text-neutral-400 font-mono align-top text-xs pt-3">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3 px-3 align-top pt-3">
+                        <div className="font-bold text-neutral-900 text-xs sm:text-sm leading-snug">
+                          {item.title}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-neutral-500">
                           {(item.size || item.color) && (
-                            <span>
+                            <span className="font-medium text-neutral-700">
                               {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(' • ')}
                             </span>
                           )}
@@ -423,20 +427,47 @@ const InvoiceView = ({
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-2 text-center font-bold text-neutral-900 font-numeric">
-                        {item.quantity}
-                      </td>
-                      <td className="py-3 px-3 text-right font-semibold text-neutral-800 font-numeric whitespace-nowrap">
-                        {formatPrice(item.taxableAmount)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-numeric whitespace-nowrap">
-                        <span className="font-bold text-neutral-900 block">{formatPrice(item.gstAmount)}</span>
-                        <span className="text-[10px] text-neutral-500 block font-normal">
-                          {item.itemGstRate}% {item.itemGstRate > 0 && (isInterState ? '(IGST)' : `(CGST:${(item.itemGstRate / 2).toFixed(1)}% SGST:${(item.itemGstRate / 2).toFixed(1)}%)`)}
+                      <td className="py-3 px-2 text-center align-top pt-3 font-numeric">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 font-bold text-xs">
+                          {item.quantity}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right font-bold text-neutral-900 font-numeric whitespace-nowrap">
-                        {formatPrice(item.lineTotal)}
+                      <td className="py-3 px-3 text-right align-top whitespace-nowrap pt-3">
+                        <span className="font-bold text-neutral-900 font-numeric text-xs sm:text-sm block">
+                          {formatPrice(item.taxableAmount)}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 block font-normal pt-0.5">
+                          {item.quantity > 1
+                            ? `(${formatPrice(item.taxableAmount / item.quantity)} / unit)`
+                            : 'Taxable Base'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right align-top whitespace-nowrap pt-3">
+                        <span className="font-bold text-neutral-900 font-numeric text-xs sm:text-sm block">
+                          {formatPrice(item.gstAmount)}
+                        </span>
+                        {item.itemGstRate > 0 ? (
+                          <div className="flex flex-col items-end gap-0.5 pt-0.5">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold text-[10px] tracking-tight">
+                              {item.itemGstRate}% GST
+                            </span>
+                            <span className="text-[9px] text-neutral-400 font-sans tracking-tight">
+                              {isInterState
+                                ? 'IGST'
+                                : `CGST ${(item.itemGstRate / 2).toFixed(1)}% + SGST ${(item.itemGstRate / 2).toFixed(1)}%`}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 italic block pt-0.5">0% (Exempt)</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right align-top whitespace-nowrap pt-3">
+                        <span className="font-bold text-neutral-900 font-numeric text-xs sm:text-sm block">
+                          {formatPrice(item.lineTotal)}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 block font-normal pt-0.5">
+                          Incl. All Taxes
+                        </span>
                       </td>
                     </tr>
                   ))}

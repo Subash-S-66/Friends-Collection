@@ -124,7 +124,16 @@ const ProductDetail = () => {
     }
   }, [currentStock, quantity]);
 
-  // Derive the active gallery images based on selected color or variant
+  // 1. Check if the active variant has custom photo(s)
+  const variantImages = useMemo(() => {
+    if (!currentVariant) return [];
+    const list = Array.isArray(currentVariant.images) && currentVariant.images.length > 0
+      ? currentVariant.images
+      : (currentVariant.image ? [currentVariant.image] : []);
+    return list.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+  }, [currentVariant]);
+
+  // 2. Check if the active color has photos
   const activeColorObj = useMemo(() => {
     if (!product || !selectedColor) return null;
     const norm = selectedColor.trim().toLowerCase();
@@ -134,58 +143,70 @@ const ProductDetail = () => {
   }, [product, selectedColor]);
 
   const activeColorImages = useMemo(() => {
-    // If the selected variant has custom photos, prioritize them!
-    const variantCustomImgs = Array.isArray(currentVariant?.images) && currentVariant.images.length > 0
-      ? currentVariant.images
-      : (currentVariant?.image ? [currentVariant.image] : []);
-    if (variantCustomImgs.length > 0) {
-      return variantCustomImgs.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+    if (!selectedColor) return [];
+    const norm = selectedColor.trim().toLowerCase();
+
+    // From product.colorImages
+    let list = [];
+    if (activeColorObj) {
+      list = Array.isArray(activeColorObj.images) && activeColorObj.images.length > 0
+        ? activeColorObj.images
+        : (activeColorObj.image ? [activeColorObj.image] : []);
     }
 
-    if (!activeColorObj) return [];
-    const list = Array.isArray(activeColorObj.images) && activeColorObj.images.length > 0
-      ? activeColorObj.images
-      : (activeColorObj.image ? [activeColorObj.image] : []);
-    return list.filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
-  }, [currentVariant, activeColorObj]);
+    // Fallback: collect photos from variants matching this color
+    if (list.length === 0 && product?.variants?.length > 0) {
+      const matchingVariants = product.variants.filter(
+        (v) => (v.color || '').trim().toLowerCase() === norm
+      );
+      list = matchingVariants.flatMap((v) =>
+        Array.isArray(v.images) && v.images.length > 0 ? v.images : (v.image ? [v.image] : [])
+      );
+    }
 
+    return Array.from(new Set(list)).filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
+  }, [product, selectedColor, activeColorObj]);
+
+  // 3. Fallback general images
   const allGeneralImages = useMemo(() => {
-    const list = [
+    const list = (product?.images || []).filter(
+      (img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo')
+    );
+    if (list.length > 0) return list;
+
+    const all = [
       ...(product?.images || []),
       ...(product?.colorImages || []).flatMap((ci) => (Array.isArray(ci.images) && ci.images.length > 0 ? ci.images : [ci.image])),
       ...(product?.variants || []).flatMap((v) => (Array.isArray(v.images) && v.images.length > 0 ? v.images : [v.image]))
     ].filter((img) => typeof img === 'string' && img.trim() && !img.toLowerCase().includes('logo'));
-    return Array.from(new Set(list));
+    return Array.from(new Set(all));
   }, [product]);
 
-  const [showAllGalleryPhotos, setShowAllGalleryPhotos] = useState(false);
-
+  // Prioritization rule:
+  // - If the selected variant has custom photo(s), show ONLY that variant photo(s)
+  // - Else if a colour is selected and has color photos, show ONLY those color photos
+  // - Else fallback to general catalog photos
   const displayImages = useMemo(() => {
-    if (!showAllGalleryPhotos && activeColorImages.length > 0) {
+    if (variantImages.length > 0) {
+      return variantImages;
+    }
+    if (activeColorImages.length > 0) {
       return activeColorImages;
     }
-    return allGeneralImages.length > 0
-      ? allGeneralImages
-      : ['/fallback-product-1.png', '/fallback-product-2.png'];
-  }, [showAllGalleryPhotos, activeColorImages, allGeneralImages]);
+    if (allGeneralImages.length > 0) {
+      return allGeneralImages;
+    }
+    return ['/fallback-product-1.png', '/fallback-product-2.png'];
+  }, [variantImages, activeColorImages, allGeneralImages]);
+
+  const safeActiveImageIndex = activeImageIndex < displayImages.length ? activeImageIndex : 0;
 
   const getFallbackForIndex = (idx) => `/fallback-product-${(idx % 2) + 1}.png`;
 
-  // When customer switches color or size, reset active image index to 0
+  // When customer switches color or size or variant, reset active image index to 0
   useEffect(() => {
-    setShowAllGalleryPhotos(false);
     setActiveImageIndex(0);
-  }, [selectedColor, selectedSize]);
-
-  // When custom variant has a specific image override
-  useEffect(() => {
-    if (currentVariant?.image) {
-      const idx = displayImages.indexOf(currentVariant.image);
-      if (idx >= 0) {
-        setActiveImageIndex(idx);
-      }
-    }
-  }, [currentVariant?.image, displayImages]);
+  }, [selectedColor, selectedSize, currentVariant]);
 
   if (loading) {
     return (
@@ -352,7 +373,7 @@ const ProductDetail = () => {
                       key={idx}
                       onClick={() => setActiveImageIndex(idx)}
                       className={`aspect-[3/4] w-16 sm:w-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                        activeImageIndex === idx
+                        safeActiveImageIndex === idx
                           ? 'border-primary ring-2 ring-primary/20 shadow-md scale-102'
                           : 'border-neutral-200 hover:border-neutral-400 opacity-70 hover:opacity-100'
                       }`}
@@ -368,20 +389,6 @@ const ProductDetail = () => {
                   ))}
                 </div>
               )}
-
-              {/* View all photos / Color gallery toggle */}
-              {activeColorImages.length > 0 && allGeneralImages.length > activeColorImages.length && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAllGalleryPhotos(!showAllGalleryPhotos);
-                    setActiveImageIndex(0);
-                  }}
-                  className="text-[10px] text-center font-bold text-accent-700 hover:text-primary transition-colors cursor-pointer py-1 px-1.5 rounded-lg bg-neutral-100/80 border border-neutral-200/80 hover:bg-neutral-200/70"
-                >
-                  {showAllGalleryPhotos ? `Show ${selectedColor} only` : `View all (${allGeneralImages.length})`}
-                </button>
-              )}
             </div>
 
             {/* Main Featured Image with 3:4 Aspect Ratio Guard */}
@@ -392,10 +399,10 @@ const ProductDetail = () => {
             >
               <AnimatePresence mode="wait">
                 <motion.img
-                  key={activeImageIndex}
-                  src={getImageUrl(displayImages[activeImageIndex] || displayImages[0], getFallbackForIndex(activeImageIndex))}
+                  key={safeActiveImageIndex + '-' + (displayImages[safeActiveImageIndex] || '')}
+                  src={getImageUrl(displayImages[safeActiveImageIndex] || displayImages[0], getFallbackForIndex(safeActiveImageIndex))}
                   alt={product.title}
-                  onError={(e) => handleImageError(e, getFallbackForIndex(activeImageIndex))}
+                  onError={(e) => handleImageError(e, getFallbackForIndex(safeActiveImageIndex))}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -539,6 +546,22 @@ const ProductDetail = () => {
                             setSelectedColor(color);
                             setAdded(false);
                             setIsProcessing(false);
+                            if (hasVariants && product?.variants?.length > 0) {
+                              const variantsForColor = product.variants.filter(
+                                (v) => (v.color || '').trim().toLowerCase() === color.trim().toLowerCase()
+                              );
+                              if (variantsForColor.length > 0) {
+                                const sizeStillValid = variantsForColor.some(
+                                  (v) => (v.size || '').trim().toLowerCase() === (selectedSize || '').trim().toLowerCase()
+                                );
+                                if (!sizeStillValid) {
+                                  const preferredVariant = variantsForColor.find((v) => (v.stock || 0) > 0) || variantsForColor[0];
+                                  if (preferredVariant?.size) {
+                                    setSelectedSize(preferredVariant.size);
+                                  }
+                                }
+                              }
+                            }
                           }}
                           className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all relative flex items-center gap-1.5 ${
                             selectedColor === color
@@ -869,9 +892,9 @@ const ProductDetail = () => {
 
           <div className="max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center relative">
             <img
-              src={getImageUrl(displayImages[activeImageIndex] || displayImages[0], getFallbackForIndex(activeImageIndex))}
+              src={getImageUrl(displayImages[safeActiveImageIndex] || displayImages[0], getFallbackForIndex(safeActiveImageIndex))}
               alt={product.title}
-              onError={(e) => handleImageError(e, getFallbackForIndex(activeImageIndex))}
+              onError={(e) => handleImageError(e, getFallbackForIndex(safeActiveImageIndex))}
               className="max-h-[82vh] max-w-full object-contain rounded-2xl shadow-2xl"
             />
             
@@ -883,7 +906,7 @@ const ProductDetail = () => {
                     key={i}
                     onClick={() => setActiveImageIndex(i)}
                     className={`w-12 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                      activeImageIndex === i ? 'border-primary ring-2 ring-white scale-105' : 'border-white/30 opacity-60'
+                      safeActiveImageIndex === i ? 'border-primary ring-2 ring-white scale-105' : 'border-white/30 opacity-60'
                     }`}
                   >
                     <img

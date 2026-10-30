@@ -6,6 +6,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -65,6 +66,9 @@ app.use(cors({
 
 // Global Rate Limiting
 app.use('/api/', generalLimiter);
+
+// Cookie Parser for secure HttpOnly session tokens
+app.use(cookieParser());
 
 // Body Parsing with size protection & raw body capture for payment webhooks
 app.use(express.json({

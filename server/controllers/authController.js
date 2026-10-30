@@ -13,8 +13,37 @@ const {
 
 const generateSecureOtp = () => crypto.randomInt(100000, 1000000).toString();
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+});
+
+const generateToken = (userOrId) => {
+  const id = userOrId && userOrId._id ? userOrId._id : userOrId;
+  const tokenVersion = typeof userOrId?.tokenVersion === 'number' ? userOrId.tokenVersion : 0;
+  const isAdmin = userOrId?.role === 'admin';
+  // Admin tokens expire in 1 day by default (configurable), user tokens expire in 7 days
+  const expiresIn = isAdmin
+    ? (process.env.ADMIN_JWT_EXPIRE || '1d')
+    : (process.env.JWT_EXPIRE || '7d');
+
+  return jwt.sign(
+    { id, tokenVersion, role: userOrId?.role || 'user' },
+    process.env.JWT_SECRET,
+    { expiresIn }
+  );
+};
+
+const sendAuthResponse = (user, statusCode, res, extraFields = {}) => {
+  const token = generateToken(user);
+  res.cookie('token', token, getCookieOptions());
+  return res.status(statusCode).json({
+    token,
+    user,
+    ...extraFields
+  });
 };
 
 // @desc    Register user - sends 6-digit verification code & verification link
@@ -150,8 +179,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
-    res.json({ token, user });
+    return sendAuthResponse(user, 200, res);
   } catch (error) {
     next(error);
   }
@@ -418,8 +446,7 @@ exports.googleAuth = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
-    res.json({ token, user });
+    return sendAuthResponse(user, 200, res);
   } catch (error) {
     next(error);
   }
