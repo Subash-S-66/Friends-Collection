@@ -1,3 +1,11 @@
+const dns = require('dns');
+// Use reliable public DNS resolvers to prevent Windows SRV lookup ECONNREFUSED issues on mongodb+srv
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Fallback to system DNS
+}
+
 const mongoose = require('mongoose');
 
 const connectDB = async (retries = 3, delay = 3000) => {
