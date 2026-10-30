@@ -58,7 +58,7 @@ const getStepProgress = (status) => {
 };
 
 const Account = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, logoutAllDevices, updateUser } = useAuth();
   const { confirm, confirmDownload } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -220,6 +220,22 @@ const Account = () => {
 
     logout();
     toast.success('Signed out successfully.');
+    setActiveTab('phone_lookup');
+  };
+
+  const handleLogoutAllDevices = async () => {
+    const ok = await confirm({
+      title: 'Sign Out of All Devices?',
+      message: 'This will immediately revoke all active sessions and log out your account from all phones, computers, and browsers. You will need to sign in again.',
+      type: 'danger',
+      confirmText: 'Sign Out Everywhere',
+      cancelText: 'Stay Signed In',
+      details: user ? `Account: ${user.name} (${user.email || user.phone})` : null
+    });
+    if (!ok) return;
+
+    await logoutAllDevices();
+    toast.success('Signed out of all devices successfully.');
     setActiveTab('phone_lookup');
   };
 
@@ -800,6 +816,15 @@ const Account = () => {
               >
                 <HiOutlineTruck className="w-4 h-4 text-primary" />
                 <span>Track Live Order</span>
+              </button>
+              <button
+                onClick={handleLogoutAllDevices}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-300 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
+                title="Log out of all devices and revoke all active sessions"
+              >
+                <HiOutlineShieldCheck className="w-4 h-4 text-amber-600" />
+                <span className="hidden sm:inline">Sign Out Everywhere</span>
+                <span className="sm:hidden">All Devices</span>
               </button>
               <button
                 onClick={handleLogout}

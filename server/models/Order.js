@@ -82,6 +82,10 @@ const orderSchema = new mongoose.Schema({
       location: { type: String, default: '' },
       timestamp: { type: Date, default: Date.now }
     }]
+  },
+  securityAudit: {
+    ipAddress: { type: String, default: '' },
+    userAgent: { type: String, default: '' }
   }
 }, { timestamps: true });
 

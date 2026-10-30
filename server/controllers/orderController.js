@@ -87,6 +87,21 @@ exports.placeOrder = async (req, res, next) => {
   try {
     const { items, customer, shippingCharge = 0, sessionId } = req.body;
 
+    // 0. Security Guard: Verify Request Origin & Referer (blocks automated bots / rogue third-party POSTs)
+    const clientUrlClean = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '').toLowerCase() : null;
+    const origin = (req.headers.origin || req.headers.referer || '').toLowerCase();
+    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const isTrustedOrigin =
+      isLocal ||
+      (clientUrlClean && origin.startsWith(clientUrlClean)) ||
+      origin.includes('friends-collection.vercel.app');
+
+    if (origin && !isTrustedOrigin) {
+      return res.status(403).json({
+        message: 'Order creation rejected: unauthorized request source.'
+      });
+    }
+
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
     }
@@ -112,6 +127,19 @@ exports.placeOrder = async (req, res, next) => {
       return res.status(400).json({ message: 'Please enter a valid email address for order confirmation & tax invoice' });
     }
     customer.email = cleanEmail;
+
+    // 1. Identity & Session Verification: If user token is provided, verify account status
+    if (req.user) {
+      if (req.user.isVerified === false && req.user.role !== 'admin') {
+        return res.status(403).json({
+          message: 'Please verify your email or phone number before placing orders.'
+        });
+      }
+      // If customer email differs from token owner, bind to authenticated user to prevent token hijacking
+      if (req.user.email && req.user.email.toLowerCase() !== cleanEmail && req.user.role !== 'admin') {
+        customer.email = req.user.email.toLowerCase();
+      }
+    }
 
     if (customer.secondaryPhone && customer.secondaryPhone.trim()) {
       const cleanSecPhone = customer.secondaryPhone.toString().replace(/\D/g, '');
@@ -229,6 +257,36 @@ exports.placeOrder = async (req, res, next) => {
       });
     }
 
+    // Cash on Delivery (COD) Anti-Abuse Protections:
+    const requestedPaymentMethod = (req.body.paymentMethod || 'cod').toLowerCase();
+    if (requestedPaymentMethod === 'cod') {
+      // Rule A: Maximum COD Order Amount Limit (₹10,000 max for unverified cash orders)
+      const MAX_COD_AMOUNT = 10000;
+      if (totalAmount > MAX_COD_AMOUNT) {
+        return res.status(400).json({
+          message: `Cash on Delivery is limited to orders up to ₹${MAX_COD_AMOUNT.toLocaleString('en-IN')} for order security. Please choose an online payment method (Cards / UPI / Netbanking) for higher value orders.`
+        });
+      }
+
+      // Rule B: Active Unfulfilled COD Orders Limit (max 3 pending COD orders to block spam/bot attacks)
+      const activeCodCount = await Order.countDocuments({
+        $or: [
+          { 'customer.phone': cleanPhone },
+          { 'customer.email': cleanEmail },
+          ...(req.user?._id ? [{ user: req.user._id }] : [])
+        ],
+        paymentMethod: 'cod',
+        status: { $in: ['order_received', 'confirmed', 'processing', 'dispatched'] },
+        paymentStatus: { $ne: 'paid' }
+      });
+
+      if (activeCodCount >= 3) {
+        return res.status(429).json({
+          message: 'You currently have 3 active Cash on Delivery orders awaiting fulfillment. To prevent fraudulent order spamming, please wait for existing deliveries or complete payment online.'
+        });
+      }
+    }
+
     // Atomically deduct inventory with optimistic concurrency control (OCC).
     // Eliminates race conditions so 2 shoppers cannot purchase the final stock concurrently (Amazon & Flipkart style).
     deductionResult = await deductOrderStockAtomically(items);
@@ -286,6 +344,10 @@ exports.placeOrder = async (req, res, next) => {
             location: 'Jamalia Boutique, Chennai',
             timestamp: new Date()
           }]
+        },
+        securityAudit: {
+          ipAddress: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '').toString().slice(0, 50),
+          userAgent: (req.headers['user-agent'] || '').slice(0, 250)
         }
       });
     } catch (createErr) {
