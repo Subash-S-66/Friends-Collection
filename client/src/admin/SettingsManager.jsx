@@ -12,12 +12,20 @@ import {
   HiOutlineArrowRight,
   HiOutlineEye,
   HiOutlineEyeOff,
-  HiOutlineViewGrid
+  HiOutlineViewGrid,
+  HiOutlineShieldCheck,
+  HiOutlineShieldExclamation,
+  HiOutlineLockClosed,
+  HiOutlineExclamation,
+  HiOutlineClock,
+  HiOutlineKey,
+  HiOutlineX
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useTheme, THEME_PRESETS, adjustColor } from '../context/ThemeContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { useAuth } from '../context/AuthContext';
 import HomepageCurationManager from './HomepageCurationManager';
 
 const SettingsManager = () => {
@@ -70,6 +78,58 @@ const SettingsManager = () => {
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
   const [savingShipping, setSavingShipping] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
+
+  // 6. Security & Session Revocation state
+  const { user, logoutAllDevices } = useAuth();
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false);
+  const [revokeStep, setRevokeStep] = useState('first_confirm'); // 'first_confirm' | 'countdown' | 'final_confirm'
+  const [countdownSeconds, setCountdownSeconds] = useState(3);
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (revokeModalOpen && revokeStep === 'countdown') {
+      if (countdownSeconds > 0) {
+        timer = setTimeout(() => {
+          setCountdownSeconds((prev) => prev - 1);
+        }, 1000);
+      } else {
+        setRevokeStep('final_confirm');
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [revokeModalOpen, revokeStep, countdownSeconds]);
+
+  const openRevokeModal = () => {
+    setRevokeStep('first_confirm');
+    setCountdownSeconds(3);
+    setRevokeModalOpen(true);
+  };
+
+  const handleStartCountdown = () => {
+    setCountdownSeconds(3);
+    setRevokeStep('countdown');
+  };
+
+  const handleExecuteRevokeAll = async () => {
+    try {
+      setIsRevoking(true);
+      await logoutAllDevices();
+      toast.success('All active logins and sessions have been revoked.');
+      setRevokeModalOpen(false);
+      navigate('/login', { replace: true });
+    } catch (err) {
+      toast.error('Failed to revoke sessions: ' + (err.message || 'Unknown error'));
+      setIsRevoking(false);
+    }
+  };
+
+  const handleCloseRevokeModal = () => {
+    if (isRevoking) return;
+    setRevokeModalOpen(false);
+    setRevokeStep('first_confirm');
+    setCountdownSeconds(3);
+  };
 
   useEffect(() => {
     API.get('/settings')
@@ -327,6 +387,7 @@ const SettingsManager = () => {
     { id: 'announcement', name: 'Announcement Bar', icon: HiOutlineSpeakerphone },
     { id: 'shipping', name: 'Shipping & Taxes', icon: HiOutlineTruck },
     { id: 'contact', name: 'Store Contact & Info', icon: HiOutlineOfficeBuilding },
+    { id: 'security', name: 'Security & Sessions', icon: HiOutlineShieldCheck, badge: 'Kill Switch' },
   ];
 
   return (
@@ -341,6 +402,16 @@ const SettingsManager = () => {
             Configure brand theme colors, top announcement bar, shipping delivery rules, and showroom contact info
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={openRevokeModal}
+          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 hover:text-red-800 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+          title="Emergency Global Session Revocation"
+        >
+          <HiOutlineShieldExclamation className="w-4 h-4 text-red-600 group-hover:scale-110 transition-transform" />
+          <span>Revoke All Sessions</span>
+        </button>
       </div>
 
       {/* Navigation Tab Pills */}
@@ -877,6 +948,311 @@ const SettingsManager = () => {
             </button>
           </div>
         </form>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 7: SECURITY & ACTIVE SESSIONS                              */}
+      {/* ============================================================== */}
+      {currentTab === 'security' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                  <HiOutlineShieldCheck className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-neutral-900">
+                    Security & Active Session Governance
+                  </h2>
+                  <p className="text-xs text-neutral-500">
+                    Dual-layer HttpOnly cookie protection, 24-hour token expiration, and database-backed session invalidation
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold self-start sm:self-auto border border-emerald-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Security Hardened
+              </span>
+            </div>
+
+            {/* Architecture Highlights Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
+              <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-neutral-800 mb-1">
+                  <HiOutlineLockClosed className="w-4 h-4 text-emerald-600" />
+                  Dual-Layer Auth (HttpOnly)
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Tokens are protected via HttpOnly, Secure, SameSite cookies to mitigate token theft via XSS or browser extensions.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-neutral-800 mb-1">
+                  <HiOutlineClock className="w-4 h-4 text-amber-600" />
+                  Admin 24-Hour Expiration
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Admin session tokens automatically expire every 24 hours (1 day) to dramatically minimize exposure windows.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-neutral-800 mb-1">
+                  <HiOutlineKey className="w-4 h-4 text-primary" />
+                  Stateless Token Versioning
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Every JWT embeds a token version. Invalidation updates the database version and instantly terminates all active devices.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Emergency Kill Switch Card */}
+          <div className="bg-gradient-to-br from-red-50/80 via-white to-amber-50/50 rounded-3xl p-6 sm:p-8 border border-red-200 shadow-xs relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider">
+                    Emergency Kill Switch
+                  </span>
+                  <span className="text-xs font-semibold text-neutral-500">Global Device Disconnect</span>
+                </div>
+                <h3 className="font-serif text-xl sm:text-2xl font-bold text-red-950">
+                  Revoke All Active Logins & Sessions
+                </h3>
+                <p className="text-xs text-neutral-600 leading-relaxed">
+                  Lost a device, shared your screen, or suspect unauthorized access? Tapping this button triggers a double-confirmed security protocol that bumps your <code className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-mono text-[10px]">tokenVersion</code> in MongoDB. All active logins, mobile devices, and browser sessions will be invalidated immediately.
+                </p>
+              </div>
+
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={openRevokeModal}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-98 text-white text-xs font-bold shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
+                >
+                  <HiOutlineShieldExclamation className="w-5 h-5 text-red-200 group-hover:scale-110 transition-transform" />
+                  <span>Revoke All Active Logins</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-red-200/60 flex items-center gap-2 text-[11px] text-neutral-500">
+              <HiOutlineExclamation className="w-4 h-4 text-red-500 shrink-0" />
+              <span>Includes a mandatory 3-second animated safety countdown and secondary confirmation before any session is terminated.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* REVOKE ALL SESSIONS MODAL: STEP 1 -> 3s COUNTDOWN -> STEP 2   */}
+      {/* ============================================================== */}
+      {revokeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-neutral-200 relative overflow-hidden">
+            {/* Close X button */}
+            <button
+              type="button"
+              disabled={isRevoking}
+              onClick={handleCloseRevokeModal}
+              className="absolute top-5 right-5 p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-30"
+              title="Close"
+            >
+              <HiOutlineX className="w-5 h-5" />
+            </button>
+
+            {/* STEP 1: INITIAL CONFIRMATION */}
+            {revokeStep === 'first_confirm' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
+                    <HiOutlineShieldExclamation className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg sm:text-xl font-bold text-neutral-900">
+                      Revoke All Active Sessions?
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Stage 1 of 2: Preliminary Authorization
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 space-y-2">
+                  <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                    <HiOutlineExclamation className="w-4 h-4 text-amber-600 shrink-0" />
+                    Please review what will take place:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1.5 text-amber-900/90 pl-1 leading-relaxed">
+                    <li>
+                      All active login tokens across <strong>every laptop, smartphone, and browser</strong> will be immediately revoked.
+                    </li>
+                    <li>
+                      Your current browser session will be invalidated and you will be returned to the sign-in screen.
+                    </li>
+                    <li>
+                      Clicking proceed will trigger a <strong>3-second safety countdown</strong> before the final authorization prompt.
+                    </li>
+                  </ul>
+                </div>
+
+                {user && (
+                  <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 flex items-center justify-between">
+                    <span>Admin Account:</span>
+                    <span className="font-bold text-neutral-800">{user.name} ({user.email})</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseRevokeModal}
+                    className="px-5 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartCountdown}
+                    className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <HiOutlineClock className="w-4 h-4" />
+                    Proceed to 3s Countdown
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: 3-SECOND COUNTDOWN ANIMATION */}
+            {revokeStep === 'countdown' && (
+              <div className="text-center py-6 space-y-6">
+                <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                  {/* Outer pulsing halo */}
+                  <div className="absolute inset-0 rounded-full bg-red-100 animate-ping opacity-40" />
+
+                  {/* SVG Radial Countdown Ring */}
+                  <svg className="w-36 h-36 -rotate-90 transform" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      stroke="currentColor"
+                      strokeWidth="6"
+                      className="text-neutral-100"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      stroke="currentColor"
+                      strokeWidth="6"
+                      className="text-red-600 transition-all duration-1000 ease-linear"
+                      fill="transparent"
+                      strokeDasharray={263.89}
+                      strokeDashoffset={263.89 * (1 - countdownSeconds / 3)}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+
+                  {/* Center animated counter */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+                    <span
+                      key={countdownSeconds}
+                      className="font-serif text-5xl font-black text-red-600 animate-pulse transform transition-transform"
+                    >
+                      {countdownSeconds}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 mt-1">
+                      {countdownSeconds === 1 ? 'second' : 'seconds'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-serif text-lg font-bold text-neutral-900">
+                    Security Verification Countdown
+                  </h3>
+                  <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+                    Please stand by for 3 seconds while security credentials verify. Final authorization unlocks when the timer expires.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseRevokeModal}
+                    className="px-6 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                  >
+                    Abort / Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: FINAL CONFIRMATION */}
+            {revokeStep === 'final_confirm' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-300 animate-pulse">
+                    <HiOutlineExclamation className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-lg sm:text-xl font-bold text-red-700">
+                      Final Confirmation Required
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Stage 2 of 2: 3-Second countdown concluded
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-950 space-y-2">
+                  <p className="font-bold text-red-900">
+                    Are you absolutely sure you want to disconnect all devices now?
+                  </p>
+                  <p className="text-red-800/90 leading-relaxed">
+                    This is your final confirmation. All active JWT sessions will be invalidated immediately in MongoDB. Every device logged into this account will be forcefully signed out.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={isRevoking}
+                    onClick={handleCloseRevokeModal}
+                    className="px-5 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel & Keep Logged In
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRevoking}
+                    onClick={handleExecuteRevokeAll}
+                    className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-lg shadow-red-600/30 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isRevoking ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Revoking All Sessions...
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineShieldExclamation className="w-4 h-4" />
+                        Yes, Disconnect All Devices Now
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

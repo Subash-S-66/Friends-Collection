@@ -15,7 +15,6 @@ import {
   HiOutlineMail,
   HiOutlineDocumentText,
   HiOutlineSparkles,
-  HiOutlineShieldCheck,
   HiOutlineChevronDoubleLeft,
   HiOutlineChevronDoubleRight
 } from 'react-icons/hi';
@@ -24,7 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 
 const AdminLayout = () => {
-  const { user, isAdmin, loading, logout, logoutAllDevices } = useAuth();
+  const { user, isAdmin, loading, logout } = useAuth();
   const { confirm } = useConfirm();
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,21 +46,6 @@ const AdminLayout = () => {
       }
       return next;
     });
-  };
-
-  const handleRevokeAllSessions = async () => {
-    const ok = await confirm({
-      title: 'Revoke All Sessions & Devices?',
-      message: 'This will immediately invalidate ALL active login tokens and log out every session across all browsers and devices (including this one). You will need to sign in again.',
-      type: 'danger',
-      confirmText: 'Revoke All Sessions',
-      cancelText: 'Cancel',
-      details: 'All existing JWT tokens for your account will become instantly invalid.'
-    });
-    if (ok) {
-      await logoutAllDevices();
-      navigate('/login');
-    }
   };
 
   const handleAdminLogout = async () => {
@@ -291,16 +275,6 @@ const AdminLayout = () => {
             </div>
             {!isCollapsed && <HiOutlineExternalLink className="w-4 h-4 text-neutral-400" />}
           </Link>
-          <button
-            onClick={handleRevokeAllSessions}
-            title="Revoke all active sessions on all devices"
-            className={`w-full flex items-center ${
-              isCollapsed ? 'lg:justify-center lg:px-2' : 'gap-3 px-3.5'
-            } py-2.5 rounded-xl text-xs font-semibold text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 transition-colors cursor-pointer border border-amber-900/30`}
-          >
-            <HiOutlineShieldCheck className="w-5 h-5 shrink-0 text-amber-400" />
-            <span className={isCollapsed ? 'lg:hidden' : 'block truncate'}>Revoke All Sessions</span>
-          </button>
           <button
             onClick={handleAdminLogout}
             title="Sign Out of Admin"
