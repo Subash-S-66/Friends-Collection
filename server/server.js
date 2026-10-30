@@ -39,25 +39,40 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
+  'https://friends-collection.vercel.app',
+  'https://friends-collections.vercel.app',
   clientUrlClean
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin)) {
+    // Allow non-browser requests (server-to-server, Render health check, curl)
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      /^http:\/\/localhost:\d+$/.test(origin)
+    ) {
       return callback(null, true);
     }
+
     try {
       const parsedUrl = new URL(origin);
-      const hostname = parsedUrl.hostname;
-      const clientHost = clientUrlClean ? new URL(clientUrlClean).hostname : 'friends-collection.vercel.app';
-      if (hostname === clientHost || hostname === 'friends-collection.vercel.app') {
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const clientHost = clientUrlClean ? new URL(clientUrlClean).hostname.toLowerCase() : 'friends-collection.vercel.app';
+      if (
+        hostname === clientHost ||
+        hostname === 'friends-collection.vercel.app' ||
+        hostname.endsWith('.vercel.app')
+      ) {
         return callback(null, true);
       }
-    } catch (e) {
+    } catch {
       // invalid URL format
     }
-    return callback(new Error('Not allowed by CORS'));
+
+    // Safely reject without crashing the Express pipeline with an unhandled 500 error
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
