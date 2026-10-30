@@ -45,9 +45,13 @@ const userSchema = new mongoose.Schema({
   cart: [cartItemSchema]
 }, { timestamps: true });
 
-// Pre-save hook for password hashing (Bcrypt cost factor 12)
+// Pre-save hook for password hashing (Bcrypt cost factor 12) and password change tracking
 userSchema.pre('save', async function() {
   if (!this.password || !this.isModified('password')) return;
+  if (!this.isNew) {
+    this.tokenVersion = (this.tokenVersion || 0) + 1;
+    this.passwordChangedAt = new Date();
+  }
   // Ensure we never double-hash if password is already a valid bcrypt hash
   if (this.password.startsWith('$2a$') || this.password.startsWith('$2b$')) {
     return;

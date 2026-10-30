@@ -18,7 +18,9 @@ const {
   resendVerification,
   requestEmailChange,
   verifyEmailChange,
-  cancelEmailChange
+  cancelEmailChange,
+  logout,
+  logoutAll
 } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
@@ -51,6 +53,8 @@ router.post('/forgot-password-request', authLimiter, forgotPasswordRequest);
 router.post('/forgot-password-verify', authLimiter, forgotPasswordVerify);
 
 router.get('/me', auth, getMe);
+router.post('/logout', logout);
+router.post('/logout-all', auth, logoutAll);
 router.put('/profile', auth, updateProfile);
 router.post('/request-email-change', auth, authLimiter, requestEmailChange);
 router.post('/verify-email-change', auth, authLimiter, verifyEmailChange);

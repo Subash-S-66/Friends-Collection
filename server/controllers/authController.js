@@ -548,11 +548,8 @@ exports.verifyTokenAndLogin = async (req, res, next) => {
       await user.save();
     }
 
-    const jwtToken = generateToken(user._id);
-    res.json({
-      message: 'Authentication successful',
-      token: jwtToken,
-      user
+    return sendAuthResponse(user, 200, res, {
+      message: 'Authentication successful'
     });
   } catch (error) {
     next(error);
@@ -594,12 +591,9 @@ exports.verifyEmailToken = async (req, res, next) => {
     user.isVerified = true;
     await user.save();
 
-    const jwtToken = generateToken(user._id);
-    res.json({
+    return sendAuthResponse(user, 200, res, {
       success: true,
-      message: 'Account verified successfully!',
-      token: jwtToken,
-      user
+      message: 'Account verified successfully!'
     });
   } catch (error) {
     next(error);
@@ -749,19 +743,17 @@ exports.forgotPasswordVerify = async (req, res, next) => {
       return res.status(404).json({ message: 'User account not found' });
     }
 
-    // Update password (pre-save hook will hash it with bcrypt)
+    // Update password (pre-save hook will hash it with bcrypt and increment tokenVersion)
     user.password = newPassword;
     user.isVerified = true;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.passwordChangedAt = new Date();
     await user.save();
 
     // Directly log the user in!
-    const jwtToken = generateToken(user._id);
-
-    res.json({
+    return sendAuthResponse(user, 200, res, {
       success: true,
-      message: 'Password reset successfully! You are now logged in.',
-      token: jwtToken,
-      user
+      message: 'Password reset successfully! You are now logged in.'
     });
   } catch (error) {
     next(error);
@@ -966,13 +958,9 @@ exports.verifyEmailChange = async (req, res, next) => {
       'metadata.userId': user._id.toString()
     });
 
-    const jwtToken = generateToken(user._id);
-
-    res.json({
+    return sendAuthResponse(user, 200, res, {
       success: true,
-      message: 'Email address and contact details updated successfully!',
-      user,
-      token: jwtToken
+      message: 'Email address and contact details updated successfully!'
     });
   } catch (error) {
     next(error);
@@ -989,6 +977,35 @@ exports.cancelEmailChange = async (req, res, next) => {
       'metadata.userId': req.user._id.toString()
     });
     res.json({ success: true, message: 'Email change request cancelled. No changes were made.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user (clears auth cookie)
+// @route   POST /api/auth/logout
+// @access  Public / Authenticated
+exports.logout = async (req, res) => {
+  res.clearCookie('token', getCookieOptions());
+  return res.json({ success: true, message: 'Logged out successfully' });
+};
+
+// @desc    Logout from all devices (increments tokenVersion and clears cookie)
+// @route   POST /api/auth/logout-all
+// @access  Private
+exports.logoutAll = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+    res.clearCookie('token', getCookieOptions());
+    return res.json({
+      success: true,
+      message: 'Logged out from all devices successfully. All existing tokens have been revoked.'
+    });
   } catch (error) {
     next(error);
   }

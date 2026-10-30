@@ -417,7 +417,7 @@ async function generateInvoicePdf(order, customSettings = null) {
         doc.rect(32, tableY, doc.page.width - 64, rowHeight).stroke(BORDER_COLOR);
 
         doc.fillColor(DARK).font('Helvetica').fontSize(8);
-        doc.text(String(index + 1), colX.num + 4, tableY + 9);
+        doc.text(String(index + 1), colX.num + 4, tableY + 6);
 
         // Item Title
         doc.font('Helvetica-Bold').fontSize(8)
@@ -432,20 +432,26 @@ async function generateInvoicePdf(order, customSettings = null) {
         }
 
         // Qty
-        doc.fillColor(DARK).font('Helvetica').fontSize(8)
-          .text(String(it.quantity), colX.qty, tableY + 9, { align: 'center', width: 32 });
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(8)
+          .text(String(it.quantity), colX.qty, tableY + 5, { align: 'center', width: 32 });
 
         // Product Price (Taxable Base)
-        doc.text(`INR ${it.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.productPrice, tableY + 9, { align: 'right', width: 84 });
-
-        // GST (Rate & Amount + CGST/SGST/IGST breakdown)
-        doc.text(`${it.itemGstRate}% • INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 5, { align: 'right', width: 88 });
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(DARK)
+          .text(`INR ${it.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.productPrice, tableY + 5, { align: 'right', width: 84 });
         doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
-          .text(isInterState ? 'IGST' : `CGST ${(it.itemGstRate / 2).toFixed(1)}% + SGST ${(it.itemGstRate / 2).toFixed(1)}%`, colX.gst, tableY + 16, { align: 'right', width: 88 });
+          .text(it.quantity > 1 ? `INR ${(it.taxableAmount / it.quantity).toFixed(2)}/pc` : 'Taxable Base', colX.productPrice, tableY + 16, { align: 'right', width: 84 });
+
+        // GST (Rate & Amount + CGST/SGST/IGST breakdown - Flipkart style)
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(DARK)
+          .text(`INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 5, { align: 'right', width: 88 });
+        doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
+          .text(it.itemGstRate > 0 ? `${it.itemGstRate}% (${isInterState ? 'IGST' : `CGST ${(it.itemGstRate / 2).toFixed(1)}% + SGST ${(it.itemGstRate / 2).toFixed(1)}%`})` : '0% Exempt', colX.gst, tableY + 16, { align: 'right', width: 88 });
 
         // Row Total (Product Price + GST)
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(DARK)
-          .text(`INR ${it.lineTotal.toLocaleString('en-IN')}`, colX.total, tableY + 9, { align: 'right', width: 89 });
+          .text(`INR ${it.lineTotal.toLocaleString('en-IN')}`, colX.total, tableY + 5, { align: 'right', width: 89 });
+        doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
+          .text('Incl. All Taxes', colX.total, tableY + 16, { align: 'right', width: 89 });
 
         tableY += rowHeight;
       });
