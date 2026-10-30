@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const Settings = require('../models/Settings');
 
 const DEFAULT_INVOICE_SETTINGS = {
@@ -27,6 +28,9 @@ const DEFAULT_INVOICE_SETTINGS = {
  */
 async function getInvoiceSettings() {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return DEFAULT_INVOICE_SETTINGS;
+    }
     const settingDoc = await Settings.findOne({ key: 'invoiceSettings' });
     if (settingDoc && settingDoc.value) {
       return { ...DEFAULT_INVOICE_SETTINGS, ...settingDoc.value };
@@ -302,22 +306,24 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       const colX = {
         num: 32,
-        item: 56,
-        variant: 265,
-        qty: 375,
-        price: 415,
-        total: 475
+        item: 52,
+        qty: 215,
+        price: 246,
+        productTotal: 306,
+        gst: 382,
+        total: 466
       };
 
       function renderTableHeader(y) {
         doc.rect(32, y, doc.page.width - 64, 22).fill(PRIMARY);
-        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5);
-        doc.text('#', colX.num + 6, y + 6);
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8);
+        doc.text('#', colX.num + 4, y + 6);
         doc.text('DRESS / ITEM', colX.item, y + 6);
-        doc.text('VARIANT / SIZE', colX.variant, y + 6);
-        doc.text('QTY', colX.qty, y + 6, { align: 'center', width: 35 });
-        doc.text('UNIT PRICE', colX.price, y + 6, { align: 'right', width: 55 });
-        doc.text('TOTAL', colX.total, y + 6, { align: 'right', width: 56 });
+        doc.text('QTY', colX.qty, y + 6, { align: 'center', width: 28 });
+        doc.text('UNIT PRICE', colX.price, y + 6, { align: 'right', width: 56 });
+        doc.text('PRODUCT TOTAL', colX.productTotal, y + 6, { align: 'right', width: 72 });
+        doc.text('GST (RATE & AMT)', colX.gst, y + 6, { align: 'right', width: 80 });
+        doc.text('TOTAL', colX.total, y + 6, { align: 'right', width: 93 });
       }
 
       let tableY = 220;
@@ -325,12 +331,66 @@ async function generateInvoicePdf(order, customSettings = null) {
       tableY += 22;
 
       const items = Array.isArray(order.items) ? order.items : [];
-      const MAX_PAGE_1_TABLE_Y = 660;
-      const MAX_PAGE_2_TABLE_Y = 660;
+      const MAX_PAGE_1_TABLE_Y = 650;
+      const MAX_PAGE_2_TABLE_Y = 650;
+      const rowHeight = 28;
 
-      items.forEach((it, index) => {
+      // Universal Invoice Global GST percentage
+      const invoiceGlobalGst = Number(
+        cfg.gstPercentage !== undefined && cfg.gstPercentage !== null ? cfg.gstPercentage : 5
+      );
+
+      // Process items: calculate product total, resolve specific vs global GST, add GST to make total
+      const processedItems = items.map((it) => {
+        const price = Number(it.price || 0);
+        const quantity = Number(it.quantity || 1);
+        const lineGross = price * quantity;
+
+        let itemGstRate;
+        let isSpecific = false;
+
+        if (it.isSpecificGst === true && it.gstRate !== null && it.gstRate !== undefined) {
+          itemGstRate = Number(it.gstRate);
+          isSpecific = true;
+        } else if (it.isSpecificGst === false) {
+          itemGstRate = invoiceGlobalGst;
+          isSpecific = false;
+        } else if (it.gstRate !== null && it.gstRate !== undefined) {
+          if (order.gstRate !== undefined && order.gstRate !== null && Number(it.gstRate) !== Number(order.gstRate)) {
+            itemGstRate = Number(it.gstRate);
+            isSpecific = true;
+          } else {
+            itemGstRate = invoiceGlobalGst;
+            isSpecific = false;
+          }
+        } else {
+          itemGstRate = invoiceGlobalGst;
+          isSpecific = false;
+        }
+
+        const taxableAmount = itemGstRate > 0
+          ? Math.round((lineGross / (1 + itemGstRate / 100)) * 100) / 100
+          : lineGross;
+        const gstAmount = itemGstRate > 0
+          ? Math.round((lineGross - taxableAmount) * 100) / 100
+          : 0;
+        const lineTotal = lineGross;
+
+        return {
+          ...it,
+          price,
+          quantity,
+          itemGstRate,
+          isSpecific,
+          taxableAmount,
+          gstAmount,
+          lineTotal
+        };
+      });
+
+      processedItems.forEach((it, index) => {
         // Multi-page page break: If this row will exceed page boundary, start page 2
-        if (tableY + 25 > (doc.bufferedPageRange().count === 1 ? MAX_PAGE_1_TABLE_Y : MAX_PAGE_2_TABLE_Y)) {
+        if (tableY + rowHeight > (doc.bufferedPageRange().count === 1 ? MAX_PAGE_1_TABLE_Y : MAX_PAGE_2_TABLE_Y)) {
           doc.addPage();
           doc.rect(0, 0, doc.page.width, 42).fill(PRIMARY);
           doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(11)
@@ -344,91 +404,92 @@ async function generateInvoicePdf(order, customSettings = null) {
         }
 
         const rowBg = index % 2 === 0 ? '#FFFFFF' : '#FAF8F5';
-        doc.rect(32, tableY, doc.page.width - 64, 25).fill(rowBg);
-        doc.rect(32, tableY, doc.page.width - 64, 25).stroke(BORDER_COLOR);
+        doc.rect(32, tableY, doc.page.width - 64, rowHeight).fill(rowBg);
+        doc.rect(32, tableY, doc.page.width - 64, rowHeight).stroke(BORDER_COLOR);
 
         doc.fillColor(DARK).font('Helvetica').fontSize(8);
-        doc.text(String(index + 1), colX.num + 6, tableY + 8);
+        doc.text(String(index + 1), colX.num + 4, tableY + 9);
 
         // Item Title
-        doc.font('Helvetica-Bold')
-          .text(it.title || 'Designer Dress', colX.item, tableY + 8, { width: 200, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(8)
+          .text(it.title || 'Designer Garment', colX.item, tableY + 5, { width: 158, lineBreak: false, ellipsis: true });
 
-        // Variant / Color / Size & Item GST slab
-        const varParts = [it.color, it.size].filter(Boolean);
-        if (it.gstRate !== undefined && it.gstRate !== null) {
-          varParts.push(`GST ${it.gstRate}%`);
-        }
-        const varTxt = varParts.join(' • ') || 'Standard';
-        doc.font('Helvetica').fillColor(MUTED).text(varTxt, colX.variant, tableY + 8, { width: 100, lineBreak: false });
+        // Variant & GST Tag
+        const varParts = [it.size ? `Size: ${it.size}` : '', it.color ? `Color: ${it.color}` : ''].filter(Boolean);
+        const slabTag = it.isSpecific ? `Specific GST ${it.itemGstRate}%` : `Global GST ${it.itemGstRate}%`;
+        const varTxt = varParts.length > 0 ? `${varParts.join(' • ')} (${slabTag})` : slabTag;
+        doc.font('Helvetica').fontSize(6.8).fillColor(MUTED)
+          .text(varTxt, colX.item, tableY + 16, { width: 158, lineBreak: false, ellipsis: true });
 
         // Qty
-        doc.fillColor(DARK).text(String(it.quantity || 1), colX.qty, tableY + 8, { align: 'center', width: 35 });
+        doc.fillColor(DARK).font('Helvetica').fontSize(8)
+          .text(String(it.quantity), colX.qty, tableY + 9, { align: 'center', width: 28 });
 
         // Unit Price
-        doc.text(`INR ${Number(it.price || 0).toLocaleString('en-IN')}`, colX.price, tableY + 8, { align: 'right', width: 55 });
+        doc.text(`INR ${it.price.toLocaleString('en-IN')}`, colX.price, tableY + 9, { align: 'right', width: 56 });
 
-        // Row Total
-        const rowTotal = Number(it.price || 0) * Number(it.quantity || 1);
+        // Product Total (Taxable Base)
+        doc.text(`INR ${it.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.productTotal, tableY + 9, { align: 'right', width: 72 });
+
+        // GST (Rate & Amount)
+        doc.text(`${it.itemGstRate}% • INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 9, { align: 'right', width: 80 });
+
+        // Row Total (Base + GST)
         doc.font('Helvetica-Bold')
-          .text(`INR ${rowTotal.toLocaleString('en-IN')}`, colX.total, tableY + 8, { align: 'right', width: 56 });
+          .text(`INR ${it.lineTotal.toLocaleString('en-IN')}`, colX.total, tableY + 9, { align: 'right', width: 93 });
 
-        tableY += 25;
+        tableY += rowHeight;
       });
 
       // ==========================================
       // 4. SUMMARY & TOTALS SECTION
       // ==========================================
-      const effectiveGstRate = (order.gstRate !== undefined && order.gstRate !== null)
-        ? Number(order.gstRate)
-        : Number(cfg.gstPercentage !== undefined ? cfg.gstPercentage : 5);
+      const totalTaxable = Math.round(processedItems.reduce((sum, it) => sum + it.taxableAmount, 0) * 100) / 100;
+      const totalGst = Math.round(processedItems.reduce((sum, it) => sum + it.gstAmount, 0) * 100) / 100;
+      const totalProductsAmount = Math.round(processedItems.reduce((sum, it) => sum + it.lineTotal, 0) * 100) / 100;
+      const distinctRates = Array.from(new Set(processedItems.map(it => it.itemGstRate)));
+      const hasGst = totalGst > 0;
 
-      const orderSubtotal = Number(order.totalAmount || 0);
-      const totalGstAmount = (order.gstAmount !== undefined && order.gstAmount !== null && Number(order.gstAmount) > 0)
-        ? Number(order.gstAmount)
-        : (effectiveGstRate > 0 ? Math.round((orderSubtotal - (orderSubtotal / (1 + effectiveGstRate / 100))) * 100) / 100 : 0);
-      const taxableValue = Math.max(0, Math.round((orderSubtotal - totalGstAmount) * 100) / 100);
-      const hasGst = totalGstAmount > 0 || effectiveGstRate > 0;
-
-      const totalsBoxHeight = hasGst ? 88 : 74;
+      const totalsBoxHeight = hasGst ? 92 : 74;
       let totalsY = tableY + 10;
       if (totalsY + totalsBoxHeight > doc.page.height - 95) {
         doc.addPage();
         totalsY = 40;
       }
 
-      const totalsWidth = 220;
+      const totalsWidth = 230;
       const totalsX = doc.page.width - 32 - totalsWidth;
       doc.roundedRect(totalsX, totalsY, totalsWidth, totalsBoxHeight, 8).fillAndStroke(LIGHT_BG, BORDER_COLOR);
 
       if (hasGst) {
         doc.fillColor(MUTED).font('Helvetica').fontSize(7.5);
-        doc.text('Taxable Subtotal (Excl. Tax):', totalsX + 12, totalsY + 8);
+        doc.text('Product Subtotal (Taxable):', totalsX + 10, totalsY + 8);
         doc.fillColor(DARK).font('Helvetica-Bold')
-          .text(`INR ${taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 110, totalsY + 8, { align: 'right', width: 98 });
+          .text(`INR ${totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 8, { align: 'right', width: 105 });
+
+        const gstLabel = distinctRates.length === 1 ? `Add GST (${distinctRates[0]}%):` : 'Add GST (Item Slabs):';
+        doc.fillColor(MUTED).font('Helvetica')
+          .text(gstLabel, totalsX + 10, totalsY + 21);
+        doc.fillColor(DARK).font('Helvetica-Bold')
+          .text(`+INR ${totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 21, { align: 'right', width: 105 });
 
         doc.fillColor(MUTED).font('Helvetica')
-          .text(`Estimated GST (${effectiveGstRate}%):`, totalsX + 12, totalsY + 21);
-        doc.fillColor(DARK).font('Helvetica-Bold')
-          .text(`INR ${totalGstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 110, totalsY + 21, { align: 'right', width: 98 });
-
-        doc.fillColor(MUTED).font('Helvetica')
-          .text('Delivery Charge:', totalsX + 12, totalsY + 34);
+          .text('Delivery Charge:', totalsX + 10, totalsY + 34);
         const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
         doc.fillColor(GREEN).font('Helvetica-Bold')
-          .text(shipTxt, totalsX + 110, totalsY + 34, { align: 'right', width: 98 });
+          .text(shipTxt, totalsX + 115, totalsY + 34, { align: 'right', width: 105 });
 
         // Line
-        doc.moveTo(totalsX + 12, totalsY + 47).lineTo(totalsX + totalsWidth - 12, totalsY + 47).stroke(BORDER_COLOR);
+        doc.moveTo(totalsX + 10, totalsY + 47).lineTo(totalsX + totalsWidth - 10, totalsY + 47).stroke(BORDER_COLOR);
 
         // Grand Total
         doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10)
-          .text('Grand Total:', totalsX + 12, totalsY + 54);
+          .text('Grand Total:', totalsX + 10, totalsY + 54);
         doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
-          .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 53, { align: 'right', width: 128 });
+          .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 53, { align: 'right', width: 140 });
 
         doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(6.5)
-          .text(`(Inclusive of ${effectiveGstRate}% GST & all applicable taxes)`, totalsX + 12, totalsY + 71, { align: 'center', width: totalsWidth - 24 });
+          .text(`(Product Total + Add GST & all applicable taxes)`, totalsX + 10, totalsY + 73, { align: 'center', width: totalsWidth - 20 });
       } else {
         doc.fillColor(MUTED).font('Helvetica').fontSize(8);
         doc.text('Subtotal:', totalsX + 14, totalsY + 10);

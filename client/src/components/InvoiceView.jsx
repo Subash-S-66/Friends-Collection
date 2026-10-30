@@ -306,130 +306,208 @@ const InvoiceView = ({
       </div>
 
       {/* 3. Itemized Table */}
-      <div className="overflow-x-auto rounded-xl border border-neutral-200">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr
-              className="text-white font-bold uppercase tracking-wider text-[10px]"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <th className="py-3 px-3">#</th>
-              <th className="py-3 px-3">Item Description</th>
-              <th className="py-3 px-3 text-center">Size</th>
-              <th className="py-3 px-3 text-center">Color</th>
-              <th className="py-3 px-3 text-center">Qty</th>
-              <th className="py-3 px-3 text-right">Unit Price</th>
-              <th className="py-3 px-3 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-200">
-            {order.items?.map((item, idx) => (
-              <tr key={idx} className="hover:bg-neutral-50/60 transition-colors">
-                <td className="py-3 px-3 text-neutral-400 font-mono">{idx + 1}</td>
-                <td className="py-3 px-3">
-                  <div className="font-bold text-neutral-900">{item.title}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-neutral-400 block font-mono">
-                      SKU: {String(item.product || '').slice(-6).toUpperCase() || 'STD'}
-                    </span>
-                    {item.gstRate !== undefined && item.gstRate !== null && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200">
-                        GST {item.gstRate}%
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-3 text-center font-semibold text-neutral-700">
-                  {item.size || 'Standard'}
-                </td>
-                <td className="py-3 px-3 text-center font-semibold text-neutral-700">
-                  {item.color || 'Standard'}
-                </td>
-                <td className="py-3 px-3 text-center font-bold text-neutral-900 font-numeric">
-                  {item.quantity}
-                </td>
-                <td className="py-3 px-3 text-right font-semibold text-neutral-700 font-numeric">
-                  {formatPrice(item.price)}
-                </td>
-                <td className="py-3 px-3 text-right font-bold text-neutral-900 font-numeric">
-                  {formatPrice(item.price * item.quantity)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {(() => {
+        const invoiceGlobalGst = Number(
+          inv.gstPercentage !== undefined && inv.gstPercentage !== null ? inv.gstPercentage : 5
+        );
 
-      {/* 4. Totals & Policy Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 border-t-2 border-neutral-200">
-        <div className="max-w-xs text-[11px] text-neutral-500 space-y-1.5">
-          <strong className="text-neutral-800 uppercase tracking-wider block text-[10px]">
-            Declaration & Exchange Terms:
-          </strong>
-          <p className="leading-relaxed">
-            {inv.terms}
-          </p>
-          <p className="text-[10px] text-neutral-400 italic">
-            * {inv.notes}
-          </p>
-        </div>
+        const processedItems = (order.items || []).map((item) => {
+          const price = Number(item.price) || 0;
+          const quantity = Number(item.quantity) || 1;
+          const lineGross = price * quantity;
 
-        {(() => {
-          const effectiveGstRate = (order.gstRate !== undefined && order.gstRate !== null)
-            ? Number(order.gstRate)
-            : Number(inv.gstPercentage !== undefined ? inv.gstPercentage : 5);
-          const orderTotalAmount = Number(order.totalAmount || 0);
-          const totalGstAmount = (order.gstAmount !== undefined && order.gstAmount !== null && Number(order.gstAmount) > 0)
-            ? Number(order.gstAmount)
-            : (effectiveGstRate > 0 ? (orderTotalAmount - (orderTotalAmount / (1 + effectiveGstRate / 100))) : 0);
-          const hasGst = totalGstAmount > 0 || effectiveGstRate > 0;
-          const taxableAmount = Math.max(0, orderTotalAmount - totalGstAmount);
-          const cgstAmount = totalGstAmount / 2;
-          const sgstAmount = totalGstAmount / 2;
+          let itemGstRate;
+          let isSpecific = false;
 
-          return (
-            <div className="w-full sm:w-64 space-y-2 text-xs">
-              {hasGst ? (
-                <>
-                  <div className="flex justify-between text-neutral-600">
-                    <span>Taxable Subtotal (Excl. Tax):</span>
-                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(taxableAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-600">
-                    <span title={`CGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(cgstAmount)} | SGST (${(effectiveGstRate / 2).toFixed(1)}%): ${formatPrice(sgstAmount)}`}>
-                      Estimated GST ({effectiveGstRate}%):
-                    </span>
-                    <span className="font-bold text-neutral-900 font-numeric">{formatPrice(totalGstAmount)}</span>
-                  </div>
-                </>
-              ) : (
+          if (item.isSpecificGst === true && item.gstRate !== null && item.gstRate !== undefined) {
+            itemGstRate = Number(item.gstRate);
+            isSpecific = true;
+          } else if (item.isSpecificGst === false) {
+            itemGstRate = invoiceGlobalGst;
+            isSpecific = false;
+          } else if (item.gstRate !== null && item.gstRate !== undefined) {
+            if (order.gstRate !== undefined && order.gstRate !== null && Number(item.gstRate) !== Number(order.gstRate)) {
+              itemGstRate = Number(item.gstRate);
+              isSpecific = true;
+            } else {
+              itemGstRate = invoiceGlobalGst;
+              isSpecific = false;
+            }
+          } else {
+            itemGstRate = invoiceGlobalGst;
+            isSpecific = false;
+          }
+
+          const taxableAmount = itemGstRate > 0
+            ? Math.round((lineGross / (1 + itemGstRate / 100)) * 100) / 100
+            : lineGross;
+          const gstAmount = itemGstRate > 0
+            ? Math.round((lineGross - taxableAmount) * 100) / 100
+            : 0;
+          const lineTotal = lineGross;
+
+          return {
+            ...item,
+            price,
+            quantity,
+            itemGstRate,
+            isSpecific,
+            taxableAmount,
+            gstAmount,
+            lineTotal
+          };
+        });
+
+        const totalTaxable = Math.round(processedItems.reduce((sum, it) => sum + it.taxableAmount, 0) * 100) / 100;
+        const totalGst = Math.round(processedItems.reduce((sum, it) => sum + it.gstAmount, 0) * 100) / 100;
+        const totalProducts = Math.round(processedItems.reduce((sum, it) => sum + it.lineTotal, 0) * 100) / 100;
+        const shippingCharge = Number(order.shippingCharge || 0);
+        const computedTotalWithShipping = totalProducts + shippingCharge;
+        const distinctRates = Array.from(new Set(processedItems.map(it => it.itemGstRate)));
+        const hasGst = totalGst > 0;
+
+        return (
+          <>
+            <div className="overflow-x-auto rounded-xl border border-neutral-200">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    className="text-white font-bold uppercase tracking-wider text-[10px]"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <th className="py-3 px-3">#</th>
+                    <th className="py-3 px-3">Item Description</th>
+                    <th className="py-3 px-2 text-center">Qty</th>
+                    <th className="py-3 px-2.5 text-right whitespace-nowrap">Unit Price</th>
+                    <th className="py-3 px-2.5 text-right whitespace-nowrap">
+                      <span>Product Total</span>
+                      <span className="block text-[8px] font-normal normal-case opacity-85">(Taxable)</span>
+                    </th>
+                    <th className="py-3 px-2.5 text-right whitespace-nowrap">
+                      <span>GST</span>
+                      <span className="block text-[8px] font-normal normal-case opacity-85">(Rate & Tax)</span>
+                    </th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                      <span>Total</span>
+                      <span className="block text-[8px] font-normal normal-case opacity-85">(Incl. GST)</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200">
+                  {processedItems.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-neutral-50/60 transition-colors">
+                      <td className="py-3 px-3 text-neutral-400 font-mono">{idx + 1}</td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-neutral-900">{item.title}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-neutral-500">
+                          {(item.size || item.color) && (
+                            <span>
+                              {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(' • ')}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-neutral-400 font-mono">
+                            • SKU: {String(item.product || '').slice(-6).toUpperCase() || 'STD'}
+                          </span>
+                          {item.isSpecific ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200">
+                              Specific GST {item.itemGstRate}%
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                              Global GST {item.itemGstRate}%
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-center font-bold text-neutral-900 font-numeric">
+                        {item.quantity}
+                      </td>
+                      <td className="py-3 px-2.5 text-right font-medium text-neutral-700 font-numeric whitespace-nowrap">
+                        {formatPrice(item.price)}
+                      </td>
+                      <td className="py-3 px-2.5 text-right font-semibold text-neutral-800 font-numeric whitespace-nowrap">
+                        {formatPrice(item.taxableAmount)}
+                      </td>
+                      <td className="py-3 px-2.5 text-right font-numeric whitespace-nowrap">
+                        <span className="font-bold text-neutral-900 block">{formatPrice(item.gstAmount)}</span>
+                        <span className="text-[10px] text-neutral-500 block font-normal">
+                          {item.itemGstRate}% {item.itemGstRate > 0 && `(C:${(item.itemGstRate / 2).toFixed(1)}% S:${(item.itemGstRate / 2).toFixed(1)}%)`}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right font-bold text-neutral-900 font-numeric whitespace-nowrap">
+                        {formatPrice(item.lineTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 4. Totals & Policy Section */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 border-t-2 border-neutral-200">
+              <div className="max-w-xs text-[11px] text-neutral-500 space-y-1.5">
+                <strong className="text-neutral-800 uppercase tracking-wider block text-[10px]">
+                  Declaration & Exchange Terms:
+                </strong>
+                <p className="leading-relaxed">
+                  {inv.terms}
+                </p>
+                <p className="text-[10px] text-neutral-400 italic">
+                  * {inv.notes}
+                </p>
+              </div>
+
+              <div className="w-full sm:w-72 space-y-2 text-xs">
                 <div className="flex justify-between text-neutral-600">
-                  <span>Items Subtotal:</span>
-                  <span className="font-bold text-neutral-900 font-numeric">{formatPrice(orderTotalAmount)}</span>
+                  <span>Product Subtotal (Taxable):</span>
+                  <span className="font-bold text-neutral-900 font-numeric">{formatPrice(totalTaxable)}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-neutral-600">
-                <span>Shipping & Packaging:</span>
-                <span className="font-bold text-emerald-700 font-numeric">
-                  {order.shippingCharge > 0 ? formatPrice(order.shippingCharge) : 'FREE'}
-                </span>
-              </div>
-              <div
-                className="flex justify-between items-center pt-2.5 border-t-2 border-neutral-300"
-                style={{ color: primaryColor }}
-              >
-                <span className="font-bold uppercase tracking-wider text-xs">Grand Total:</span>
-                <span className="font-numeric text-xl sm:text-2xl font-black">{formatPrice(totalWithShipping)}</span>
-              </div>
-              <div className="text-[10px] text-neutral-500 text-right">
-                {hasGst
-                  ? `(Inclusive of ${effectiveGstRate}% GST & all applicable taxes)`
-                  : '(Inclusive of all applicable GST & taxes)'}
+                {hasGst ? (
+                  <>
+                    <div className="flex justify-between text-neutral-600">
+                      <span title={`CGST: ${formatPrice(totalGst / 2)} | SGST: ${formatPrice(totalGst / 2)}`}>
+                        {distinctRates.length === 1 ? `Add GST (${distinctRates[0]}%):` : 'Add GST (Item Slabs):'}
+                      </span>
+                      <span className="font-bold text-neutral-900 font-numeric">+{formatPrice(totalGst)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-neutral-300">
+                      <span>CGST ({distinctRates.length === 1 ? `${(distinctRates[0] / 2).toFixed(1)}%` : '50%'}):</span>
+                      <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-neutral-300">
+                      <span>SGST ({distinctRates.length === 1 ? `${(distinctRates[0] / 2).toFixed(1)}%` : '50%'}):</span>
+                      <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-neutral-500 italic text-[11px]">
+                    <span>GST:</span>
+                    <span>Exempt / 0%</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-neutral-600">
+                  <span>Delivery Charge:</span>
+                  <span className="font-bold text-emerald-700 font-numeric">
+                    {shippingCharge > 0 ? formatPrice(shippingCharge) : 'FREE'}
+                  </span>
+                </div>
+                <div
+                  className="flex justify-between items-center pt-2.5 border-t-2 border-neutral-300"
+                  style={{ color: primaryColor }}
+                >
+                  <span className="font-bold uppercase tracking-wider text-xs">Grand Total:</span>
+                  <span className="font-numeric text-xl sm:text-2xl font-black">{formatPrice(computedTotalWithShipping)}</span>
+                </div>
+                <div className="text-[10px] text-neutral-500 text-right">
+                  {hasGst
+                    ? `(Product Total + Add GST & all applicable taxes)`
+                    : '(Inclusive of all applicable taxes)'}
+                </div>
               </div>
             </div>
-          );
-        })()}
-      </div>
+          </>
+        );
+      })()}
 
       {/* 5. Footer Signature & Authenticity Seal */}
       <div className="pt-8 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-neutral-500">

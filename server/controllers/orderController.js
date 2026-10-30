@@ -174,9 +174,8 @@ exports.placeOrder = async (req, res, next) => {
       totalAmount += itemTotal;
 
       // Determine product-level or global GST rate
-      const itemGstRate = (product.gstRate !== null && product.gstRate !== undefined)
-        ? Number(product.gstRate)
-        : gstRate;
+      const hasSpecificGst = product.gstRate !== null && product.gstRate !== undefined && product.gstRate !== '' && !isNaN(Number(product.gstRate));
+      const itemGstRate = hasSpecificGst ? Number(product.gstRate) : gstRate;
       const itemTaxable = itemGstRate > 0 ? (itemTotal / (1 + itemGstRate / 100)) : itemTotal;
       const itemGstAmount = itemGstRate > 0 ? Math.round((itemTotal - itemTaxable) * 100) / 100 : 0;
 
@@ -225,7 +224,8 @@ exports.placeOrder = async (req, res, next) => {
         quantity: item.quantity,
         image: resolvedItemImage,
         gstRate: itemGstRate,
-        gstAmount: itemGstAmount
+        gstAmount: itemGstAmount,
+        isSpecificGst: hasSpecificGst
       });
     }
 

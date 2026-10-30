@@ -47,14 +47,18 @@ const SAMPLE_ORDER = {
       size: 'Free Size',
       color: 'Crimson Wine & Gold',
       quantity: 1,
-      price: 3499
+      price: 3499,
+      gstRate: null,
+      isSpecificGst: false
     },
     {
       title: 'Zari Embroidered Designer Anarkali Suit',
       size: 'M',
       color: 'Rose Gold',
       quantity: 1,
-      price: 1899
+      price: 1899,
+      gstRate: 12,
+      isSpecificGst: true
     }
   ],
   totalAmount: 5398,

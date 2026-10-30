@@ -9,7 +9,8 @@ const orderItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true, min: 1 },
   image: { type: String, default: '' },
   gstRate: { type: Number, default: null },
-  gstAmount: { type: Number, default: 0 }
+  gstAmount: { type: Number, default: 0 },
+  isSpecificGst: { type: Boolean, default: false }
 });
 
 const orderSchema = new mongoose.Schema({
