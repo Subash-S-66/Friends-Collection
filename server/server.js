@@ -39,40 +39,25 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
-  'https://friends-collection.vercel.app',
-  'https://friends-collections.vercel.app',
   clientUrlClean
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (server-to-server, Render health check, curl)
-    if (!origin) return callback(null, true);
-
-    if (
-      allowedOrigins.includes(origin) ||
-      /^http:\/\/localhost:\d+$/.test(origin)
-    ) {
+    if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin)) {
       return callback(null, true);
     }
-
     try {
       const parsedUrl = new URL(origin);
-      const hostname = parsedUrl.hostname.toLowerCase();
-      const clientHost = clientUrlClean ? new URL(clientUrlClean).hostname.toLowerCase() : 'friends-collection.vercel.app';
-      if (
-        hostname === clientHost ||
-        hostname === 'friends-collection.vercel.app' ||
-        hostname.endsWith('.vercel.app')
-      ) {
+      const hostname = parsedUrl.hostname;
+      const clientHost = clientUrlClean ? new URL(clientUrlClean).hostname : 'friends-collection.vercel.app';
+      if (hostname === clientHost || hostname === 'friends-collection.vercel.app') {
         return callback(null, true);
       }
-    } catch {
+    } catch (e) {
       // invalid URL format
     }
-
-    // Safely reject without crashing the Express pipeline with an unhandled 500 error
-    return callback(null, false);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -240,21 +225,41 @@ app.get('/healthz', healthCheckHandler);
 app.get('/api/health', healthCheckHandler);
 app.get('/api/healthz', healthCheckHandler);
 
-// Serve static client build if present (for full-stack deployment on Render)
-const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath, { maxAge: '1d', etag: true }));
-  app.get('*', (req, res, next) => {
-    if (
-      req.path.startsWith('/api') ||
-      req.path.startsWith('/uploads') ||
-      req.path.startsWith('/health')
-    ) {
-      return next();
-    }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+// Root Endpoint: Return clean API Status & Endpoints overview (pure API mode)
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Friends Collections Backend API',
+    status: 'online',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'production',
+    api: '/api',
+    health: '/api/health',
+    frontend: process.env.CLIENT_URL || 'https://friends-collection.vercel.app',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      products: '/api/products',
+      categories: '/api/categories',
+      orders: '/api/orders',
+      settings: '/api/settings',
+      banners: '/api/banners',
+      campaigns: '/api/campaigns'
+    },
+    timestamp: new Date().toISOString()
   });
-}
+});
+
+// Catch-all handler for unmatched routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.originalUrl}. Visit / for API service status.`,
+    apiDocs: '/'
+  });
+});
 
 // Global Error Handler
 app.use(errorHandler);
