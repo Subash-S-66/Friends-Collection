@@ -257,7 +257,8 @@ async function generateInvoicePdf(order, customSettings = null) {
       }
 
       const custGst = (customer.gstNumber || order.gstNumber || '').toString().trim().toUpperCase();
-      if (custGst) {
+      const hasCustGst = custGst && !['NONE', 'NULL', 'UNDEFINED', 'N/A', '-'].includes(custGst);
+      if (hasCustGst) {
         doc.fillColor(DARK)
           .font('Helvetica-Bold')
           .fontSize(7.5)
@@ -306,12 +307,11 @@ async function generateInvoicePdf(order, customSettings = null) {
       // ==========================================
       const colX = {
         num: 32,
-        item: 52,
-        qty: 215,
-        price: 246,
-        productTotal: 306,
+        item: 54,
+        qty: 258,
+        productPrice: 294,
         gst: 382,
-        total: 466
+        total: 474
       };
 
       function renderTableHeader(y) {
@@ -319,11 +319,10 @@ async function generateInvoicePdf(order, customSettings = null) {
         doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8);
         doc.text('#', colX.num + 4, y + 6);
         doc.text('DRESS / ITEM', colX.item, y + 6);
-        doc.text('QTY', colX.qty, y + 6, { align: 'center', width: 28 });
-        doc.text('UNIT PRICE', colX.price, y + 6, { align: 'right', width: 56 });
-        doc.text('PRODUCT TOTAL', colX.productTotal, y + 6, { align: 'right', width: 72 });
-        doc.text('GST (RATE & AMT)', colX.gst, y + 6, { align: 'right', width: 80 });
-        doc.text('TOTAL', colX.total, y + 6, { align: 'right', width: 93 });
+        doc.text('QTY', colX.qty, y + 6, { align: 'center', width: 32 });
+        doc.text('PRODUCT PRICE', colX.productPrice, y + 6, { align: 'right', width: 84 });
+        doc.text('GST', colX.gst, y + 6, { align: 'right', width: 88 });
+        doc.text('TOTAL', colX.total, y + 6, { align: 'right', width: 89 });
       }
 
       let tableY = 220;
@@ -340,7 +339,17 @@ async function generateInvoicePdf(order, customSettings = null) {
         cfg.gstPercentage !== undefined && cfg.gstPercentage !== null ? cfg.gstPercentage : 5
       );
 
-      // Process items: calculate product total, resolve specific vs global GST, add GST to make total
+      // Place of Supply: Intra-state (Within Tamil Nadu -> CGST + SGST) vs Inter-state (Outside Tamil Nadu -> IGST)
+      const customerState = (addr.state || '').trim().toLowerCase();
+      const isInterState = Boolean(
+        customerState &&
+        !customerState.includes('tamil nadu') &&
+        !customerState.includes('tamilnadu') &&
+        !customerState.includes('tn') &&
+        !customerState.includes('chennai')
+      );
+
+      // Process items: calculate product price, resolve specific vs global GST, add GST to make total
       const processedItems = items.map((it) => {
         const price = Number(it.price || 0);
         const quantity = Number(it.quantity || 1);
@@ -412,31 +421,31 @@ async function generateInvoicePdf(order, customSettings = null) {
 
         // Item Title
         doc.font('Helvetica-Bold').fontSize(8)
-          .text(it.title || 'Designer Garment', colX.item, tableY + 5, { width: 158, lineBreak: false, ellipsis: true });
+          .text(it.title || 'Designer Garment', colX.item, tableY + 5, { width: 198, lineBreak: false, ellipsis: true });
 
-        // Variant & GST Tag
+        // Clean Variant details (NO "Specific" or "Global" badge printed)
         const varParts = [it.size ? `Size: ${it.size}` : '', it.color ? `Color: ${it.color}` : ''].filter(Boolean);
-        const slabTag = it.isSpecific ? `Specific GST ${it.itemGstRate}%` : `Global GST ${it.itemGstRate}%`;
-        const varTxt = varParts.length > 0 ? `${varParts.join(' • ')} (${slabTag})` : slabTag;
-        doc.font('Helvetica').fontSize(6.8).fillColor(MUTED)
-          .text(varTxt, colX.item, tableY + 16, { width: 158, lineBreak: false, ellipsis: true });
+        const varTxt = varParts.join(' • ');
+        if (varTxt) {
+          doc.font('Helvetica').fontSize(6.8).fillColor(MUTED)
+            .text(varTxt, colX.item, tableY + 16, { width: 198, lineBreak: false, ellipsis: true });
+        }
 
         // Qty
         doc.fillColor(DARK).font('Helvetica').fontSize(8)
-          .text(String(it.quantity), colX.qty, tableY + 9, { align: 'center', width: 28 });
+          .text(String(it.quantity), colX.qty, tableY + 9, { align: 'center', width: 32 });
 
-        // Unit Price
-        doc.text(`INR ${it.price.toLocaleString('en-IN')}`, colX.price, tableY + 9, { align: 'right', width: 56 });
+        // Product Price (Taxable Base)
+        doc.text(`INR ${it.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.productPrice, tableY + 9, { align: 'right', width: 84 });
 
-        // Product Total (Taxable Base)
-        doc.text(`INR ${it.taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.productTotal, tableY + 9, { align: 'right', width: 72 });
+        // GST (Rate & Amount + CGST/SGST/IGST breakdown)
+        doc.text(`${it.itemGstRate}% • INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 5, { align: 'right', width: 88 });
+        doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
+          .text(isInterState ? 'IGST' : `CGST ${(it.itemGstRate / 2).toFixed(1)}% + SGST ${(it.itemGstRate / 2).toFixed(1)}%`, colX.gst, tableY + 16, { align: 'right', width: 88 });
 
-        // GST (Rate & Amount)
-        doc.text(`${it.itemGstRate}% • INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 9, { align: 'right', width: 80 });
-
-        // Row Total (Base + GST)
-        doc.font('Helvetica-Bold')
-          .text(`INR ${it.lineTotal.toLocaleString('en-IN')}`, colX.total, tableY + 9, { align: 'right', width: 93 });
+        // Row Total (Product Price + GST)
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(DARK)
+          .text(`INR ${it.lineTotal.toLocaleString('en-IN')}`, colX.total, tableY + 9, { align: 'right', width: 89 });
 
         tableY += rowHeight;
       });
@@ -447,10 +456,9 @@ async function generateInvoicePdf(order, customSettings = null) {
       const totalTaxable = Math.round(processedItems.reduce((sum, it) => sum + it.taxableAmount, 0) * 100) / 100;
       const totalGst = Math.round(processedItems.reduce((sum, it) => sum + it.gstAmount, 0) * 100) / 100;
       const totalProductsAmount = Math.round(processedItems.reduce((sum, it) => sum + it.lineTotal, 0) * 100) / 100;
-      const distinctRates = Array.from(new Set(processedItems.map(it => it.itemGstRate)));
       const hasGst = totalGst > 0;
 
-      const totalsBoxHeight = hasGst ? 92 : 74;
+      const totalsBoxHeight = hasGst ? (isInterState ? 94 : 106) : 74;
       let totalsY = tableY + 10;
       if (totalsY + totalsBoxHeight > doc.page.height - 95) {
         doc.addPage();
@@ -467,29 +475,58 @@ async function generateInvoicePdf(order, customSettings = null) {
         doc.fillColor(DARK).font('Helvetica-Bold')
           .text(`INR ${totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 8, { align: 'right', width: 105 });
 
-        const gstLabel = distinctRates.length === 1 ? `Add GST (${distinctRates[0]}%):` : 'Add GST (Item Slabs):';
-        doc.fillColor(MUTED).font('Helvetica')
-          .text(gstLabel, totalsX + 10, totalsY + 21);
-        doc.fillColor(DARK).font('Helvetica-Bold')
-          .text(`+INR ${totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 21, { align: 'right', width: 105 });
+        if (isInterState) {
+          doc.fillColor(MUTED).font('Helvetica')
+            .text('IGST (Integrated GST):', totalsX + 10, totalsY + 22);
+          doc.fillColor(DARK).font('Helvetica-Bold')
+            .text(`+INR ${totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 22, { align: 'right', width: 105 });
 
-        doc.fillColor(MUTED).font('Helvetica')
-          .text('Delivery Charge:', totalsX + 10, totalsY + 34);
-        const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
-        doc.fillColor(GREEN).font('Helvetica-Bold')
-          .text(shipTxt, totalsX + 115, totalsY + 34, { align: 'right', width: 105 });
+          doc.fillColor(MUTED).font('Helvetica')
+            .text('Delivery Charge:', totalsX + 10, totalsY + 36);
+          const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
+          doc.fillColor(GREEN).font('Helvetica-Bold')
+            .text(shipTxt, totalsX + 115, totalsY + 36, { align: 'right', width: 105 });
 
-        // Line
-        doc.moveTo(totalsX + 10, totalsY + 47).lineTo(totalsX + totalsWidth - 10, totalsY + 47).stroke(BORDER_COLOR);
+          // Line
+          doc.moveTo(totalsX + 10, totalsY + 50).lineTo(totalsX + totalsWidth - 10, totalsY + 50).stroke(BORDER_COLOR);
 
-        // Grand Total
-        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10)
-          .text('Grand Total:', totalsX + 10, totalsY + 54);
-        doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
-          .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 53, { align: 'right', width: 140 });
+          // Grand Total
+          doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10)
+            .text('Grand Total:', totalsX + 10, totalsY + 57);
+          doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
+            .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 56, { align: 'right', width: 140 });
 
-        doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(6.5)
-          .text(`(Product Total + Add GST & all applicable taxes)`, totalsX + 10, totalsY + 73, { align: 'center', width: totalsWidth - 20 });
+          doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(6.5)
+            .text(`(Product Price + IGST & all applicable taxes)`, totalsX + 10, totalsY + 76, { align: 'center', width: totalsWidth - 20 });
+        } else {
+          doc.fillColor(MUTED).font('Helvetica')
+            .text('CGST (Central GST 50%):', totalsX + 10, totalsY + 21);
+          doc.fillColor(DARK).font('Helvetica-Bold')
+            .text(`+INR ${(totalGst / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 21, { align: 'right', width: 105 });
+
+          doc.fillColor(MUTED).font('Helvetica')
+            .text('SGST (State GST 50%):', totalsX + 10, totalsY + 34);
+          doc.fillColor(DARK).font('Helvetica-Bold')
+            .text(`+INR ${(totalGst / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX + 115, totalsY + 34, { align: 'right', width: 105 });
+
+          doc.fillColor(MUTED).font('Helvetica')
+            .text('Delivery Charge:', totalsX + 10, totalsY + 47);
+          const shipTxt = Number(order.shippingCharge || 0) === 0 ? 'FREE' : `INR ${order.shippingCharge}`;
+          doc.fillColor(GREEN).font('Helvetica-Bold')
+            .text(shipTxt, totalsX + 115, totalsY + 47, { align: 'right', width: 105 });
+
+          // Line
+          doc.moveTo(totalsX + 10, totalsY + 61).lineTo(totalsX + totalsWidth - 10, totalsY + 61).stroke(BORDER_COLOR);
+
+          // Grand Total
+          doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(10)
+            .text('Grand Total:', totalsX + 10, totalsY + 68);
+          doc.fillColor(PRIMARY).font('Helvetica-Bold').fontSize(11)
+            .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 80, totalsY + 67, { align: 'right', width: 140 });
+
+          doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(6.5)
+            .text(`(Product Price + CGST & SGST & all applicable taxes)`, totalsX + 10, totalsY + 87, { align: 'center', width: totalsWidth - 20 });
+        }
       } else {
         doc.fillColor(MUTED).font('Helvetica').fontSize(8);
         doc.text('Subtotal:', totalsX + 14, totalsY + 10);

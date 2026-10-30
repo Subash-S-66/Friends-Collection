@@ -85,7 +85,7 @@ const InvoiceSettingsManager = () => {
 
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [downloadingSample, setDownloadingSample] = useState(false);
-  const [sampleHasGstNumber, setSampleHasGstNumber] = useState(true);
+  const [sampleHasGstNumber, setSampleHasGstNumber] = useState(false);
 
   // Security OTP state for modifying signature
   const [warningModalOpen, setWarningModalOpen] = useState(false);
@@ -493,6 +493,23 @@ const InvoiceSettingsManager = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* 3 GST Types (CGST, SGST, IGST) live indicator */}
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono text-[11px]">
+                  <div className="bg-white p-2 rounded-xl border border-neutral-200 shadow-2xs">
+                    <span className="text-[10px] text-neutral-500 font-sans font-medium block">CGST (Within State)</span>
+                    <strong className="text-neutral-900">{((Number(invoiceForm.gstPercentage) || 0) / 2).toFixed(1)}%</strong>
+                  </div>
+                  <div className="bg-white p-2 rounded-xl border border-neutral-200 shadow-2xs">
+                    <span className="text-[10px] text-neutral-500 font-sans font-medium block">SGST (Within State)</span>
+                    <strong className="text-neutral-900">{((Number(invoiceForm.gstPercentage) || 0) / 2).toFixed(1)}%</strong>
+                  </div>
+                  <div className="bg-white p-2 rounded-xl border border-neutral-200 shadow-2xs">
+                    <span className="text-[10px] text-neutral-500 font-sans font-medium block">IGST (Inter-State)</span>
+                    <strong className="text-neutral-900">{Number(invoiceForm.gstPercentage) || 0}%</strong>
+                  </div>
+                </div>
+
                 <p className="text-[11px] text-neutral-500 leading-relaxed">
                   Reflected live everywhere: checkout totals, bills, customer order tracking, and generated PDF invoices. Set to 0% to disable tax line items.
                 </p>

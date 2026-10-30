@@ -215,14 +215,19 @@ const InvoiceView = ({
             {order.customer?.email && (
               <p className="text-neutral-500 font-mono text-[11px]">{order.customer.email}</p>
             )}
-            {(order.customer?.gstNumber || order.gstNumber) && (
-              <p className="flex items-center gap-1.5 pt-1 text-neutral-800">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Customer GSTIN:</span>
-                <strong className="font-mono font-bold text-neutral-900 bg-neutral-200/70 px-1.5 py-0.5 rounded border border-neutral-300 text-[11px]">
-                  {order.customer?.gstNumber || order.gstNumber}
-                </strong>
-              </p>
-            )}
+            {(() => {
+              const rawCustGst = (order.customer?.gstNumber || order.gstNumber || '').toString().trim().toUpperCase();
+              const hasCustGst = rawCustGst && !['NONE', 'NULL', 'UNDEFINED', 'N/A', '-'].includes(rawCustGst);
+              if (!hasCustGst) return null;
+              return (
+                <p className="flex items-center gap-1.5 pt-1 text-neutral-800">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Customer GSTIN:</span>
+                  <strong className="font-mono font-bold text-neutral-900 bg-neutral-200/70 px-1.5 py-0.5 rounded border border-neutral-300 text-[11px]">
+                    {rawCustGst}
+                  </strong>
+                </p>
+              );
+            })()}
           </div>
         </div>
 
@@ -366,6 +371,15 @@ const InvoiceView = ({
         const distinctRates = Array.from(new Set(processedItems.map(it => it.itemGstRate)));
         const hasGst = totalGst > 0;
 
+        const customerState = (order.customer?.address?.state || '').trim().toLowerCase();
+        const isInterState = Boolean(
+          customerState &&
+          !customerState.includes('tamil nadu') &&
+          !customerState.includes('tamilnadu') &&
+          !customerState.includes('tn') &&
+          !customerState.includes('chennai')
+        );
+
         return (
           <>
             <div className="overflow-x-auto rounded-xl border border-neutral-200">
@@ -378,18 +392,17 @@ const InvoiceView = ({
                     <th className="py-3 px-3">#</th>
                     <th className="py-3 px-3">Item Description</th>
                     <th className="py-3 px-2 text-center">Qty</th>
-                    <th className="py-3 px-2.5 text-right whitespace-nowrap">Unit Price</th>
-                    <th className="py-3 px-2.5 text-right whitespace-nowrap">
-                      <span>Product Total</span>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                      <span>Product Price</span>
                       <span className="block text-[8px] font-normal normal-case opacity-85">(Taxable)</span>
                     </th>
-                    <th className="py-3 px-2.5 text-right whitespace-nowrap">
+                    <th className="py-3 px-3 text-right whitespace-nowrap">
                       <span>GST</span>
                       <span className="block text-[8px] font-normal normal-case opacity-85">(Rate & Tax)</span>
                     </th>
                     <th className="py-3 px-3 text-right whitespace-nowrap">
                       <span>Total</span>
-                      <span className="block text-[8px] font-normal normal-case opacity-85">(Incl. GST)</span>
+                      <span className="block text-[8px] font-normal normal-case opacity-85">(Product + GST)</span>
                     </th>
                   </tr>
                 </thead>
@@ -408,30 +421,18 @@ const InvoiceView = ({
                           <span className="text-[10px] text-neutral-400 font-mono">
                             • SKU: {String(item.product || '').slice(-6).toUpperCase() || 'STD'}
                           </span>
-                          {item.isSpecific ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-50 text-purple-900 border border-purple-200">
-                              Specific GST {item.itemGstRate}%
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200">
-                              Global GST {item.itemGstRate}%
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td className="py-3 px-2 text-center font-bold text-neutral-900 font-numeric">
                         {item.quantity}
                       </td>
-                      <td className="py-3 px-2.5 text-right font-medium text-neutral-700 font-numeric whitespace-nowrap">
-                        {formatPrice(item.price)}
-                      </td>
-                      <td className="py-3 px-2.5 text-right font-semibold text-neutral-800 font-numeric whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-semibold text-neutral-800 font-numeric whitespace-nowrap">
                         {formatPrice(item.taxableAmount)}
                       </td>
-                      <td className="py-3 px-2.5 text-right font-numeric whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-numeric whitespace-nowrap">
                         <span className="font-bold text-neutral-900 block">{formatPrice(item.gstAmount)}</span>
                         <span className="text-[10px] text-neutral-500 block font-normal">
-                          {item.itemGstRate}% {item.itemGstRate > 0 && `(C:${(item.itemGstRate / 2).toFixed(1)}% S:${(item.itemGstRate / 2).toFixed(1)}%)`}
+                          {item.itemGstRate}% {item.itemGstRate > 0 && (isInterState ? '(IGST)' : `(CGST:${(item.itemGstRate / 2).toFixed(1)}% SGST:${(item.itemGstRate / 2).toFixed(1)}%)`)}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right font-bold text-neutral-900 font-numeric whitespace-nowrap">
@@ -464,25 +465,32 @@ const InvoiceView = ({
                 </div>
                 {hasGst ? (
                   <>
-                    <div className="flex justify-between text-neutral-600">
-                      <span title={`CGST: ${formatPrice(totalGst / 2)} | SGST: ${formatPrice(totalGst / 2)}`}>
-                        {distinctRates.length === 1 ? `Add GST (${distinctRates[0]}%):` : 'Add GST (Item Slabs):'}
-                      </span>
+                    <div className="flex justify-between text-neutral-600 font-medium">
+                      <span>Total GST:</span>
                       <span className="font-bold text-neutral-900 font-numeric">+{formatPrice(totalGst)}</span>
                     </div>
-                    <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-neutral-300">
-                      <span>CGST ({distinctRates.length === 1 ? `${(distinctRates[0] / 2).toFixed(1)}%` : '50%'}):</span>
-                      <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-neutral-300">
-                      <span>SGST ({distinctRates.length === 1 ? `${(distinctRates[0] / 2).toFixed(1)}%` : '50%'}):</span>
-                      <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
-                    </div>
+                    {isInterState ? (
+                      <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-primary/40">
+                        <span>IGST (Integrated GST):</span>
+                        <span className="font-medium font-numeric">{formatPrice(totalGst)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-primary/40">
+                          <span>CGST (Central GST):</span>
+                          <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-neutral-500 pl-2 border-l-2 border-primary/40">
+                          <span>SGST (State GST):</span>
+                          <span className="font-medium font-numeric">{formatPrice(totalGst / 2)}</span>
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : (
                   <div className="flex justify-between text-neutral-500 italic text-[11px]">
-                    <span>GST:</span>
-                    <span>Exempt / 0%</span>
+                    <span>GST (CGST / SGST / IGST):</span>
+                    <span>0% (Tax Exempt)</span>
                   </div>
                 )}
                 <div className="flex justify-between text-neutral-600">
@@ -500,7 +508,9 @@ const InvoiceView = ({
                 </div>
                 <div className="text-[10px] text-neutral-500 text-right">
                   {hasGst
-                    ? `(Product Total + Add GST & all applicable taxes)`
+                    ? isInterState
+                      ? '(Product Price + IGST & all applicable taxes)'
+                      : '(Product Price + CGST & SGST & all applicable taxes)'
                     : '(Inclusive of all applicable taxes)'}
                 </div>
               </div>

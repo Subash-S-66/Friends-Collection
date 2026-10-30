@@ -1295,6 +1295,31 @@ const Checkout = () => {
                     <span>Estimated GST {hasCustomGstItem ? `(Item-specific / ${effectiveGstDisplayRate}%)` : `(${gstPercentage}%)`}</span>
                     <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
                   </div>
+                  {/* 3 GST Types: CGST + SGST (within Tamil Nadu) or IGST (Inter-state) */}
+                  {(() => {
+                    const st = (formData.state || '').trim().toLowerCase();
+                    const isInterState = Boolean(st && !st.includes('tamil nadu') && !st.includes('tamilnadu') && !st.includes('tn') && !st.includes('chennai'));
+                    if (isInterState) {
+                      return (
+                        <div className="flex justify-between text-[11px] text-neutral-400 pl-2 border-l border-primary/30">
+                          <span>• IGST (Inter-State Tax)</span>
+                          <span className="font-numeric">{formatPrice(estimatedGst)}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <>
+                        <div className="flex justify-between text-[11px] text-neutral-400 pl-2 border-l border-primary/30">
+                          <span>• CGST (Central Tax 50%)</span>
+                          <span className="font-numeric">{formatPrice(estimatedGst / 2)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-neutral-400 pl-2 border-l border-primary/30">
+                          <span>• SGST (State Tax 50%)</span>
+                          <span className="font-numeric">{formatPrice(estimatedGst / 2)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 

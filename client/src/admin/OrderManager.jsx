@@ -1278,6 +1278,30 @@ const OrderManager = () => {
                         <span>Estimated GST ({effectiveGstRate}%):</span>
                         <span className="font-medium text-neutral-700 font-numeric">{formatPrice(estimatedGst)}</span>
                       </div>
+                      {(() => {
+                        const st = (selectedOrder.customer?.address?.state || '').trim().toLowerCase();
+                        const isInter = Boolean(st && !st.includes('tamil nadu') && !st.includes('tamilnadu') && !st.includes('tn') && !st.includes('chennai'));
+                        if (isInter) {
+                          return (
+                            <div className="flex justify-between text-[10px] text-neutral-400 pl-3">
+                              <span>• IGST (Inter-State):</span>
+                              <span className="font-numeric">{formatPrice(estimatedGst)}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <>
+                            <div className="flex justify-between text-[10px] text-neutral-400 pl-3">
+                              <span>• CGST (Central Tax 50%):</span>
+                              <span className="font-numeric">{formatPrice(estimatedGst / 2)}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-neutral-400 pl-3">
+                              <span>• SGST (State Tax 50%):</span>
+                              <span className="font-numeric">{formatPrice(estimatedGst / 2)}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                   <div className="flex justify-between text-neutral-600">

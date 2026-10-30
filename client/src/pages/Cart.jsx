@@ -337,7 +337,7 @@ const Cart = () => {
                     <span className="text-[11px] text-neutral-500 font-normal block">
                       {hasCustomGst
                         ? '(Inclusive of item-specific GST slabs & taxes)'
-                        : `(Inclusive of ${gstPercentage}% GST & taxes)`}
+                        : `(Inclusive of ${gstPercentage}% GST: CGST ${(gstPercentage / 2).toFixed(1)}% + SGST ${(gstPercentage / 2).toFixed(1)}% / IGST ${gstPercentage}%)`}
                     </span>
                   )}
                 </div>

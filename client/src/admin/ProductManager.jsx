@@ -1535,9 +1535,18 @@ const ProductManager = () => {
                             </span>
                           )}
                         </div>
-                        {prod.gstRate !== null && prod.gstRate !== undefined && (
-                          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                            GST: {prod.gstRate}%
+                        {prod.gstRate !== null && prod.gstRate !== undefined ? (
+                          <div className="mt-1 flex flex-col gap-0.5">
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 w-fit">
+                              GST: {prod.gstRate}%
+                            </span>
+                            <span className="text-[9px] text-neutral-400 font-mono">
+                              CGST: {(prod.gstRate / 2).toFixed(1)}% • SGST: {(prod.gstRate / 2).toFixed(1)}% • IGST: {prod.gstRate}%
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-neutral-400 block mt-0.5 italic">
+                            GST: Store Global
                           </span>
                         )}
                       </td>
@@ -1988,14 +1997,44 @@ const ProductManager = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 mb-1">
-                      GST Rate (%)
-                    </label>
+                  <div className="col-span-full sm:col-span-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-neutral-700">
+                        GST Rate (%)
+                      </label>
+                      <span className="text-[10px] text-neutral-400 font-medium">CGST • SGST • IGST</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                      {[
+                        { label: 'Store Default', val: '' },
+                        { label: '0% (Exempt)', val: '0' },
+                        { label: '5% (Apparel)', val: '5' },
+                        { label: '12%', val: '12' },
+                        { label: '18%', val: '18' }
+                      ].map((preset) => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => {
+                            setGstRate(preset.val);
+                            setCustomGstInput('');
+                          }}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                            gstRate === preset.val
+                              ? 'bg-primary text-white border-primary shadow-xs'
+                              : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
                     <select
                       value={gstRate}
                       onChange={(e) => setGstRate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary bg-white font-medium"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary bg-white font-medium"
                     >
                       <option value="">Store Default (Global)</option>
                       <option value="0">0% (Tax Exempt)</option>
@@ -2005,6 +2044,7 @@ const ProductManager = () => {
                       <option value="28">28% (Special Goods)</option>
                       <option value="custom">Custom Rate %...</option>
                     </select>
+
                     {gstRate === 'custom' && (
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <input
@@ -2020,6 +2060,40 @@ const ProductManager = () => {
                         <span className="text-xs font-bold text-neutral-600">%</span>
                       </div>
                     )}
+
+                    {/* 3 GST Types (CGST, SGST, IGST) */}
+                    {(() => {
+                      const numRate = gstRate === 'custom' ? Number(customGstInput) : (gstRate === '' ? null : Number(gstRate));
+                      if (numRate === null || isNaN(numRate)) {
+                        return (
+                          <p className="mt-1.5 text-[10px] text-neutral-500">
+                            Uses store default global GST. Tax applies as CGST + SGST (intra-state) or IGST (inter-state).
+                          </p>
+                        );
+                      }
+                      const half = (numRate / 2).toFixed(1);
+                      return (
+                        <div className="mt-1.5 p-1.5 rounded-lg bg-neutral-50 border border-neutral-200 text-[10px] space-y-1">
+                          <span className="font-bold text-neutral-600 block text-[9px] uppercase tracking-wider">
+                            3 GST Types Applied:
+                          </span>
+                          <div className="grid grid-cols-3 gap-1 text-center font-mono">
+                            <div className="bg-white px-1 py-0.5 rounded border border-neutral-200">
+                              <span className="text-[9px] text-neutral-400 block font-sans">CGST</span>
+                              <strong className="text-neutral-900">{half}%</strong>
+                            </div>
+                            <div className="bg-white px-1 py-0.5 rounded border border-neutral-200">
+                              <span className="text-[9px] text-neutral-400 block font-sans">SGST</span>
+                              <strong className="text-neutral-900">{half}%</strong>
+                            </div>
+                            <div className="bg-white px-1 py-0.5 rounded border border-neutral-200">
+                              <span className="text-[9px] text-neutral-400 block font-sans">IGST</span>
+                              <strong className="text-neutral-900">{numRate}%</strong>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
