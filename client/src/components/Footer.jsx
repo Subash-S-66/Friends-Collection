@@ -36,12 +36,11 @@ const Footer = () => {
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <img
-                src="/logo.webp"
+                src="/logo.png"
                 alt={`${storeName} Logo`}
                 width="48"
                 height="48"
                 className="w-12 h-12 object-contain rounded-full bg-cream-light p-0.5 shadow-md"
-                onError={(e) => { e.currentTarget.src = '/logo.png'; }}
               />
               <div className="flex flex-col">
                 <span className="font-logo text-xl sm:text-2xl font-bold tracking-[0.25em] uppercase text-white leading-tight block">

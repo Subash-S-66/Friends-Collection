@@ -198,12 +198,11 @@ const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 group">
               <img
-                src="/logo.webp"
+                src="/logo.png"
                 alt="Friends Collections Logo"
                 width="44"
                 height="44"
                 className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-full shadow-sm group-hover:scale-105 transition-transform"
-                onError={(e) => { e.currentTarget.src = '/logo.png'; }}
               />
               <div className="flex flex-col">
                 <span className="font-logo text-base sm:text-xl font-bold tracking-[0.25em] uppercase text-primary leading-tight group-hover:text-primary-light transition-colors">

@@ -670,7 +670,7 @@ const Home = () => {
                           alt={banner?.title || 'Friends Collections'}
                           onError={(e) => handleImageError(e, '/fallback-banner.webp')}
                           fetchPriority={idx === 0 ? 'high' : 'auto'}
-                          loading="eager"
+                          loading={idx === 0 ? 'eager' : 'lazy'}
                           decoding="async"
                           className="w-full h-full object-cover rounded-2xl shadow-inner group-hover/card:scale-103 transition-transform duration-700 ease-out"
                         />
