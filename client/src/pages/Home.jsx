@@ -452,7 +452,7 @@ const Home = () => {
               type="button"
               onClick={handlePrevBanner}
               aria-label="Previous Banner Slide"
-              className="hidden sm:inline-flex absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
+              className="hidden sm:inline-flex absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-[opacity,transform] duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
               title="Previous Banner Slide"
             >
               <HiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -462,7 +462,7 @@ const Home = () => {
               type="button"
               onClick={handleNextBanner}
               aria-label="Next Banner Slide"
-              className="hidden sm:inline-flex absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
+              className="hidden sm:inline-flex absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-xl transition-[opacity,transform] duration-200 active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100"
               title="Next Banner Slide"
             >
               <HiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -610,19 +610,24 @@ const Home = () => {
 
               {/* Slide Navigation Dots (Below left content in 'full' mode) */}
               {isCarouselEnabled && carouselType === 'full' && activeBanners.length > 1 && (
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-1.5 pt-2">
                   {activeBanners.map((b, idx) => (
                     <button
                       key={b._id || idx}
+                      type="button"
                       onClick={() => setActiveBannerIdx(idx)}
-                      aria-label={`Show slide ${idx + 1}`}
-                      className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
-                        activeBannerIdx === idx
-                          ? 'w-9 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
-                          : 'w-2.5 bg-white/40 hover:bg-white/70'
-                      }`}
+                      aria-label={`Go to promotional slide ${idx + 1}`}
+                      className="p-2 -m-1 flex items-center justify-center cursor-pointer min-w-[36px] min-h-[36px]"
                       title={`Slide ${idx + 1}: ${b.title || 'Promotional Banner'}`}
-                    />
+                    >
+                      <span
+                        className={`h-2.5 rounded-full transition-all duration-300 ${
+                          activeBannerIdx === idx
+                            ? 'w-9 bg-accent-400 shadow-md ring-2 ring-accent-300/40'
+                            : 'w-2.5 bg-white/40 hover:bg-white/70'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
@@ -636,7 +641,7 @@ const Home = () => {
               <div
                 onClick={() => handleBannerClick(currentBanner)}
                 title={`Click to view: ${currentBanner?.title || 'Collection'} (Redirects within store)`}
-                className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card hover:border-accent-300/80 transition-all duration-500 cursor-pointer transform hover:-translate-y-1"
+                className="relative w-full max-w-lg aspect-[16/10] rounded-3xl p-2.5 sm:p-3 bg-gradient-to-tr from-accent-400/40 via-primary-700/60 to-accent-300/40 shadow-2xl backdrop-blur-sm border border-accent-300/40 overflow-hidden flex items-center justify-center group/card transition-[transform,box-shadow] duration-500 cursor-pointer transform hover:-translate-y-1"
               >
                 {/* The Layered Image Container */}
                 <div className="relative w-full h-full rounded-2xl overflow-hidden bg-primary-950">
@@ -663,7 +668,7 @@ const Home = () => {
                     return (
                       <div
                         key={banner._id || idx}
-                        className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
+                        className={`absolute inset-0 transition-[opacity,transform] duration-700 ease-out will-change-transform ${transitionStyle}`}
                       >
                         <img
                           src={getImageUrl(banner?.image, '/fallback-banner.webp')}
@@ -688,7 +693,7 @@ const Home = () => {
                       type="button"
                       onClick={handlePrevBanner}
                       aria-label="Previous Slide"
-                      className="hidden sm:inline-flex absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
+                      className="hidden sm:inline-flex absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-[opacity,transform] active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                       title="Previous Image Slide"
                     >
                       <HiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -698,14 +703,14 @@ const Home = () => {
                       type="button"
                       onClick={handleNextBanner}
                       aria-label="Next Slide"
-                      className="hidden sm:inline-flex absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
+                      className="hidden sm:inline-flex absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/55 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 shadow-xl transition-[opacity,transform] active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                       title="Next Image Slide"
                     >
                       <HiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
 
                     {/* Integrated Dot Indicators on top-right of the Image Box */}
-                    <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/15">
+                    <div className="absolute top-4 right-4 z-20 flex items-center gap-1 bg-black/50 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/15">
                       {activeBanners.map((_, idx) => (
                         <button
                           key={idx}
@@ -714,11 +719,16 @@ const Home = () => {
                             e.stopPropagation();
                             setActiveBannerIdx(idx);
                           }}
-                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            activeBannerIdx === idx ? 'w-5 bg-accent-400' : 'w-1.5 bg-white/50 hover:bg-white'
-                          }`}
+                          aria-label={`Go to slide ${idx + 1}`}
+                          className="p-2 -m-1 flex items-center justify-center cursor-pointer min-w-[32px] min-h-[32px]"
                           title={`Slide ${idx + 1}`}
-                        />
+                        >
+                          <span
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              activeBannerIdx === idx ? 'w-5 bg-accent-400' : 'w-1.5 bg-white/50 hover:bg-white'
+                            }`}
+                          />
+                        </button>
                       ))}
                     </div>
                   </>
@@ -739,7 +749,7 @@ const Home = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-neutral-900 leading-tight">Free Shipping</p>
-              <p className="text-xs text-neutral-500 mt-0.5">On orders above ₹{freeShipping}</p>
+              <p className="text-xs text-neutral-600 mt-0.5">On orders above ₹{freeShipping}</p>
             </div>
           </div>
 
@@ -749,7 +759,7 @@ const Home = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-neutral-900 leading-tight">100% Quality</p>
-              <p className="text-xs text-neutral-500 mt-0.5">Premium fabrics guaranteed</p>
+              <p className="text-xs text-neutral-600 mt-0.5">Premium fabrics guaranteed</p>
             </div>
           </div>
 
@@ -759,7 +769,7 @@ const Home = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-neutral-900 leading-tight">Best Prices</p>
-              <p className="text-xs text-neutral-500 mt-0.5">Honest & direct pricing</p>
+              <p className="text-xs text-neutral-600 mt-0.5">Honest & direct pricing</p>
             </div>
           </div>
 
@@ -769,7 +779,7 @@ const Home = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-neutral-900 leading-tight">Easy Exchange</p>
-              <p className="text-xs text-neutral-500 mt-0.5">Quick support on WhatsApp</p>
+              <p className="text-xs text-neutral-600 mt-0.5">Quick support on WhatsApp</p>
             </div>
           </div>
         </div>
@@ -795,7 +805,7 @@ const Home = () => {
                 <button
                   disabled={loading}
                   onClick={() => setSelectedGender('all')}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                  className={`px-4 sm:px-5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-colors ${
                     selectedGender === 'all'
                       ? 'bg-neutral-900 text-white shadow-md'
                       : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200'
@@ -807,7 +817,7 @@ const Home = () => {
                   <button
                     disabled={loading}
                     onClick={() => setSelectedGender('women')}
-                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    className={`px-4 sm:px-5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-colors ${
                       selectedGender === 'women'
                         ? 'bg-primary text-white shadow-md'
                         : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -820,7 +830,7 @@ const Home = () => {
                   <button
                     disabled={loading}
                     onClick={() => setSelectedGender('men')}
-                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    className={`px-4 sm:px-5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-colors ${
                       selectedGender === 'men'
                         ? 'bg-primary text-white shadow-md'
                         : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -833,7 +843,7 @@ const Home = () => {
                   <button
                     disabled={loading}
                     onClick={() => setSelectedGender('kids')}
-                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                    className={`px-4 sm:px-5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-colors ${
                       selectedGender === 'kids'
                         ? 'bg-primary text-white shadow-md'
                         : 'bg-white text-neutral-700 hover:bg-accent-100/60 border border-accent-200/60'
@@ -863,7 +873,7 @@ const Home = () => {
                   <Link
                     to={cat.gender ? `/shop?gender=${cat.gender}&category=${cat.slug}` : `/shop?category=${cat.slug}`}
                     key={cat._id}
-                    className={`group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-all duration-300 transform hover:-translate-y-1 ${
+                    className={`group relative rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100 shadow-xs hover:shadow-card-hover border border-accent-100 transition-[transform,box-shadow] duration-300 transform hover:-translate-y-1 ${
                       idx >= 6 ? 'hidden lg:block' : idx >= 4 ? 'hidden sm:block' : ''
                     }`}
                   >
@@ -1075,7 +1085,7 @@ const Home = () => {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with us on WhatsApp"
-        className="fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-full shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-white/90 animate-fade-in"
+        className="fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-full shadow-lg hover:shadow-2xl transition-transform duration-300 transform hover:scale-105 border-2 border-white/90 animate-fade-in"
       >
         <FaWhatsapp className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0 drop-shadow-xs" />
         <span className="font-semibold text-xs sm:text-sm tracking-wide text-white drop-shadow-xs whitespace-nowrap">

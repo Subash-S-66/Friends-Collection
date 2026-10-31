@@ -147,7 +147,7 @@ const ProductCard = ({ product }) => {
       viewport={{ once: true }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -4 }}
-      className={`group relative flex flex-col bg-white rounded-xl sm:rounded-2xl overflow-hidden border shadow-xs hover:shadow-card-hover transition-all duration-300 ${
+      className={`group relative flex flex-col bg-white rounded-xl sm:rounded-2xl overflow-hidden border shadow-xs hover:shadow-card-hover transition-shadow duration-300 ${
         isOutOfStock
           ? 'border-neutral-300 opacity-90'
           : 'border-accent-100 hover:border-accent-300'
@@ -268,7 +268,7 @@ const ProductCard = ({ product }) => {
                 {product.subcategory?.name && (
                   <>
                     <span className="text-neutral-300">•</span>
-                    <span className="text-neutral-500 font-medium">{product.subcategory.name}</span>
+                    <span className="text-neutral-600 font-medium">{product.subcategory.name}</span>
                   </>
                 )}
               </p>
@@ -285,7 +285,7 @@ const ProductCard = ({ product }) => {
                   <span className="font-numeric text-xs sm:text-lg font-extrabold text-primary tracking-tight">
                     {formatPrice(product.salePrice)}
                   </span>
-                  <span className="font-numeric text-[10px] sm:text-sm text-neutral-400 line-through">
+                  <span className="font-numeric text-[10px] sm:text-sm text-neutral-600 line-through">
                     {formatPrice(product.price)}
                   </span>
                 </>
