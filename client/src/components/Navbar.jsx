@@ -182,33 +182,33 @@ const Navbar = () => {
         {/* Dynamic Top Announcement Strip from DB Settings */}
         <AnnouncementBar announcement={announcement} />
 
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-300 ${
-          scrolled || activeMegaMenu ? 'py-2 sm:py-2.5' : 'py-3 sm:py-3.5'
+        <div className={`max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 transition-all duration-300 ${
+          scrolled || activeMegaMenu ? 'py-1.5 sm:py-2.5' : 'py-2 sm:py-3.5'
         }`}>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-4">
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-primary hover:bg-primary-50 transition-colors"
+              className="lg:hidden p-1.5 sm:p-2.5 rounded-lg text-primary hover:bg-primary-50 transition-colors shrink-0"
               aria-label="Toggle navigation menu"
             >
               {mobileOpen ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineMenu className="w-6 h-6" />}
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3 group">
+            <Link to="/" className="flex items-center gap-2 sm:gap-3 group shrink min-w-0">
               <img
                 src="/logo.png"
                 alt="Friends Collections Logo"
                 width="44"
                 height="44"
-                className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-full shadow-sm group-hover:scale-105 transition-transform"
+                className="w-9 h-9 sm:w-11 sm:h-11 object-contain rounded-full shadow-sm group-hover:scale-105 transition-transform shrink-0"
               />
-              <div className="flex flex-col">
-                <span className="font-logo text-base sm:text-xl font-bold tracking-[0.25em] uppercase text-primary leading-tight group-hover:text-primary-light transition-colors">
+              <div className="flex flex-col min-w-0">
+                <span className="font-logo text-sm sm:text-xl font-bold tracking-[0.16em] sm:tracking-[0.25em] uppercase text-primary leading-tight group-hover:text-primary-light transition-colors truncate">
                   FRIENDS
                 </span>
-                <span className="pl-1 text-[9px] sm:text-[11px] font-medium tracking-[0.28em] uppercase text-accent-700 leading-tight mt-0.5">
+                <span className="pl-0.5 text-[8px] sm:text-[11px] font-medium tracking-[0.2em] sm:tracking-[0.28em] uppercase text-accent-700 leading-tight mt-0.5 truncate">
                   COLLECTIONS
                 </span>
               </div>
@@ -348,11 +348,11 @@ const Navbar = () => {
             </nav>
 
             {/* Right Side Icons */}
-            <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-0.5 sm:gap-2.5 shrink-0">
               {/* Search Toggle */}
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2 sm:p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors"
+                className="p-1.5 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors flex items-center justify-center shrink-0"
                 aria-label="Search products"
                 title="Search dresses"
               >
@@ -361,12 +361,12 @@ const Navbar = () => {
 
               {/* User Account / Sign In Popup */}
               {user ? (
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center shrink-0">
                   <div className="relative" ref={userMenuRef}>
                     <button
                       type="button"
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="p-2 sm:p-2.5 min-w-[44px] min-h-[44px] rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative cursor-pointer flex items-center justify-center"
+                      className="p-1.5 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative cursor-pointer flex items-center justify-center shrink-0"
                       aria-label="User Account Menu"
                       title={`Logged in as ${user.name}`}
                     >
@@ -446,7 +446,7 @@ const Navbar = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center sm:gap-2 shrink-0">
                   <Link
                     to="/account"
                     className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-all border border-neutral-200/80"
@@ -457,12 +457,12 @@ const Navbar = () => {
                   <button
                     type="button"
                     onClick={() => openAuthModal('login')}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 min-h-[44px] rounded-full text-xs font-bold text-primary hover:bg-accent-100/70 border border-accent-200/80 hover:border-accent-300 transition-all shadow-2xs cursor-pointer"
+                    className="p-1.5 sm:px-3.5 sm:py-2 rounded-full sm:border sm:border-accent-200/80 text-primary hover:bg-accent-100/70 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                     aria-label="Sign In or Register"
                     title="Click to sign in or create an account"
                   >
-                    <HiOutlineUser className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-accent-700" />
-                    <span className="hidden sm:inline">Sign In</span>
+                    <HiOutlineUser className="w-5 h-5 sm:w-4.5 sm:h-4.5 text-accent-700" />
+                    <span className="hidden sm:inline text-xs font-bold">Sign In</span>
                   </button>
                 </div>
               )}
@@ -470,12 +470,12 @@ const Navbar = () => {
               {/* Cart Drawer Button */}
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="p-2 sm:p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative"
+                className="p-1.5 sm:p-2.5 rounded-full text-neutral-700 hover:text-primary hover:bg-accent-100/60 transition-colors relative flex items-center justify-center shrink-0"
                 aria-label="Open Shopping Bag"
               >
                 <HiOutlineShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scale-up font-numeric">
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary text-white text-[10px] sm:text-[11px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center shadow-md animate-scale-up font-numeric">
                     {totalItems}
                   </span>
                 )}
