@@ -9,7 +9,7 @@ export const setGlobalAlertHandler = (handler) => {
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
+  withCredentials: false,
   timeout: 15000 // 15 seconds timeout prevents non-stop spinning everywhere
 });
 
