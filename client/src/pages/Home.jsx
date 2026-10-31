@@ -93,7 +93,7 @@ const defaultHeroBanner = {
   title: 'Style That Defines You',
   subtitle:
     'Elevate your wardrobe with bespoke sarees, graceful lehengas, vibrant kurtis, tailored shirts, and festive apparel crafted with authentic heritage weaves.',
-  image: '/fallback-banner.png',
+  image: '/fallback-banner.webp',
   ctaText: 'Explore Collection',
   ctaLink: '/shop'
 };
@@ -348,7 +348,7 @@ const Home = () => {
   useEffect(() => {
     if (Array.isArray(activeBanners) && activeBanners.length > 0) {
       activeBanners.forEach((b) => {
-        const imgSrc = getImageUrl(b?.image, '/fallback-banner.png');
+        const imgSrc = getImageUrl(b?.image, '/fallback-banner.webp');
         if (imgSrc) {
           const img = new Image();
           img.src = imgSrc;
@@ -429,10 +429,12 @@ const Home = () => {
           {activeBanners.map((b, idx) => (
             <img
               key={b._id || idx}
-              src={getImageUrl(b?.image, '/fallback-banner.png')}
+              src={getImageUrl(b?.image, '/fallback-banner.webp')}
               alt=""
               aria-hidden="true"
-              onError={(e) => handleImageError(e, '/fallback-banner.png')}
+              onError={(e) => handleImageError(e, '/fallback-banner.webp')}
+              loading="lazy"
+              decoding="async"
               className={`absolute inset-0 w-full h-full object-cover filter blur-xs transition-opacity duration-1000 ease-in-out ${
                 (carouselType === 'full' && isCarouselEnabled ? idx === activeBannerIdx : idx === 0)
                   ? 'opacity-25'
@@ -664,9 +666,9 @@ const Home = () => {
                         className={`absolute inset-0 transition-all duration-700 ease-out will-change-transform ${transitionStyle}`}
                       >
                         <img
-                          src={getImageUrl(banner?.image, '/fallback-banner.png')}
+                          src={getImageUrl(banner?.image, '/fallback-banner.webp')}
                           alt={banner?.title || 'Friends Collections'}
-                          onError={(e) => handleImageError(e, '/fallback-banner.png')}
+                          onError={(e) => handleImageError(e, '/fallback-banner.webp')}
                           fetchPriority={idx === 0 ? 'high' : 'auto'}
                           loading="eager"
                           decoding="async"
@@ -736,7 +738,7 @@ const Home = () => {
               <HiOutlineTruck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-neutral-900 leading-tight">Free Shipping</h4>
+              <p className="text-sm font-bold text-neutral-900 leading-tight">Free Shipping</p>
               <p className="text-xs text-neutral-500 mt-0.5">On orders above ₹{freeShipping}</p>
             </div>
           </div>
@@ -746,7 +748,7 @@ const Home = () => {
               <HiOutlineShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-neutral-900 leading-tight">100% Quality</h4>
+              <p className="text-sm font-bold text-neutral-900 leading-tight">100% Quality</p>
               <p className="text-xs text-neutral-500 mt-0.5">Premium fabrics guaranteed</p>
             </div>
           </div>
@@ -756,7 +758,7 @@ const Home = () => {
               <HiOutlineCurrencyRupee className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-neutral-900 leading-tight">Best Prices</h4>
+              <p className="text-sm font-bold text-neutral-900 leading-tight">Best Prices</p>
               <p className="text-xs text-neutral-500 mt-0.5">Honest & direct pricing</p>
             </div>
           </div>
@@ -766,7 +768,7 @@ const Home = () => {
               <HiOutlineRefresh className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-neutral-900 leading-tight">Easy Exchange</h4>
+              <p className="text-sm font-bold text-neutral-900 leading-tight">Easy Exchange</p>
               <p className="text-xs text-neutral-500 mt-0.5">Quick support on WhatsApp</p>
             </div>
           </div>
@@ -866,9 +868,9 @@ const Home = () => {
                     }`}
                   >
                     <img
-                      src={getImageUrl(cat.image, '/fallback-product.png')}
+                      src={getImageUrl(cat.image, '/fallback-product.jpg')}
                       alt={cat.name}
-                      onError={(e) => handleImageError(e, '/fallback-product.png')}
+                      onError={(e) => handleImageError(e, '/fallback-product.jpg')}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       loading="lazy"
                       decoding="async"

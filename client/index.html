@@ -4,14 +4,50 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Friends Collections - Style That Defines You. Trendy fashion, quality collections, and best prices always. Shop sarees, kurtis, lehengas, and more in Chennai." />
-    <meta name="theme-color" content="#5B1130" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <title>Friends Collections - Style That Defines You</title>
+    <meta name="description" content="Friends Collections - Chennai's premier fashion boutique for bespoke Banarasi silk sarees, bridal lehengas, royal sherwanis, and luxury ethnic festive wear." />
+    <meta name="theme-color" content="#54142D" />
+    <link rel="canonical" href="https://friends-collection.vercel.app/" />
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://friends-collection.vercel.app/" />
+    <meta property="og:title" content="Friends Collections - Style That Defines You" />
+    <meta property="og:description" content="Chennai's premier fashion house for bespoke Banarasi silk sarees, bridal lehengas, royal sherwanis, and luxury ethnic festive wear." />
+    <meta property="og:image" content="https://friends-collection.vercel.app/logo.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Friends Collections - Style That Defines You" />
+    <meta name="twitter:description" content="Chennai's premier fashion house for bespoke Banarasi silk sarees, bridal lehengas, royal sherwanis, and luxury ethnic festive wear." />
+    <meta name="twitter:image" content="https://friends-collection.vercel.app/logo.png" />
+
+    <!-- Fast-path DNS & Preconnect for external Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- LCP Hero Image Preload for Instant Discovery & High Priority -->
+    <link rel="preload" as="image" href="/fallback-banner.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/logo.webp" type="image/webp" fetchpriority="high" />
+
+    <!-- Non-render-blocking Google Fonts with font-display swap -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

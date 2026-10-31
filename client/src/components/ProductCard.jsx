@@ -130,10 +130,10 @@ const ProductCard = ({ product }) => {
     rawPrimary.includes('card.png');
 
   // Primary image to display
-  const primaryImage = isPrimaryFallback ? '/fallback-product-1.png' : rawPrimary;
+  const primaryImage = isPrimaryFallback ? '/fallback-product-1.jpg' : rawPrimary;
 
   // Secondary/Hover image:
-  const hoverImage = rawSecondary || (isPrimaryFallback ? '/fallback-product-2.png' : null);
+  const hoverImage = rawSecondary || (isPrimaryFallback ? '/fallback-product-2.jpg' : null);
   const hasHoverImage = Boolean(hoverImage);
 
   const targetLink = selectedColorOverride
@@ -157,21 +157,23 @@ const ProductCard = ({ product }) => {
         {/* Image Container with 3:4 Aspect Ratio Guard */}
         <div className={`relative aspect-[3/4] w-full overflow-hidden bg-cream-dark ${isOutOfStock ? 'grayscale-[35%]' : ''}`}>
           <img
-            src={getImageUrl(primaryImage, '/fallback-product-1.png')}
+            src={getImageUrl(primaryImage, '/fallback-product-1.jpg')}
             alt={product.title}
-            onError={(e) => handleImageError(e, '/fallback-product-1.png')}
+            onError={(e) => handleImageError(e, '/fallback-product-1.jpg')}
             className={`w-full h-full object-cover object-top ${
               hasHoverImage && !isOutOfStock ? 'transition-transform duration-700 ease-out group-hover:scale-105' : ''
             } ${isOutOfStock ? 'opacity-80' : ''}`}
             loading="lazy"
+            decoding="async"
           />
           {hasHoverImage && !isOutOfStock && (
             <img
-              src={getImageUrl(hoverImage, '/fallback-product-2.png')}
+              src={getImageUrl(hoverImage, '/fallback-product-2.jpg')}
               alt={`${product.title} hover view`}
-              onError={(e) => handleImageError(e, '/fallback-product-2.png')}
+              onError={(e) => handleImageError(e, '/fallback-product-2.jpg')}
               className="absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 bg-white"
               loading="lazy"
+              decoding="async"
             />
           )}
 

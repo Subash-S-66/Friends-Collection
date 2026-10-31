@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
@@ -9,7 +9,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AlertProvider } from './context/AlertContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 
-// Storefront Components
+// Core Storefront Components (Critical Path)
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
@@ -18,34 +18,43 @@ import DynamicAlertModal from './components/DynamicAlertModal';
 import DynamicConfirmModal from './components/DynamicConfirmModal';
 import ScrollToTop from './components/ScrollToTop';
 
-// Storefront Pages
+// Critical Landing Page (Eagerly Loaded for instant FCP & LCP)
 import Home from './pages/Home';
-import Shop from './pages/Shop';
-import ProductDetail from './pages/ProductDetail';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import OrderConfirmation from './pages/OrderConfirmation';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import VerifyEmail from './pages/VerifyEmail';
-import Account from './pages/Account';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import InvoicePage from './pages/InvoicePage';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
 
-// Admin Dashboard Components
-import AdminLayout from './admin/AdminLayout';
-import Dashboard from './admin/Dashboard';
-import ProductManager from './admin/ProductManager';
-import CategoryManager from './admin/CategoryManager';
-import OrderManager from './admin/OrderManager';
-import BannerManager from './admin/BannerManager';
-import SettingsManager from './admin/SettingsManager';
-import InvoiceSettingsManager from './admin/InvoiceSettingsManager';
-import CampaignManager from './admin/CampaignManager';
+// Lazy-Loaded Storefront Secondary Pages
+const Shop = lazy(() => import('./pages/Shop'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderConfirmation = lazy(() => import('./pages/OrderConfirmation'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const Account = lazy(() => import('./pages/Account'));
+const About = lazy(() => import('./pages/About'));
+const Contact = lazy(() => import('./pages/Contact'));
+const InvoicePage = lazy(() => import('./pages/InvoicePage'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+
+// Lazy-Loaded Admin Dashboard Modules (Heavy bundles isolated from storefront visitors)
+const AdminLayout = lazy(() => import('./admin/AdminLayout'));
+const Dashboard = lazy(() => import('./admin/Dashboard'));
+const ProductManager = lazy(() => import('./admin/ProductManager'));
+const CategoryManager = lazy(() => import('./admin/CategoryManager'));
+const OrderManager = lazy(() => import('./admin/OrderManager'));
+const BannerManager = lazy(() => import('./admin/BannerManager'));
+const SettingsManager = lazy(() => import('./admin/SettingsManager'));
+const InvoiceSettingsManager = lazy(() => import('./admin/InvoiceSettingsManager'));
+const CampaignManager = lazy(() => import('./admin/CampaignManager'));
+
+// Accessible, lightweight loading spinner for route transitions
+const RouteFallback = () => (
+  <div className="min-h-[50vh] flex items-center justify-center p-8" role="status" aria-label="Loading page">
+    <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+  </div>
+);
 
 // Redirect legacy /track links into My Orders portal
 const TrackRedirect = () => {
@@ -84,53 +93,55 @@ const AppLayout = () => {
       <DynamicAlertModal />
       <DynamicConfirmModal />
 
-      <div className={`flex-1 ${isAdminRoute ? 'h-full overflow-hidden' : ''}`}>
-        <Routes>
-          {/* Storefront Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/product/:slug" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/order-success/:orderId" element={<OrderConfirmation />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/account/orders" element={<Account />} />
-          <Route path="/account/address" element={<Navigate to="/account?tab=address" replace />} />
-          <Route path="/account/addresses" element={<Navigate to="/account?tab=address" replace />} />
-          <Route path="/saved-addresses" element={<Navigate to="/account?tab=address" replace />} />
-          <Route path="/saved-address" element={<Navigate to="/account?tab=address" replace />} />
-          <Route path="/profile" element={<Navigate to="/account" replace />} />
-          <Route path="/track" element={<TrackRedirect />} />
-          <Route path="/track-order" element={<TrackRedirect />} />
-          <Route path="/track/:orderId" element={<TrackRedirect />} />
-          <Route path="/invoice/:orderId" element={<InvoicePage />} />
-          <Route path="/order/invoice/:orderId" element={<InvoicePage />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
+      <main id="main-content" className={`flex-1 ${isAdminRoute ? 'h-full overflow-hidden' : ''}`} tabIndex={-1}>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            {/* Storefront Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/product/:slug" element={<ProductDetail />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success/:orderId" element={<OrderConfirmation />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/account/orders" element={<Account />} />
+            <Route path="/account/address" element={<Navigate to="/account?tab=address" replace />} />
+            <Route path="/account/addresses" element={<Navigate to="/account?tab=address" replace />} />
+            <Route path="/saved-addresses" element={<Navigate to="/account?tab=address" replace />} />
+            <Route path="/saved-address" element={<Navigate to="/account?tab=address" replace />} />
+            <Route path="/profile" element={<Navigate to="/account" replace />} />
+            <Route path="/track" element={<TrackRedirect />} />
+            <Route path="/track-order" element={<TrackRedirect />} />
+            <Route path="/track/:orderId" element={<TrackRedirect />} />
+            <Route path="/invoice/:orderId" element={<InvoicePage />} />
+            <Route path="/order/invoice/:orderId" element={<InvoicePage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
 
-          {/* Admin Dashboard Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="orders" element={<OrderManager />} />
-            <Route path="products" element={<ProductManager />} />
-            <Route path="categories" element={<CategoryManager />} />
-            <Route path="campaigns" element={<CampaignManager />} />
-            <Route path="banners" element={<BannerManager />} />
-            <Route path="settings" element={<SettingsManager />} />
-            <Route path="invoice" element={<InvoiceSettingsManager />} />
-            <Route path="tax-invoice" element={<Navigate to="/admin/invoice" replace />} />
-          </Route>
+            {/* Admin Dashboard Routes */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="orders" element={<OrderManager />} />
+              <Route path="products" element={<ProductManager />} />
+              <Route path="categories" element={<CategoryManager />} />
+              <Route path="campaigns" element={<CampaignManager />} />
+              <Route path="banners" element={<BannerManager />} />
+              <Route path="settings" element={<SettingsManager />} />
+              <Route path="invoice" element={<InvoiceSettingsManager />} />
+              <Route path="tax-invoice" element={<Navigate to="/admin/invoice" replace />} />
+            </Route>
 
-          {/* 404 Fallback */}
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </div>
+            {/* 404 Fallback */}
+            <Route path="*" element={<Home />} />
+          </Routes>
+        </Suspense>
+      </main>
 
       {!isAdminRoute && <Footer />}
     </div>

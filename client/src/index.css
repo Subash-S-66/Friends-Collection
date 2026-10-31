@@ -47,17 +47,18 @@
 /* Dynamic Announcement Marquee (Running text moving left and right on mobile) */
 @keyframes marqueeLeftRight {
   0%, 15% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   48%, 68% {
-    transform: translateX(var(--marquee-distance, 0px));
+    transform: translate3d(var(--marquee-distance, 0px), 0, 0);
   }
   95%, 100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .animate-marquee-bounce {
+  will-change: transform;
   animation: marqueeLeftRight var(--marquee-duration, 10s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
 }
 

@@ -36,9 +36,12 @@ const Footer = () => {
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <img
-                src="/logo.png"
-                alt={storeName}
+                src="/logo.webp"
+                alt={`${storeName} Logo`}
+                width="48"
+                height="48"
                 className="w-12 h-12 object-contain rounded-full bg-cream-light p-0.5 shadow-md"
+                onError={(e) => { e.currentTarget.src = '/logo.png'; }}
               />
               <div className="flex flex-col">
                 <span className="font-logo text-xl sm:text-2xl font-bold tracking-[0.25em] uppercase text-white leading-tight block">
@@ -57,8 +60,8 @@ const Footer = () => {
                 href="https://instagram.com/friends_collection_in"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-primary-800 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 flex items-center justify-center text-white transition-all transform hover:-translate-y-1 shadow-sm"
-                aria-label="Instagram"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-primary-800 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 flex items-center justify-center text-white transition-all transform hover:-translate-y-1 shadow-sm"
+                aria-label="Visit Friends Collections on Instagram"
               >
                 <FaInstagram className="w-5 h-5" />
               </a>
@@ -66,8 +69,8 @@ const Footer = () => {
                 href={`https://wa.me/${whatsappNum}?text=Hi%20Friends%20Collections%2C%20I%20want%20to%20inquire%20about%20your%20products`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-primary-800 hover:bg-emerald-600 flex items-center justify-center text-white transition-all transform hover:-translate-y-1 shadow-sm"
-                aria-label="WhatsApp"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-primary-800 hover:bg-emerald-600 flex items-center justify-center text-white transition-all transform hover:-translate-y-1 shadow-sm"
+                aria-label="Chat with Friends Collections on WhatsApp"
               >
                 <FaWhatsapp className="w-5 h-5" />
               </a>
@@ -76,9 +79,9 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
+            <h3 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
               Quick Links
-            </h4>
+            </h3>
             <ul className="space-y-2.5 text-sm text-neutral-300">
               <li>
                 <Link to="/" className="hover:text-accent-300 transition-colors">Home</Link>
@@ -109,9 +112,9 @@ const Footer = () => {
 
           {/* Popular Categories from DB */}
           <div>
-            <h4 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
+            <h3 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
               Featured Categories
-            </h4>
+            </h3>
             <ul className="space-y-2.5 text-sm text-neutral-300">
               {categories.length > 0 ? (
                 categories.map((cat) => (
@@ -137,9 +140,9 @@ const Footer = () => {
 
           {/* Store Info & Support from DB */}
           <div>
-            <h4 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
+            <h3 className="font-serif text-lg font-semibold text-accent-200 mb-4 pb-1 border-b border-primary-800 inline-block">
               Store & Support
-            </h4>
+            </h3>
             <ul className="space-y-3 text-sm text-neutral-300">
               <li className="flex items-start gap-3">
                 <HiOutlineLocationMarker className="w-5 h-5 text-accent-400 shrink-0 mt-0.5" />

@@ -7,19 +7,20 @@ export const getDiscount = (price, salePrice) => {
   return Math.round(((price - salePrice) / price) * 100);
 };
 
-export const BANNER_FALLBACK = '/fallback-banner.png';
-export const PRODUCT_FALLBACK_1 = '/fallback-product-1.png';
-export const PRODUCT_FALLBACK_2 = '/fallback-product-2.png';
-export const CATEGORY_FALLBACK = '/fallback-product.png';
+export const BANNER_FALLBACK = '/fallback-banner.webp';
+export const PRODUCT_FALLBACK_1 = '/fallback-product-1.jpg';
+export const PRODUCT_FALLBACK_2 = '/fallback-product-2.jpg';
+export const CATEGORY_FALLBACK = '/fallback-product.jpg';
 
-export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
+export const getImageUrl = (path, fallback = '/fallback-product-1.jpg') => {
   const isBanner =
+    fallback === '/fallback-banner.webp' ||
     fallback === '/fallback-banner.png' ||
     fallback === '/fallback-banner.jpg' ||
     (typeof fallback === 'string' && fallback.toLowerCase().includes('banner')) ||
     (typeof path === 'string' && path.toLowerCase().includes('banner'));
 
-  // Strict enforcement: For banners, ALWAYS use /fallback-banner.png when image is missing or invalid.
+  // Strict enforcement: For banners, ALWAYS use /fallback-banner.webp when image is missing or invalid.
   // Never use product fallbacks or anything else under any circumstance.
   if (isBanner) {
     if (!path || typeof path !== 'string' || !path.trim() || path === 'null' || path === 'undefined') {
@@ -27,6 +28,7 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
     }
     const cleanBanner = path.trim();
     if (
+      cleanBanner === '/fallback-banner.webp' ||
       cleanBanner === '/fallback-banner.png' ||
       cleanBanner === '/fallback-banner.jpg' ||
       cleanBanner.includes('fallback-product') ||
@@ -73,7 +75,7 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.png') => {
   return clean;
 };
 
-export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
+export const handleImageError = (e, fallback = '/fallback-product-1.jpg') => {
   if (e?.currentTarget) {
     e.currentTarget.onerror = null;
     let chosenFallback = fallback;
@@ -81,8 +83,9 @@ export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
     const alt = (e.currentTarget.alt || '').toLowerCase();
     const className = (e.currentTarget.className || '').toLowerCase();
 
-    // Contextual autodetection: banners strictly use /fallback-banner.png, never anything else!
+    // Contextual autodetection: banners strictly use /fallback-banner.webp, never anything else!
     if (
+      fallback === '/fallback-banner.webp' ||
       fallback === '/fallback-banner.jpg' ||
       fallback === '/fallback-banner.png' ||
       (typeof fallback === 'string' && fallback.toLowerCase().includes('banner')) ||
@@ -92,7 +95,7 @@ export const handleImageError = (e, fallback = '/fallback-product-1.png') => {
       (e.currentTarget.closest && e.currentTarget.closest('[data-banner], .hero-banner, .banner-container, header, section[aria-label*="banner" i]'))
     ) {
       chosenFallback = BANNER_FALLBACK;
-    } else if (fallback === '/fallback-product-1.png') {
+    } else if (fallback === '/fallback-product-1.jpg' || fallback === '/fallback-product-1.png') {
       if (currentSrc.includes('category') || alt.includes('category') || className.includes('category')) {
         chosenFallback = CATEGORY_FALLBACK;
       }

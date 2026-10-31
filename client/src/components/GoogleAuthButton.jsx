@@ -2,9 +2,37 @@ import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
+const loadGoogleScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.google?.accounts) {
+      resolve(true);
+      return;
+    }
+    const existing = document.getElementById('gsi-client-script');
+    if (existing) {
+      if (window.google?.accounts) {
+        resolve(true);
+      } else {
+        existing.addEventListener('load', () => resolve(true));
+        existing.addEventListener('error', () => resolve(false));
+      }
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'gsi-client-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+};
+
 const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
   const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [scriptReady, setScriptReady] = useState(() => typeof window !== 'undefined' && !!window.google?.accounts);
 
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
@@ -21,7 +49,15 @@ const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
       : 'Continue with Google';
 
   useEffect(() => {
-    if (!window.google?.accounts?.id) return;
+    let isMounted = true;
+    loadGoogleScript().then((ready) => {
+      if (isMounted && ready) setScriptReady(true);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!scriptReady || !window.google?.accounts?.id) return;
 
     // Guard against multiple initializations which Google logs warnings for
     if (window.__gsiInitializedClientId === googleClientId) return;
@@ -54,12 +90,17 @@ const GoogleAuthButton = ({ onSuccess, text = 'continue_with' }) => {
     }
   }, [googleClientId]);
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     if (loading) return;
 
     if (!window.google?.accounts) {
-      toast('Google Sign-In is initializing. Please try again or use email code.', { icon: '⏳' });
-      return;
+      setLoading(true);
+      const ready = await loadGoogleScript();
+      setLoading(false);
+      if (!ready || !window.google?.accounts) {
+        toast('Google Sign-In is initializing. Please try again or use email code.', { icon: '⏳' });
+        return;
+      }
     }
 
     // 1. Preferred modern flow: Google OAuth2 token client popup
