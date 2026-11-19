@@ -28,7 +28,8 @@ exports.getCampaigns = async (req, res, next) => {
   try {
     const campaigns = await Campaign.find()
       .populate('sentBy', 'name email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     res.json(campaigns);
   } catch (error) {
     next(error);
@@ -39,7 +40,7 @@ exports.getCampaigns = async (req, res, next) => {
 // @route   GET /api/campaigns/admin/:id
 exports.getCampaignById = async (req, res, next) => {
   try {
-    const campaign = await Campaign.findById(req.params.id);
+    const campaign = await Campaign.findById(req.params.id).lean();
     if (!campaign) {
       return res.status(404).json({ message: 'Campaign not found' });
     }

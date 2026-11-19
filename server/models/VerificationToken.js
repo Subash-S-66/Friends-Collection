@@ -27,7 +27,7 @@ const verificationTokenSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     required: true,
-    index: { expires: '10m' } // Automatically purge expired documents
+    index: { expires: 0 } // Purge expired documents automatically as soon as expiresAt is reached
   }
 }, { timestamps: true });
 

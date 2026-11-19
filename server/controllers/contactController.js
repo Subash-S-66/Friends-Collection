@@ -104,7 +104,7 @@ exports.getInquiries = async (req, res, next) => {
     if (req.query.status) query.status = req.query.status;
 
     const [inquiries, total] = await Promise.all([
-      Inquiry.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Inquiry.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Inquiry.countDocuments(query)
     ]);
 

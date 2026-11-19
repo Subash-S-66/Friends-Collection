@@ -6,6 +6,10 @@ import ProductCard from '../components/ProductCard';
 import SearchAutocomplete from '../components/SearchAutocomplete';
 import HorizontalScrollContainer from '../components/HorizontalScrollContainer';
 
+// In-memory LRU cache for 0ms instantaneous category switching & back navigation
+const shopCache = new Map();
+const SHOP_CACHE_TTL = 3 * 60 * 1000;
+
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -79,7 +83,6 @@ const Shop = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setPage(1);
-    setProducts([]);
     setHasMore(true);
   }, [
     selectedGender,
@@ -98,26 +101,35 @@ const Shop = () => {
     let isCancelled = false;
 
     const fetchProducts = async () => {
-      if (page === 1) {
+      const params = new URLSearchParams();
+      if (selectedGender) params.append('gender', selectedGender);
+      if (selectedCategory) params.append('category', selectedCategory);
+      if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
+      if (inStockOnly) params.append('inStock', 'true');
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedTag) params.append('tag', selectedTag);
+      if (selectedSort) params.append('sort', selectedSort);
+      if (minPrice) params.append('minPrice', minPrice);
+      if (maxPrice) params.append('maxPrice', maxPrice);
+      params.append('page', page.toString());
+      params.append('limit', '12');
+
+      const cacheKey = params.toString();
+      const cached = shopCache.get(cacheKey);
+
+      if (page === 1 && cached && Date.now() - cached.timestamp < SHOP_CACHE_TTL) {
+        setProducts(cached.products);
+        setTotalPages(cached.totalPages);
+        setTotalProducts(cached.totalProducts);
+        setHasMore(cached.totalPages > 1);
+        setLoading(false);
+      } else if (page === 1) {
         setLoading(true);
       } else {
         setLoadingMore(true);
       }
 
       try {
-        const params = new URLSearchParams();
-        if (selectedGender) params.append('gender', selectedGender);
-        if (selectedCategory) params.append('category', selectedCategory);
-        if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
-        if (inStockOnly) params.append('inStock', 'true');
-        if (searchQuery) params.append('search', searchQuery);
-        if (selectedTag) params.append('tag', selectedTag);
-        if (selectedSort) params.append('sort', selectedSort);
-        if (minPrice) params.append('minPrice', minPrice);
-        if (maxPrice) params.append('maxPrice', maxPrice);
-        params.append('page', page.toString());
-        params.append('limit', '12');
-
         const res = await API.get(`/products?${params.toString()}`);
         if (!isCancelled) {
           const fetchedItems = res.data.products || [];
@@ -130,6 +142,16 @@ const Shop = () => {
 
           if (page === 1) {
             setProducts(fetchedItems);
+            shopCache.set(cacheKey, {
+              products: fetchedItems,
+              totalPages: totalP,
+              totalProducts: totalCount,
+              timestamp: Date.now()
+            });
+            if (shopCache.size > 60) {
+              const oldestKey = shopCache.keys().next().value;
+              shopCache.delete(oldestKey);
+            }
           } else {
             setProducts((prev) => {
               const existingIds = new Set(prev.map((p) => p._id));

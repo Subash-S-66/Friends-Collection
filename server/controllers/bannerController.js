@@ -41,7 +41,7 @@ const sanitizeBannerImage = (bannerDoc) => {
 // @route   GET /api/banners
 exports.getBanners = async (req, res, next) => {
   try {
-    const banners = await Banner.find({ isActive: true }).sort({ priority: 1 });
+    const banners = await Banner.find({ isActive: true }).sort({ priority: 1 }).lean();
     const sanitized = banners.map(sanitizeBannerImage);
     res.json(sanitized);
   } catch (error) {
@@ -53,7 +53,7 @@ exports.getBanners = async (req, res, next) => {
 // @route   GET /api/banners/admin/all
 exports.adminGetBanners = async (req, res, next) => {
   try {
-    const banners = await Banner.find().sort({ priority: 1 });
+    const banners = await Banner.find().sort({ priority: 1 }).lean();
     const sanitized = banners.map(sanitizeBannerImage);
     res.json(sanitized);
   } catch (error) {
