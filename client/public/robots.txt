@@ -3,5 +3,10 @@ Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /api/
+Disallow: /checkout
+Disallow: /account
+Disallow: /verify-email
+Disallow: /forgot-password
+Disallow: /order-success/
 
 Sitemap: https://friends-collection.vercel.app/sitemap.xml

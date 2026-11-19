@@ -265,10 +265,37 @@ app.use((req, res, next) => {
 // Global Error Handler
 app.use(errorHandler);
 
+// Process-level unhandled exception & rejection safety nets
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Friends Collections Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV}`);
   console.log(`   API: http://localhost:${PORT}/api`);
   console.log(`   Frontend: ${process.env.CLIENT_URL || 'Integrated SPA'}\n`);
 });
+
+// Graceful shutdown on SIGTERM / SIGINT (for container / cloud host restarts)
+const handleGracefulShutdown = (signal) => {
+  console.log(`\n🛑 ${signal} received. Initiating graceful server shutdown...`);
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    try {
+      await mongoose.connection.close(false);
+      console.log('MongoDB connection cleanly closed.');
+    } catch (e) {
+      console.error('Error closing MongoDB connection:', e);
+    }
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));

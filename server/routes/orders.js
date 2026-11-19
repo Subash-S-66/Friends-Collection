@@ -15,7 +15,7 @@ const {
 } = require('../controllers/orderController');
 const { auth, optionalAuth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const { orderLimiter, authLimiter } = require('../middleware/rateLimiter');
+const { orderLimiter, authLimiter, pdfLimiter } = require('../middleware/rateLimiter');
 
 // Public / Guest
 router.post('/reserve', optionalAuth, reserveCheckoutStock);
@@ -72,7 +72,7 @@ const SAMPLE_ORDER = {
 };
 
 // Sample PDF Invoice Preview (GET: using saved settings, POST: using in-flight draft settings)
-router.get('/invoice/sample/pdf', async (req, res, next) => {
+router.get('/invoice/sample/pdf', optionalAuth, pdfLimiter, async (req, res, next) => {
   try {
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');
     const pdfBuffer = await generateInvoicePdf(SAMPLE_ORDER);
@@ -84,7 +84,7 @@ router.get('/invoice/sample/pdf', async (req, res, next) => {
   }
 });
 
-router.post('/invoice/sample/pdf', async (req, res, next) => {
+router.post('/invoice/sample/pdf', optionalAuth, pdfLimiter, async (req, res, next) => {
   try {
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');
     const customSettings = req.body?.invoiceSettings || null;
@@ -98,7 +98,7 @@ router.post('/invoice/sample/pdf', async (req, res, next) => {
 });
 
 // Public PDF Invoice Download
-router.get('/:orderId/invoice.pdf', async (req, res, next) => {
+router.get('/:orderId/invoice.pdf', optionalAuth, pdfLimiter, async (req, res, next) => {
   try {
     const Order = require('../models/Order');
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');
@@ -115,7 +115,7 @@ router.get('/:orderId/invoice.pdf', async (req, res, next) => {
   }
 });
 
-router.get('/invoice/:orderId/pdf', async (req, res, next) => {
+router.get('/invoice/:orderId/pdf', optionalAuth, pdfLimiter, async (req, res, next) => {
   try {
     const Order = require('../models/Order');
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');

@@ -52,4 +52,14 @@ const authLimiter = createCustomLimiter({
   message: { message: 'Too many sign-in attempts detected. To protect your account, please wait before trying again.' }
 });
 
-module.exports = { generalLimiter, orderLimiter, authLimiter };
+const pdfLimiter = createCustomLimiter({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: isDev ? 100 : 30,   // 30 PDF generations per 5 minutes per IP
+  message: { message: 'Too many invoice downloads in a short period. Please wait a few moments before downloading again.' },
+  skip: (req) => {
+    // Skip rate-limiting for authenticated boutique administrators
+    return req.user && req.user.role === 'admin';
+  }
+});
+
+module.exports = { generalLimiter, orderLimiter, authLimiter, pdfLimiter };
