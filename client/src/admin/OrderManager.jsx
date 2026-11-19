@@ -883,6 +883,14 @@ const OrderManager = () => {
                       Payment ID: <strong className="text-neutral-900">{selectedOrder.paymentDetails.razorpayPaymentId}</strong>
                     </span>
                   )}
+                  {selectedOrder.paymentDetails?.refundId && (
+                    <span className="font-mono text-[11px] text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                      <span>Refund ID: <strong>{selectedOrder.paymentDetails.refundId}</strong></span>
+                      {selectedOrder.paymentDetails?.refundArn && (
+                        <span>• Bank ARN: <strong className="text-neutral-900">{selectedOrder.paymentDetails.refundArn}</strong></span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
