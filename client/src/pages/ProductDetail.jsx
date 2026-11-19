@@ -24,7 +24,7 @@ import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../util
 const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { addToCart, freeShippingThreshold = 999 } = useCart();
+  const { addToCart, freeShippingThreshold, settingsLoaded } = useCart();
 
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -514,7 +514,9 @@ const ProductDetail = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-neutral-500">Inclusive of all taxes. Free doorstep shipping above ₹{freeShippingThreshold}.</p>
+              <p className="text-xs text-neutral-500">
+                Inclusive of all taxes.{settingsLoaded && freeShippingThreshold !== null ? ` Free doorstep shipping above ₹${freeShippingThreshold}.` : ''}
+              </p>
 
               {/* Flipkart-Style Out of Stock Banner when product.stock <= 0 */}
               {product.stock <= 0 && (
