@@ -58,7 +58,7 @@ const orderSchema = new mongoose.Schema({
   expectedDeliveryDate: { type: String, default: '' },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'payment_pending', 'paid', 'failed', 'refunded'],
+    enum: ['pending', 'payment_pending', 'paid', 'failed', 'refund_processing', 'refunded'],
     default: 'payment_pending'
   },
   paidAt: { type: Date },

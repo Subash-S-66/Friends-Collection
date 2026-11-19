@@ -238,10 +238,24 @@ const OrderTracking = () => {
                     className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                       order.paymentStatus === 'paid'
                         ? 'bg-emerald-100 text-emerald-800'
+                        : order.paymentStatus === 'refund_processing'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : order.paymentStatus === 'refunded'
+                        ? 'bg-neutral-100 text-neutral-800 border border-neutral-300'
+                        : order.paymentStatus === 'failed'
+                        ? 'bg-red-100 text-red-800'
                         : 'bg-amber-100 text-amber-900'
                     }`}
                   >
-                    {order.paymentStatus === 'paid' ? 'Paid' : 'Payment Pending'}
+                    {order.paymentStatus === 'paid'
+                      ? 'Paid'
+                      : order.paymentStatus === 'refund_processing'
+                      ? 'Refund in Progress (5–7 Days)'
+                      : order.paymentStatus === 'refunded'
+                      ? 'Refunded'
+                      : order.paymentStatus === 'failed'
+                      ? 'Payment Failed'
+                      : 'Payment Pending'}
                   </span>
                 </div>
                 <p className="text-xs text-neutral-500">
@@ -339,9 +353,39 @@ const OrderTracking = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0" />
-                <span className="font-bold">This order was cancelled. Restocked back into our collection.</span>
+              <div className="space-y-3">
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0" />
+                  <span className="font-bold">This order was cancelled. Restocked back into our collection.</span>
+                </div>
+                {order.paymentStatus === 'refund_processing' && (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 font-bold text-amber-950">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                      <span>Refund Under Process (5 to 7 Working Days)</span>
+                    </div>
+                    <p className="text-amber-800 leading-relaxed pl-4.5">
+                      Your refund has been initiated via Razorpay and is currently being processed by the banking network. The refunded amount will be credited back to your original payment account (Bank / UPI / Card) within <strong>5 to 7 working days</strong>.
+                      {order.paymentDetails?.refundId && (
+                        <span className="block mt-1 font-mono text-[11px] text-amber-700">Refund Reference ID: {order.paymentDetails.refundId}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+                {order.paymentStatus === 'refunded' && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 font-bold text-emerald-950">
+                      <HiCheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Refund Confirmed & Completed</span>
+                    </div>
+                    <p className="text-emerald-800 leading-relaxed pl-6">
+                      The refund has been successfully settled and confirmed by the banking network to your original payment account.
+                      {order.paymentDetails?.refundArn && (
+                        <span className="block mt-1 font-mono text-[11px] text-emerald-700">Bank ARN / UTR: {order.paymentDetails.refundArn}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

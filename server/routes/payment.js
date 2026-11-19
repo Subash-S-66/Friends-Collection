@@ -641,7 +641,14 @@ router.post('/webhook', async (req, res) => {
       const refundAmountPaise = refundEntity?.amount || paymentEntity?.amount_refunded || 0;
       const refundAmountRs = refundAmountPaise > 0 ? (refundAmountPaise / 100) : 0;
       const refundArn = refundEntity?.acquirer_data?.arn || '';
-      const refundStatus = refundEntity?.status || paymentEntity?.refund_status || 'processed';
+      const rawRefundStatus = refundEntity?.status || paymentEntity?.refund_status || '';
+
+      // Check if refund is fully processed or still under process:
+      // When merchant initiates refund: Razorpay sends refund.created / payment.refunded (status = 'processing' / 'created').
+      // When bank completes credit: Razorpay sends refund.processed (status = 'processed') with ARN.
+      const isFullyProcessed = event === 'refund.processed' || rawRefundStatus === 'processed';
+      const targetPaymentStatus = isFullyProcessed ? 'refunded' : 'refund_processing';
+      const refundStatus = isFullyProcessed ? 'processed' : (rawRefundStatus || 'processing');
 
       if (paymentId || razorpayOrderId) {
         const order = await Order.findOne({
@@ -652,26 +659,69 @@ router.post('/webhook', async (req, res) => {
         });
 
         if (order) {
-          order.paymentStatus = 'refunded';
+          // If the order has already achieved final 'refunded' state, do not downgrade it back to processing
+          if (order.paymentStatus !== 'refunded') {
+            order.paymentStatus = targetPaymentStatus;
+          }
 
           if (!order.paymentDetails) order.paymentDetails = {};
           if (refundId) order.paymentDetails.refundId = refundId;
           if (refundAmountRs > 0) order.paymentDetails.refundAmount = refundAmountRs;
-          order.paymentDetails.refundStatus = refundStatus;
+          order.paymentDetails.refundStatus = isFullyProcessed ? 'processed' : (order.paymentDetails.refundStatus === 'processed' ? 'processed' : refundStatus);
           if (refundArn) order.paymentDetails.refundArn = refundArn;
-          order.paymentDetails.refundedAt = new Date();
+          if (isFullyProcessed || !order.paymentDetails.refundedAt) {
+            order.paymentDetails.refundedAt = new Date();
+          }
 
-          const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} processed on Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}).`;
-          order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
+          if (!order.tracking) order.tracking = { statusHistory: [] };
+          if (!Array.isArray(order.tracking.statusHistory)) order.tracking.statusHistory = [];
 
-          order.tracking.statusHistory.push({
-            status: order.status,
-            message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} successfully processed via Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`,
-            location: 'Razorpay Dashboard',
-            timestamp: new Date()
-          });
+          if (isFullyProcessed) {
+            const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} confirmed & completed by bank (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`;
+            if (!order.paymentNotes || !order.paymentNotes.includes(refundNote)) {
+              order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
+            }
 
-          // If order has not yet been dispatched or delivered, auto-cancel order & restore inventory stock
+            // Deduplicate status milestone so multiple webhooks don't flood the logs
+            const alreadyLoggedConfirmed = order.tracking.statusHistory.some(h =>
+              h.message && (
+                (refundId && h.message.includes(refundId) && h.message.includes('confirmed & completed')) ||
+                (h.message.includes('REFUNDED') && h.message.includes('confirmed & completed'))
+              )
+            );
+            if (!alreadyLoggedConfirmed) {
+              order.tracking.statusHistory.push({
+                status: order.status,
+                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} confirmed & completed by bank (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`,
+                location: 'Razorpay / Bank Network',
+                timestamp: new Date()
+              });
+            }
+          } else {
+            // Refund is initiated and under process (banking window: 5-7 working days)
+            const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated on Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}). Status: Under Process (5-7 working days).`;
+            if (!order.paymentNotes || !order.paymentNotes.includes(refundNote)) {
+              order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
+            }
+
+            // Deduplicate status milestone
+            const alreadyLoggedProcessing = order.tracking.statusHistory.some(h =>
+              h.message && (
+                (refundId && h.message.includes(refundId) && (h.message.includes('5 to 7 working days') || h.message.includes('under process'))) ||
+                (h.message.includes('initiated via Razorpay') && h.message.includes('5 to 7 working days'))
+              )
+            );
+            if (!alreadyLoggedProcessing) {
+              order.tracking.statusHistory.push({
+                status: order.status,
+                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated via Razorpay (Refund ID: ${refundId || 'N/A'}). Refund under process — bank credit usually takes 5 to 7 working days.`,
+                location: 'Razorpay Dashboard',
+                timestamp: new Date()
+              });
+            }
+          }
+
+          // If order has not yet been cancelled or delivered, auto-cancel order & restore inventory stock
           if (['order_received', 'pending', 'yet_to_move', 'confirmed'].includes(order.status)) {
             order.status = 'cancelled';
             for (const item of order.items) {
@@ -691,16 +741,22 @@ router.post('/webhook', async (req, res) => {
                 }
               }
             }
-            order.tracking.statusHistory.push({
-              status: 'cancelled',
-              message: 'Order automatically cancelled and inventory restocked due to dashboard refund.',
-              location: 'Friends Collections Boutique',
-              timestamp: new Date()
-            });
+
+            const alreadyLoggedCancel = order.tracking.statusHistory.some(h =>
+              h.message && h.message.includes('inventory restocked due to')
+            );
+            if (!alreadyLoggedCancel) {
+              order.tracking.statusHistory.push({
+                status: 'cancelled',
+                message: 'Order automatically cancelled and inventory restocked due to initiated refund.',
+                location: 'Friends Collections Boutique',
+                timestamp: new Date()
+              });
+            }
           }
 
           await order.save();
-          console.log(`[REFUND WEBHOOK] Order #${order.orderId} successfully marked as refunded (${refundId}).`);
+          console.log(`[REFUND WEBHOOK] Order #${order.orderId} successfully updated (paymentStatus=${order.paymentStatus}, refundId=${refundId}).`);
         } else {
           console.warn(`[REFUND WEBHOOK] No matching order found for payment ${paymentId} / razorpayOrder ${razorpayOrderId}`);
         }

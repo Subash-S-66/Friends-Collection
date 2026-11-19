@@ -512,6 +512,7 @@ const OrderManager = () => {
                 <option value="payment_pending">Payment Pending</option>
                 <option value="paid">Paid</option>
                 <option value="failed">Failed</option>
+                <option value="refund_processing">Refund in Progress (5–7 Days)</option>
                 <option value="refunded">Refunded</option>
               </select>
             </div>
@@ -697,12 +698,17 @@ const OrderManager = () => {
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                                 : order.paymentStatus === 'failed'
                                 ? 'bg-red-50 text-red-800 border-red-300'
+                                : order.paymentStatus === 'refund_processing'
+                                ? 'bg-amber-100 text-amber-900 border-amber-400'
+                                : order.paymentStatus === 'refunded'
+                                ? 'bg-neutral-100 text-neutral-800 border-neutral-300'
                                 : 'bg-amber-50 text-amber-900 border-amber-300'
                             }`}
                           >
                             <option value="payment_pending">Payment Pending</option>
                             <option value="paid">Paid</option>
                             <option value="failed">Failed</option>
+                            <option value="refund_processing">⏳ Refund in Progress (5–7 Days)</option>
                             <option value="refunded">Refunded</option>
                           </select>
                           {isUpdatingThisPayment && (
@@ -927,6 +933,7 @@ const OrderManager = () => {
                     <option value="payment_pending">Payment Pending</option>
                     <option value="paid">Paid</option>
                     <option value="failed">Failed</option>
+                    <option value="refund_processing">⏳ Refund in Progress (5–7 Days)</option>
                     <option value="refunded">Refunded</option>
                   </select>
                 </div>
