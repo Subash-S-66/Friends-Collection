@@ -17,38 +17,63 @@ import AuthModal from './components/AuthModal';
 import DynamicAlertModal from './components/DynamicAlertModal';
 import DynamicConfirmModal from './components/DynamicConfirmModal';
 import ScrollToTop from './components/ScrollToTop';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Critical Landing Page (Eagerly Loaded for instant FCP & LCP)
 import Home from './pages/Home';
 
+// Resilient lazy-loader that auto-reloads the page when a stale chunk is requested after a deployment
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    try {
+      return await componentImport();
+    } catch (error) {
+      const errorMsg = error?.message || '';
+      const isChunkError =
+        errorMsg.includes('Failed to fetch dynamically imported module') ||
+        errorMsg.includes('Importing a module script failed') ||
+        errorMsg.includes('error loading dynamically imported module');
+
+      if (isChunkError) {
+        const hasReloaded = window.sessionStorage.getItem('chunk_load_reloaded');
+        if (!hasReloaded) {
+          window.sessionStorage.setItem('chunk_load_reloaded', 'true');
+          window.location.reload();
+          return new Promise(() => {}); // Hold in suspense until window refreshes
+        }
+      }
+      throw error;
+    }
+  });
+
 // Lazy-Loaded Storefront Secondary Pages
-const Shop = lazy(() => import('./pages/Shop'));
-const ProductDetail = lazy(() => import('./pages/ProductDetail'));
-const Cart = lazy(() => import('./pages/Cart'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const OrderConfirmation = lazy(() => import('./pages/OrderConfirmation'));
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const Account = lazy(() => import('./pages/Account'));
-const About = lazy(() => import('./pages/About'));
-const Contact = lazy(() => import('./pages/Contact'));
-const InvoicePage = lazy(() => import('./pages/InvoicePage'));
-const Privacy = lazy(() => import('./pages/Privacy'));
-const Terms = lazy(() => import('./pages/Terms'));
-const ReturnPolicy = lazy(() => import('./pages/ReturnPolicy'));
+const Shop = lazyWithRetry(() => import('./pages/Shop'));
+const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
+const Cart = lazyWithRetry(() => import('./pages/Cart'));
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+const OrderConfirmation = lazyWithRetry(() => import('./pages/OrderConfirmation'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Register = lazyWithRetry(() => import('./pages/Register'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const VerifyEmail = lazyWithRetry(() => import('./pages/VerifyEmail'));
+const Account = lazyWithRetry(() => import('./pages/Account'));
+const About = lazyWithRetry(() => import('./pages/About'));
+const Contact = lazyWithRetry(() => import('./pages/Contact'));
+const InvoicePage = lazyWithRetry(() => import('./pages/InvoicePage'));
+const Privacy = lazyWithRetry(() => import('./pages/Privacy'));
+const Terms = lazyWithRetry(() => import('./pages/Terms'));
+const ReturnPolicy = lazyWithRetry(() => import('./pages/ReturnPolicy'));
 
 // Lazy-Loaded Admin Dashboard Modules (Heavy bundles isolated from storefront visitors)
-const AdminLayout = lazy(() => import('./admin/AdminLayout'));
-const Dashboard = lazy(() => import('./admin/Dashboard'));
-const ProductManager = lazy(() => import('./admin/ProductManager'));
-const CategoryManager = lazy(() => import('./admin/CategoryManager'));
-const OrderManager = lazy(() => import('./admin/OrderManager'));
-const BannerManager = lazy(() => import('./admin/BannerManager'));
-const SettingsManager = lazy(() => import('./admin/SettingsManager'));
-const InvoiceSettingsManager = lazy(() => import('./admin/InvoiceSettingsManager'));
-const CampaignManager = lazy(() => import('./admin/CampaignManager'));
+const AdminLayout = lazyWithRetry(() => import('./admin/AdminLayout'));
+const Dashboard = lazyWithRetry(() => import('./admin/Dashboard'));
+const ProductManager = lazyWithRetry(() => import('./admin/ProductManager'));
+const CategoryManager = lazyWithRetry(() => import('./admin/CategoryManager'));
+const OrderManager = lazyWithRetry(() => import('./admin/OrderManager'));
+const BannerManager = lazyWithRetry(() => import('./admin/BannerManager'));
+const SettingsManager = lazyWithRetry(() => import('./admin/SettingsManager'));
+const InvoiceSettingsManager = lazyWithRetry(() => import('./admin/InvoiceSettingsManager'));
+const CampaignManager = lazyWithRetry(() => import('./admin/CampaignManager'));
 
 // Accessible, lightweight loading spinner for route transitions
 const RouteFallback = () => (
@@ -95,8 +120,9 @@ const AppLayout = () => {
       <DynamicConfirmModal />
 
       <main id="main-content" className={`flex-1 ${isAdminRoute ? 'h-full overflow-hidden' : ''}`} tabIndex={-1}>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
+        <ErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
             {/* Storefront Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/shop" element={<Shop />} />
@@ -147,7 +173,8 @@ const AppLayout = () => {
             <Route path="*" element={<Home />} />
           </Routes>
         </Suspense>
-      </main>
+      </ErrorBoundary>
+    </main>
 
       {!isAdminRoute && <Footer />}
     </div>
