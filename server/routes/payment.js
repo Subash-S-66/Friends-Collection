@@ -624,6 +624,117 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
+    // =========================================================================
+    // REFUND EVENTS (When merchant taps "Refund" in Razorpay Dashboard)
+    // Supported: refund.processed, refund.created, payment.refunded
+    // =========================================================================
+    if (
+      event === 'refund.processed' ||
+      event === 'refund.created' ||
+      event === 'payment.refunded'
+    ) {
+      const refundEntity = payload.payload?.refund?.entity;
+      const paymentEntity = payload.payload?.payment?.entity;
+      const paymentId = refundEntity?.payment_id || paymentEntity?.id;
+      const razorpayOrderId = paymentEntity?.order_id;
+      const refundId = refundEntity?.id || '';
+      const refundAmountPaise = refundEntity?.amount || paymentEntity?.amount_refunded || 0;
+      const refundAmountRs = refundAmountPaise > 0 ? (refundAmountPaise / 100) : 0;
+      const refundArn = refundEntity?.acquirer_data?.arn || '';
+      const refundStatus = refundEntity?.status || paymentEntity?.refund_status || 'processed';
+
+      if (paymentId || razorpayOrderId) {
+        const order = await Order.findOne({
+          $or: [
+            ...(paymentId ? [{ 'paymentDetails.razorpayPaymentId': paymentId }] : []),
+            ...(razorpayOrderId ? [{ 'paymentDetails.razorpayOrderId': razorpayOrderId }] : [])
+          ]
+        });
+
+        if (order) {
+          order.paymentStatus = 'refunded';
+
+          if (!order.paymentDetails) order.paymentDetails = {};
+          if (refundId) order.paymentDetails.refundId = refundId;
+          if (refundAmountRs > 0) order.paymentDetails.refundAmount = refundAmountRs;
+          order.paymentDetails.refundStatus = refundStatus;
+          if (refundArn) order.paymentDetails.refundArn = refundArn;
+          order.paymentDetails.refundedAt = new Date();
+
+          const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} processed on Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}).`;
+          order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
+
+          order.tracking.statusHistory.push({
+            status: order.status,
+            message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} successfully processed via Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`,
+            location: 'Razorpay Dashboard',
+            timestamp: new Date()
+          });
+
+          // If order has not yet been dispatched or delivered, auto-cancel order & restore inventory stock
+          if (['order_received', 'pending', 'yet_to_move', 'confirmed'].includes(order.status)) {
+            order.status = 'cancelled';
+            for (const item of order.items) {
+              if (item.product) {
+                const prod = await Product.findById(item.product);
+                if (prod) {
+                  prod.stock = (prod.stock || 0) + item.quantity;
+                  if (prod.variants && prod.variants.length > 0) {
+                    const vIndex = prod.variants.findIndex(
+                      v => (!item.size || v.size === item.size) && (!item.color || v.color === item.color)
+                    );
+                    if (vIndex >= 0) {
+                      prod.variants[vIndex].stock = (prod.variants[vIndex].stock || 0) + item.quantity;
+                    }
+                  }
+                  await prod.save();
+                }
+              }
+            }
+            order.tracking.statusHistory.push({
+              status: 'cancelled',
+              message: 'Order automatically cancelled and inventory restocked due to dashboard refund.',
+              location: 'Friends Collections Boutique',
+              timestamp: new Date()
+            });
+          }
+
+          await order.save();
+          console.log(`[REFUND WEBHOOK] Order #${order.orderId} successfully marked as refunded (${refundId}).`);
+        } else {
+          console.warn(`[REFUND WEBHOOK] No matching order found for payment ${paymentId} / razorpayOrder ${razorpayOrderId}`);
+        }
+      }
+    }
+
+    // =========================================================================
+    // REFUND FAILED EVENT
+    // =========================================================================
+    if (event === 'refund.failed') {
+      const refundEntity = payload.payload?.refund?.entity;
+      const paymentEntity = payload.payload?.payment?.entity;
+      const paymentId = refundEntity?.payment_id || paymentEntity?.id;
+      const razorpayOrderId = paymentEntity?.order_id;
+      const refundId = refundEntity?.id || '';
+      const failureReason = refundEntity?.error_description || 'Refund failed on banking network';
+
+      if (paymentId || razorpayOrderId) {
+        const order = await Order.findOne({
+          $or: [
+            ...(paymentId ? [{ 'paymentDetails.razorpayPaymentId': paymentId }] : []),
+            ...(razorpayOrderId ? [{ 'paymentDetails.razorpayOrderId': razorpayOrderId }] : [])
+          ]
+        });
+
+        if (order) {
+          const failNote = `[Razorpay Webhook: refund.failed] Refund attempt (${refundId}) failed: ${failureReason}`;
+          order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${failNote}` : failNote;
+          await order.save();
+          console.warn(`[REFUND FAILED WEBHOOK] Order #${order.orderId}: ${failureReason}`);
+        }
+      }
+    }
+
     res.json({ status: 'ok' });
   } catch (err) {
     console.error('Webhook error:', err);
