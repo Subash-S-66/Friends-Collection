@@ -30,7 +30,7 @@ const productSchema = new mongoose.Schema({
   stock: { type: Number, default: 0, min: 0 },
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
-  acceptCashOnDelivery: { type: Boolean, default: true },
+  acceptCashOnDelivery: { type: Boolean, default: false },
   tags: [{ type: String }],
   gstRate: { type: Number, default: null, min: 0, max: 100 },
   views: { type: Number, default: 0 }

@@ -693,7 +693,7 @@ exports.createProduct = async (req, res, next) => {
       stock: calculatedStock,
       tags: tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [],
       isFeatured: isFeatured === 'true' || isFeatured === true,
-      acceptCashOnDelivery: acceptCashOnDelivery !== undefined ? (acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true) : true,
+      acceptCashOnDelivery: acceptCashOnDelivery === 'true' || acceptCashOnDelivery === true,
       gstRate: parsedGstRate
     });
 

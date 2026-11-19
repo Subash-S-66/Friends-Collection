@@ -68,7 +68,12 @@ const orderSchema = new mongoose.Schema({
   paymentDetails: {
     razorpayOrderId: { type: String, default: '' },
     razorpayPaymentId: { type: String, default: '' },
-    razorpaySignature: { type: String, default: '' }
+    razorpaySignature: { type: String, default: '' },
+    refundId: { type: String, default: '' },
+    refundAmount: { type: Number, default: 0 },
+    refundStatus: { type: String, default: '' },
+    refundArn: { type: String, default: '' },
+    refundedAt: { type: Date }
   },
   tracking: {
     courier: { type: String, default: '' },

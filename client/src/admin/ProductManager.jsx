@@ -68,7 +68,7 @@ const ProductManager = () => {
   const [description, setDescription] = useState('');
   const [gender, setGender] = useState('women');
   const [isActive, setIsActive] = useState(true);
-  const [acceptCashOnDelivery, setAcceptCashOnDelivery] = useState(true);
+  const [acceptCashOnDelivery, setAcceptCashOnDelivery] = useState(false);
   const [togglingCodProductId, setTogglingCodProductId] = useState(null);
   const [selectedGenderFilter, setSelectedGenderFilter] = useState('all');
   const [category, setCategory] = useState('');
@@ -395,7 +395,7 @@ const ProductManager = () => {
     setImagePreviews([]);
     setExistingImages([]);
     setIsActive(true);
-    setAcceptCashOnDelivery(true);
+    setAcceptCashOnDelivery(false);
     setModalOpen(true);
   };
 
@@ -407,7 +407,7 @@ const ProductManager = () => {
     setTitle(prod.title);
     setDescription(prod.description || '');
     setIsActive(prod.isActive !== false);
-    setAcceptCashOnDelivery(prod.acceptCashOnDelivery !== false);
+    setAcceptCashOnDelivery(Boolean(prod.acceptCashOnDelivery));
     const prodGender = prod.gender || 'women';
     setGender(prodGender);
     setCategory(prod.category?._id || prod.category || '');
@@ -1323,6 +1323,22 @@ const ProductManager = () => {
     }
   };
 
+  // Handle toggling COD inside the product create/edit modal with confirmation
+  const handleToggleCodInModal = async () => {
+    const nextVal = !acceptCashOnDelivery;
+    if (nextVal === true) {
+      const ok = await confirm({
+        title: 'Enable Cash on Delivery (COD)?',
+        message: 'Are you sure you want to enable Cash on Delivery for this product? Customers will be able to place orders with payment due upon delivery.',
+        type: 'warning',
+        confirmText: 'Yes, Enable COD',
+        cancelText: 'Keep COD Disabled'
+      });
+      if (!ok) return;
+    }
+    setAcceptCashOnDelivery(nextVal);
+  };
+
   // 1-Click Visibility Toggle for individual product with inline button loading
   const handleToggleProduct = async (prod) => {
     const updatedStatus = prod.isActive === false ? true : false;
@@ -1362,6 +1378,19 @@ const ProductManager = () => {
   // 1-Click COD acceptance toggle for individual product
   const handleToggleCod = async (prod) => {
     const updatedStatus = prod.acceptCashOnDelivery === false ? true : false;
+
+    // Ask for confirmation when turning COD ON after adding a product
+    if (updatedStatus === true) {
+      const ok = await confirm({
+        title: 'Enable Cash on Delivery (COD)?',
+        message: `Are you sure you want to enable Cash on Delivery for "${prod.title}"? Customers will be able to place orders for this item without paying online upfront.`,
+        type: 'warning',
+        confirmText: 'Yes, Enable COD',
+        cancelText: 'Keep COD Disabled'
+      });
+      if (!ok) return;
+    }
+
     setTogglingCodProductId(prod._id);
     // Optimistic UI update
     setProducts((prev) =>
@@ -2089,7 +2118,7 @@ const ProductManager = () => {
                       <label className="block text-xs font-bold text-neutral-700 mb-1">Accept Cash on Delivery</label>
                       <button
                         type="button"
-                        onClick={() => setAcceptCashOnDelivery(!acceptCashOnDelivery)}
+                        onClick={handleToggleCodInModal}
                         className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                           acceptCashOnDelivery
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
