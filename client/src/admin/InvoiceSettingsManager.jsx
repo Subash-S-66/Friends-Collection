@@ -20,12 +20,12 @@ const SAMPLE_PREVIEW_ORDER = {
   orderId: 'FC-SAMPLE-8899',
   createdAt: new Date().toISOString(),
   customer: {
-    name: 'Priya Sharma',
+    name: 'Sample Customer',
     phone: '9876543210',
     secondaryPhone: '9500757024',
-    email: 'priya.sharma@example.com',
+    email: 'customer@example.com',
     address: {
-      street: 'Flat 4B, Lotus Apartments, 2nd Main Road, Anna Nagar',
+      street: '4th Main Road, Anna Nagar',
       city: 'Chennai',
       state: 'Tamil Nadu',
       pincode: '600040'
@@ -277,7 +277,7 @@ const InvoiceSettingsManager = () => {
 
   const handleResetInvoiceDefaults = async () => {
     const ok = await confirm({
-      title: 'Restore Jamalia Boutique Defaults?',
+      title: 'Restore Factory Defaults?',
       message: 'Reset all invoice labels, company address, and default terms to factory defaults?',
       type: 'warning',
       confirmText: 'Restore Defaults',
@@ -285,7 +285,7 @@ const InvoiceSettingsManager = () => {
     });
     if (ok) {
       setInvoiceForm(DEFAULT_INVOICE_SETTINGS);
-      toast.success('Restored Jamalia boutique defaults. Click "Save Invoice Format" to persist.');
+      toast.success('Restored factory defaults. Click "Save Invoice Format" to persist.');
     }
   };
 
@@ -347,7 +347,7 @@ const InvoiceSettingsManager = () => {
             type="button"
             onClick={handleResetInvoiceDefaults}
             className="px-3.5 py-2 rounded-xl bg-white hover:bg-neutral-50 text-neutral-700 text-xs font-semibold transition-all border border-neutral-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
-            title="Reset to Jamalia Boutique Defaults"
+            title="Reset to Factory Defaults"
           >
             <HiOutlineRefresh className="w-4 h-4 text-neutral-500" />
             <span>Reset Defaults</span>

@@ -71,7 +71,7 @@ const COURIER_OPTIONS = [
   { value: 'ST Courier', label: 'ST Courier (South India)' },
   { value: 'Xpressbees', label: 'Xpressbees' },
   { value: 'Shadowfax', label: 'Shadowfax' },
-  { value: 'Store Direct', label: 'Direct Store Delivery (Jamalia / Chennai)' },
+  { value: 'Store Direct', label: 'Direct Store Delivery (Local Delivery)' },
   { value: 'Other', label: 'Other Courier Partner' }
 ];
 

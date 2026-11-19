@@ -17,13 +17,13 @@ export const DEFAULT_INVOICE_SETTINGS = {
   address: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012',
   phone: '+91 95007 57024',
   email: 'friends.collection.support@gmail.com',
-  gstin: '33AAACF1234M1Z5',
+  gstin: '',
   gstPercentage: 5,
-  authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
-  signatorySubtitle: 'Friends Collections Jamalia Boutique',
+  authorizedSignatory: 'Authorized Signatory',
+  signatorySubtitle: '',
   signatureImage: '',
-  footerNote: 'Thank You for Shopping with Friends Collections!',
-  terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Defective items replaced free of charge.',
+  footerNote: 'Thank You for Shopping with Us!',
+  terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact.',
   notes: 'This is an authentic computer-generated Tax Invoice and requires no physical signature.',
   primaryColor: '#4A0E17',
   accentColor: '#C88A65'
@@ -193,7 +193,7 @@ const InvoiceView = ({
           >
             BILLED & SHIPPED TO:
           </span>
-          <h3 className="font-bold text-neutral-900 text-sm">{order.customer?.name || 'Valued Customer'}</h3>
+          <h3 className="font-bold text-neutral-900 text-sm">{order.customer?.name || order.customerName || 'Customer'}</h3>
           <div className="text-neutral-700 leading-relaxed space-y-0.5">
             <p>{order.customer?.address?.street}</p>
             <p>
@@ -414,7 +414,7 @@ const InvoiceView = ({
                       </td>
                       <td className="py-3 px-3 align-top pt-3">
                         <div className="font-bold text-neutral-900 text-xs sm:text-sm leading-snug">
-                          {item.title}
+                          {item.title || item.name || item.product?.title || item.product?.name || 'Item'}
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-neutral-500">
                           {((item.size && item.size.toLowerCase() !== 'no size') || item.color) && (
@@ -548,7 +548,7 @@ const InvoiceView = ({
         <div className="text-center sm:text-left space-y-1 max-w-sm">
           <p className="font-bold text-neutral-800 text-sm">{inv.footerNote}</p>
           <p className="text-[11px] text-neutral-400">
-            {inv.signatorySubtitle || `${inv.companyName} Jamalia Boutique`}
+            {inv.signatorySubtitle || inv.companyName || ''}
           </p>
         </div>
 

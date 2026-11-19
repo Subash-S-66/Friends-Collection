@@ -33,7 +33,7 @@ import AddressModal from '../components/AddressModal';
 import EditProfileModal from '../components/EditProfileModal';
 
 const TRACKING_STEPS = [
-  { step: 1, title: 'Order Received', desc: 'Order placed & received at Jamalia boutique' },
+  { step: 1, title: 'Order Received', desc: 'Order placed & received at boutique' },
   { step: 2, title: 'Confirmed & Packaged', desc: 'Quality checked & packed' },
   { step: 3, title: 'Shipped / Dispatched', desc: 'In transit with courier' },
   { step: 4, title: 'Delivered', desc: 'Delivered to your doorstep' },
@@ -505,7 +505,7 @@ const Account = () => {
                   Logistics Courier & Dispatch
                 </h5>
                 <p className="text-sm font-bold text-neutral-900">
-                  {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch (Jamalia Boutique)'}
+                  {order.tracking?.courier ? `Shipped via ${order.tracking.courier}` : 'Direct Store Dispatch'}
                 </p>
               </div>
             </div>
@@ -538,7 +538,7 @@ const Account = () => {
             </div>
           ) : (
             <div className="text-xs text-neutral-500 pt-2 border-t border-neutral-100">
-              📦 The parcel is currently being inspected and packaged at our Jamalia showroom. Tracking number will update once assigned to the courier.
+              📦 The parcel is currently being inspected and packaged. Tracking number will update once assigned to the courier.
             </div>
           )}
 
@@ -722,7 +722,7 @@ const Account = () => {
               <span className="font-bold text-neutral-900 truncate">
                 {order.tracking?.courier
                   ? `Shipped via ${order.tracking.courier}`
-                  : 'Boutique Store Dispatch (Jamalia)'}
+                  : 'Direct Store Dispatch'}
               </span>
             </div>
 

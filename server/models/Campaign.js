@@ -75,4 +75,6 @@ const campaignSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+campaignSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Campaign', campaignSchema);

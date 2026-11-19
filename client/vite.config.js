@@ -20,6 +20,26 @@ export default defineConfig({
     target: 'es2020',
     cssCodeSplit: true,
     sourcemap: false,
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('react-icons')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('axios') || id.includes('react-hot-toast')) {
+              return 'vendor-utils';
+            }
+          }
+        }
+      }
+    }
   }
 });

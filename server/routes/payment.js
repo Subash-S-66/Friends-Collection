@@ -284,8 +284,14 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
       });
     }
 
-    // 3. Anti-Replay Attack Check: Ensure this payment ID hasn't already been used
-    const existingOrder = await Order.findOne({ 'paymentDetails.razorpayPaymentId': razorpay_payment_id });
+    // 3. Anti-Replay Attack Check: Ensure this payment ID or order ID hasn't already been used
+    const existingOrder = await Order.findOne({
+      $or: [
+        { 'paymentDetails.razorpayPaymentId': razorpay_payment_id },
+        { orderId: razorpay_order_id },
+        { 'paymentDetails.razorpayOrderId': razorpay_order_id }
+      ]
+    });
     if (existingOrder) {
       return res.json({
         success: true,
@@ -348,10 +354,11 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
       });
     }
 
-    // 8. Place official confirmed Order in Database
+    // 8. Place official confirmed Order in Database (Use Razorpay Order ID for online payments)
     let order;
     try {
       order = await Order.create({
+        orderId: razorpay_order_id,
         items: draft.items,
         customer: draft.customer,
         user: draft.user,
@@ -373,7 +380,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
             {
               status: 'order_received',
               message: 'Order placed & payment verified.',
-              location: 'Jamalia Boutique, Chennai',
+              location: 'Boutique Showroom',
               timestamp: new Date()
             }
           ]
@@ -543,7 +550,13 @@ router.post('/webhook', async (req, res) => {
         }
 
         // Check if order was already confirmed by client-side /verify
-        const existingOrder = await Order.findOne({ 'paymentDetails.razorpayPaymentId': razorpayPaymentId });
+        const existingOrder = await Order.findOne({
+          $or: [
+            { 'paymentDetails.razorpayPaymentId': razorpayPaymentId },
+            { orderId: razorpayOrderId },
+            { 'paymentDetails.razorpayOrderId': razorpayOrderId }
+          ]
+        });
         if (!existingOrder) {
           const draft = await PaymentDraft.findOne({ razorpayOrderId, status: 'pending' });
           if (draft) {
@@ -560,8 +573,9 @@ router.post('/webhook', async (req, res) => {
             const deduction = await deductOrderStockAtomically(draft.items);
             if (deduction.success) {
               try {
-                // Create confirmed order
+                // Create confirmed order with Razorpay Order ID
                 const webhookOrder = await Order.create({
+                  orderId: razorpayOrderId,
                   items: draft.items,
                   customer: draft.customer,
                   user: draft.user,
@@ -583,7 +597,7 @@ router.post('/webhook', async (req, res) => {
                       {
                         status: 'order_received',
                         message: 'Order placed & payment verified.',
-                        location: 'Jamalia Boutique, Chennai',
+                        location: 'Boutique Showroom',
                         timestamp: new Date()
                       }
                     ]
@@ -643,12 +657,12 @@ router.post('/webhook', async (req, res) => {
       const refundArn = refundEntity?.acquirer_data?.arn || '';
       const rawRefundStatus = refundEntity?.status || paymentEntity?.refund_status || '';
 
-      // Check if refund is fully processed or still under process:
-      // When merchant initiates refund: Razorpay sends refund.created / payment.refunded (status = 'processing' / 'created').
-      // When bank completes credit: Razorpay sends refund.processed (status = 'processed') with ARN.
-      const isFullyProcessed = event === 'refund.processed' || rawRefundStatus === 'processed';
-      const targetPaymentStatus = isFullyProcessed ? 'refunded' : 'refund_processing';
-      const refundStatus = isFullyProcessed ? 'processed' : (rawRefundStatus || 'processing');
+      // When Razorpay emits refund.processed, refund.created, or payment.refunded,
+      // it means Razorpay has dispatched the refund instruction into the banking rail.
+      // Bank settlement / credit to the customer takes 5-7 working days.
+      // Therefore, the customer-facing payment status is 'refund_processing' (Refund in Progress).
+      const targetPaymentStatus = 'refund_processing';
+      const refundStatus = rawRefundStatus || 'processing';
 
       if (paymentId || razorpayOrderId) {
         const order = await Order.findOne({
@@ -659,66 +673,45 @@ router.post('/webhook', async (req, res) => {
         });
 
         if (order) {
-          // If the order has already achieved final 'refunded' state, do not downgrade it back to processing
-          if (order.paymentStatus !== 'refunded') {
-            order.paymentStatus = targetPaymentStatus;
-          }
+          order.paymentStatus = targetPaymentStatus;
 
           if (!order.paymentDetails) order.paymentDetails = {};
           if (refundId) order.paymentDetails.refundId = refundId;
           if (refundAmountRs > 0) order.paymentDetails.refundAmount = refundAmountRs;
-          order.paymentDetails.refundStatus = isFullyProcessed ? 'processed' : (order.paymentDetails.refundStatus === 'processed' ? 'processed' : refundStatus);
+          order.paymentDetails.refundStatus = refundStatus;
           if (refundArn) order.paymentDetails.refundArn = refundArn;
-          if (isFullyProcessed || !order.paymentDetails.refundedAt) {
+          if (!order.paymentDetails.refundedAt) {
             order.paymentDetails.refundedAt = new Date();
           }
 
           if (!order.tracking) order.tracking = { statusHistory: [] };
           if (!Array.isArray(order.tracking.statusHistory)) order.tracking.statusHistory = [];
 
-          if (isFullyProcessed) {
-            const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} confirmed & completed by bank (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`;
-            if (!order.paymentNotes || !order.paymentNotes.includes(refundNote)) {
-              order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
-            }
+          // Clean out any stale 'completed & credited' messages from previous webhook deliveries
+          order.tracking.statusHistory = order.tracking.statusHistory.filter(h =>
+            !h.message || !h.message.includes('completed & credited')
+          );
 
-            // Deduplicate status milestone so multiple webhooks don't flood the logs
-            const alreadyLoggedConfirmed = order.tracking.statusHistory.some(h =>
-              h.message && (
-                (refundId && h.message.includes(refundId) && h.message.includes('completed')) ||
-                (h.message.includes('REFUNDED') && h.message.includes('completed'))
-              )
-            );
-            if (!alreadyLoggedConfirmed) {
-              order.tracking.statusHistory.push({
-                status: order.status,
-                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} completed & credited to your original payment account.`,
-                location: 'Jamalia Boutique',
-                timestamp: new Date()
-              });
-            }
-          } else {
-            // Refund is initiated and under process (banking window: 5-7 working days)
-            const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated on Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}). Status: Under Process (5-7 working days).`;
-            if (!order.paymentNotes || !order.paymentNotes.includes(refundNote)) {
-              order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
-            }
+          // Refund is initiated and under process (banking window: 5-7 working days)
+          const refundNote = `[Razorpay Webhook: ${event}] Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated on Razorpay Dashboard (Refund ID: ${refundId || 'N/A'}). Status: Under Process (5-7 working days).`;
+          if (!order.paymentNotes || !order.paymentNotes.includes(refundNote)) {
+            order.paymentNotes = order.paymentNotes ? `${order.paymentNotes}\n${refundNote}` : refundNote;
+          }
 
-            // Deduplicate status milestone
-            const alreadyLoggedProcessing = order.tracking.statusHistory.some(h =>
-              h.message && (
-                (refundId && h.message.includes(refundId) && (h.message.includes('5 to 7 working days') || h.message.includes('under process'))) ||
-                (h.message.includes('initiated') && h.message.includes('5 to 7 working days'))
-              )
-            );
-            if (!alreadyLoggedProcessing) {
-              order.tracking.statusHistory.push({
-                status: order.status,
-                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated (Refund ID: ${refundId || 'N/A'}). Refund under process — bank credit usually takes 5 to 7 working days.`,
-                location: 'Jamalia Boutique',
-                timestamp: new Date()
-              });
-            }
+          // Deduplicate status milestone
+          const alreadyLoggedProcessing = order.tracking.statusHistory.some(h =>
+            h.message && (
+              (refundId && h.message.includes(refundId) && (h.message.includes('5 to 7 working days') || h.message.includes('under process'))) ||
+              (h.message.includes('initiated') && h.message.includes('5 to 7 working days'))
+            )
+          );
+          if (!alreadyLoggedProcessing) {
+            order.tracking.statusHistory.push({
+              status: order.status,
+              message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated (Refund ID: ${refundId || 'N/A'}). Refund under process — bank credit usually takes 5 to 7 working days to reflect in your account.`,
+              location: 'Boutique Showroom',
+              timestamp: new Date()
+            });
           }
 
           // If order has not yet been cancelled or delivered, auto-cancel order & restore inventory stock
@@ -749,7 +742,7 @@ router.post('/webhook', async (req, res) => {
               order.tracking.statusHistory.push({
                 status: 'cancelled',
                 message: 'Order cancelled.',
-                location: 'Jamalia Boutique',
+                location: 'Boutique Showroom',
                 timestamp: new Date()
               });
             }

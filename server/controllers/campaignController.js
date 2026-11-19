@@ -137,7 +137,7 @@ exports.deleteCampaign = async (req, res, next) => {
 // @route   POST /api/campaigns/admin/preview
 exports.previewCampaign = (req, res) => {
   try {
-    const html = renderCampaignHtml(req.body, 'Valued Customer');
+    const html = renderCampaignHtml(req.body, 'Customer');
     res.json({ html });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -198,7 +198,7 @@ exports.sendCampaignBlast = async (req, res, next) => {
       const users = await User.find({}, 'email name');
       users.forEach((u) => {
         if (u.email && /\S+@\S+\.\S+/.test(u.email)) {
-          emailMap.set(u.email.toLowerCase(), u.name || 'Valued Customer');
+          emailMap.set(u.email.toLowerCase(), u.name || 'Customer');
         }
       });
     }
@@ -208,7 +208,7 @@ exports.sendCampaignBlast = async (req, res, next) => {
       const subs = await NotificationSubscription.find({}, 'email');
       subs.forEach((s) => {
         if (s.email && /\S+@\S+\.\S+/.test(s.email) && !emailMap.has(s.email.toLowerCase())) {
-          emailMap.set(s.email.toLowerCase(), 'Valued Customer');
+          emailMap.set(s.email.toLowerCase(), 'Customer');
         }
       });
     }

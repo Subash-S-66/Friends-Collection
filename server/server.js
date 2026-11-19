@@ -30,8 +30,19 @@ app.use(helmet({
   frameguard: { action: 'deny' },
   noSniff: true,
   xssFilter: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: process.env.NODE_ENV === 'production' ? {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  } : false
 }));
+
+// Additional Security Policy Headers (Permissions-Policy)
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  next();
+});
 
 // CORS Configuration
 const clientUrlClean = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : null;
@@ -79,14 +90,20 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// NoSQL Injection Sanitization (Strips operators starting with $ or containing .)
+// NoSQL Injection & Prototype Pollution Sanitization (Strips operators starting with $ or containing ., and blocked prototype keys)
 const sanitizeInput = (obj) => {
   if (!obj || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeInput);
   const sanitized = {};
   for (const [key, val] of Object.entries(obj)) {
-    if (key.startsWith('$') || key.includes('.')) {
-      continue; // strip dangerous MongoDB operators
+    if (
+      key.startsWith('$') ||
+      key.includes('.') ||
+      key === '__proto__' ||
+      key === 'constructor' ||
+      key === 'prototype'
+    ) {
+      continue; // strip dangerous MongoDB operators and prototype pollution vectors
     }
     sanitized[key] = sanitizeInput(val);
   }

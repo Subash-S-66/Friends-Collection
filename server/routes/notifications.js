@@ -8,9 +8,10 @@ const {
 } = require('../controllers/notificationController');
 const { auth, optionalAuth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 // Customer endpoints
-router.post('/subscribe', optionalAuth, subscribeBackInStock);
+router.post('/subscribe', authLimiter, optionalAuth, subscribeBackInStock);
 router.get('/status', optionalAuth, checkSubscription);
 
 // Admin endpoints

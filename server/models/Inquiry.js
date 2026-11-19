@@ -58,4 +58,7 @@ inquirySchema.pre('validate', function (next) {
   next();
 });
 
+inquirySchema.index({ createdAt: -1 });
+inquirySchema.index({ status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Inquiry', inquirySchema);

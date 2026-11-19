@@ -218,6 +218,17 @@ const EMAIL_LOGO_URL =
   process.env.EMAIL_LOGO_URL ||
   'https://res.cloudinary.com/l5eruxi4/image/upload/w_200,f_auto,q_auto/v1792556054/friends_collections/logo.png';
 
+// HTML Entity Sanitizer to prevent Stored XSS & HTML Injection across email clients
+const escapeHtml = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 // Return empty array because logo is served via HTTPS CDN, preventing 1.7MB file attachments on emails
 const getLogoAttachment = () => [];
 
@@ -439,7 +450,7 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
           <!-- Royal Boutique Footer -->
           <div class="footer">
             <p style="margin: 0 0 6px; font-weight: 600; color: #4A0E17;">
-              Friends Collections • Jamalia Store
+              Friends Collections • Flagship Boutique
             </p>
             <p style="margin: 0 0 8px;">
               7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 600012
@@ -465,7 +476,9 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
 exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeToken = escapeHtml(token);
 
     const contentHtml = `
       <h2 class="content-title">Your Verification Token</h2>
@@ -476,7 +489,7 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
 
       <div class="token-box">
         <div class="token-label">Verification Code</div>
-        <div class="token-digits">${token}</div>
+        <div class="token-digits">${safeToken}</div>
         <div class="token-expires">Valid for the next 10 minutes</div>
       </div>
 
@@ -487,8 +500,8 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
     `;
 
     const html = wrapInFriendsTheme({
-      title: `${token} is your Friends Collections verification code`,
-      preheader: `Your 6-digit authentication token is ${token}. Valid for 10 minutes.`,
+      title: `${safeToken} is your Friends Collections verification code`,
+      preheader: `Your 6-digit authentication token is ${safeToken}. Valid for 10 minutes.`,
       contentHtml
     });
 
@@ -516,7 +529,9 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
 exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeToken = escapeHtml(token);
 
     const contentHtml = `
       <h2 class="content-title">Password Reset Code</h2>
@@ -527,7 +542,7 @@ exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
 
       <div class="token-box">
         <div class="token-label">Password Reset OTP</div>
-        <div class="token-digits">${token}</div>
+        <div class="token-digits">${safeToken}</div>
         <div class="token-expires">Valid for the next 10 minutes</div>
       </div>
 
@@ -542,8 +557,8 @@ exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
     `;
 
     const html = wrapInFriendsTheme({
-      title: `${token} is your Friends Collections password reset code`,
-      preheader: `Your 6-digit password reset OTP is ${token}. Valid for 10 minutes.`,
+      title: `${safeToken} is your Friends Collections password reset code`,
+      preheader: `Your 6-digit password reset OTP is ${safeToken}. Valid for 10 minutes.`,
       contentHtml
     });
 
@@ -571,7 +586,10 @@ exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
 exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Welcome,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Welcome,';
+    const safeToken = escapeHtml(token);
+    const safeVerifyUrl = escapeHtml(verifyUrl);
 
     const contentHtml = `
       <h2 class="content-title">Verify Your Friends Collections Account ✨</h2>
@@ -582,12 +600,12 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
 
       <div class="token-box">
         <div class="token-label">Your 6-Digit Verification Code</div>
-        <div class="token-digits">${token}</div>
+        <div class="token-digits">${safeToken}</div>
         <div class="token-expires">Valid for the next 10 minutes</div>
       </div>
 
       <div style="text-align: center; margin: 26px 0 16px;">
-        <a href="${verifyUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
+        <a href="${safeVerifyUrl}" class="cta-btn" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4A0E17 0%, #681824 100%); color: #FFFFFF !important; text-decoration: none; padding: 15px 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 9999px; box-shadow: 0 8px 20px rgba(74, 14, 23, 0.3); border: 1px solid #D4AF37;">
           ✦ Verify Account & Enter Boutique ✦
         </a>
       </div>
@@ -598,8 +616,8 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
     `;
 
     const html = wrapInFriendsTheme({
-      title: `Verify your Friends Collections account (${token})`,
-      preheader: `Welcome to Friends Collections! Verify your email using code ${token} or tap the link.`,
+      title: `Verify your Friends Collections account (${safeToken})`,
+      preheader: `Welcome to Friends Collections! Verify your email using code ${safeToken} or tap the link.`,
       contentHtml
     });
 
@@ -627,7 +645,10 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
 exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeToken = escapeHtml(token);
+    const safeNewEmail = escapeHtml(newEmail);
 
     const contentHtml = `
       <h2 class="content-title">Authorize Email Address Change 🔒</h2>
@@ -638,7 +659,7 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
 
       <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 12px 18px; margin: 16px auto; max-width: 440px; text-align: center;">
         <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #9A3412; font-weight: 700; display: block; margin-bottom: 2px;">Requested New Email</span>
-        <strong style="color: #431407; font-size: 15px; font-family: monospace;">${newEmail}</strong>
+        <strong style="color: #431407; font-size: 15px; font-family: monospace;">${safeNewEmail}</strong>
       </div>
 
       <p class="content-text" style="text-align: center;">
@@ -647,7 +668,7 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
 
       <div class="token-box">
         <div class="token-label">Current Email Authorization OTP</div>
-        <div class="token-digits">${token}</div>
+        <div class="token-digits">${safeToken}</div>
         <div class="token-expires">Valid for the next 10 minutes</div>
       </div>
 
@@ -662,8 +683,8 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
     `;
 
     const html = wrapInFriendsTheme({
-      title: `${token} - Authorize Email Change on Friends Collections`,
-      preheader: `Security Code ${token} to authorize changing your Friends Collections account email.`,
+      title: `${safeToken} - Authorize Email Change on Friends Collections`,
+      preheader: `Security Code ${safeToken} to authorize changing your Friends Collections account email.`,
       contentHtml
     });
 
@@ -691,7 +712,9 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
 exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeToken = escapeHtml(token);
 
     const contentHtml = `
       <h2 class="content-title">Confirm Your New Email Address ✨</h2>
@@ -706,7 +729,7 @@ exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
 
       <div class="token-box">
         <div class="token-label">New Email Confirmation OTP</div>
-        <div class="token-digits">${token}</div>
+        <div class="token-digits">${safeToken}</div>
         <div class="token-expires">Valid for the next 10 minutes</div>
       </div>
 
@@ -716,8 +739,8 @@ exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
     `;
 
     const html = wrapInFriendsTheme({
-      title: `${token} - Confirm New Email on Friends Collections`,
-      preheader: `Confirmation Code ${token} for your new Friends Collections account email.`,
+      title: `${safeToken} - Confirm New Email on Friends Collections`,
+      preheader: `Confirmation Code ${safeToken} for your new Friends Collections account email.`,
       contentHtml
     });
 
@@ -745,7 +768,9 @@ exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
 exports.sendSignatureChangeOtpEmail = async ({ to, token, name }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Admin,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Admin,';
+    const safeToken = escapeHtml(token);
 
     const contentHtml = `
       <h2 class="content-title" style="color: #4A0E17;">🔒 Signature Change Authorization</h2>
@@ -756,7 +781,7 @@ exports.sendSignatureChangeOtpEmail = async ({ to, token, name }) => {
 
       <div class="token-box" style="border: 2px dashed #C88A65; background: #FFFDF9;">
         <div class="token-label" style="color: #4A0E17; font-weight: 700; letter-spacing: 1px;">SIGNATURE AUTHORIZATION CODE</div>
-        <div class="token-digits" style="color: #4A0E17; font-size: 34px; letter-spacing: 8px;">${token}</div>
+        <div class="token-digits" style="color: #4A0E17; font-size: 34px; letter-spacing: 8px;">${safeToken}</div>
         <div class="token-expires" style="color: #8C827A;">Valid for the next 10 minutes</div>
       </div>
 
@@ -804,10 +829,13 @@ exports.sendSignatureChangeOtpEmail = async ({ to, token, name }) => {
 exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, variant }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeProductTitle = escapeHtml(product.title || '');
     const variantDesc = variant && (variant.color || variant.size)
-      ? [variant.color, variant.size].filter(Boolean).join(' • ')
+      ? [variant.color, variant.size].filter(Boolean).map(escapeHtml).join(' • ')
       : '';
+    const safePhone = escapeHtml(phone || '');
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
     const productUrl = `${clientUrl}/product/${product.slug || product._id}`;
 
@@ -845,13 +873,13 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, va
         <a href="${productUrl}" target="_blank" style="display: block; text-decoration: none;">
           <img
             src="${productImageUrl}"
-            alt="${product.title}"
+            alt="${safeProductTitle}"
             style="width: 200px; max-width: 100%; height: 250px; object-fit: cover; object-position: top; border-radius: 14px; border: 2px solid #D4AF37; box-shadow: 0 6px 18px rgba(74, 14, 23, 0.15); margin: 0 auto 14px; display: block;"
           />
         </a>
 
         <h3 style="margin: 0 0 6px; font-family: Georgia, serif; font-size: 18px; color: #3B0A11; font-weight: 700;">
-          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${product.title}</a>
+          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${safeProductTitle}</a>
         </h3>
 
         ${variantDesc ? `
@@ -883,14 +911,14 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, va
             <td style="padding: 3px 0;">📞 <strong>Store Phone:</strong> <a href="tel:+919500757024" style="color: #5B1130; font-weight: bold; text-decoration: none;">+91 95007 57024</a></td>
           </tr>
           <tr>
-            <td style="padding: 3px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20have%20waitlisted%20for%20${encodeURIComponent(product.title)}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
+            <td style="padding: 3px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20have%20waitlisted%20for%20${encodeURIComponent(product.title || '')}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
           </tr>
           <tr>
             <td style="padding: 3px 0;">📍 <strong>Showroom:</strong> 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012</td>
           </tr>
-          ${phone ? `
+          ${safePhone ? `
           <tr>
-            <td style="padding: 3px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${phone}</td>
+            <td style="padding: 3px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${safePhone}</td>
           </tr>
           ` : ''}
         </table>
@@ -898,8 +926,8 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, va
     `;
 
     const html = wrapInFriendsTheme({
-      title: `You're on the waitlist for "${product.title}"`,
-      preheader: `We'll email you the moment "${product.title}" is back in stock at Friends Collections.`,
+      title: `You're on the waitlist for "${safeProductTitle}"`,
+      preheader: `We'll email you the moment "${safeProductTitle}" is back in stock at Friends Collections.`,
       contentHtml
     });
 
@@ -923,10 +951,13 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, va
 exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }) => {
   try {
     const mailClient = await getTransporter();
-    const greeting = name ? `Dear ${name},` : 'Hello,';
+    const safeName = escapeHtml(name);
+    const greeting = safeName ? `Dear ${safeName},` : 'Hello,';
+    const safeProductTitle = escapeHtml(product.title || '');
     const variantDesc = variant && (variant.color || variant.size)
-      ? [variant.color, variant.size].filter(Boolean).join(' • ')
+      ? [variant.color, variant.size].filter(Boolean).map(escapeHtml).join(' • ')
       : '';
+    const safePhone = escapeHtml(phone || '');
     const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
     const productUrl = `${clientUrl}/product/${product.slug || product._id}`;
 
@@ -956,7 +987,7 @@ exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }
       </h2>
       <p class="content-text" style="text-align: center; margin-bottom: 22px;">
         ${greeting}<br>
-        The wait is finally over! <strong>"${product.title}"</strong> ${variantDesc ? `(${variantDesc})` : ''} has just arrived and been freshly restocked at our Chennai boutique.
+        The wait is finally over! <strong>"${safeProductTitle}"</strong> ${variantDesc ? `(${variantDesc})` : ''} has just arrived and been freshly restocked at our Chennai boutique.
       </p>
 
       <!-- Product Showcase Card (Clickable to Product Page) -->
@@ -964,13 +995,13 @@ exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }
         <a href="${productUrl}" target="_blank" style="display: block; text-decoration: none;">
           <img
             src="${productImageUrl}"
-            alt="${product.title}"
+            alt="${safeProductTitle}"
             style="width: 220px; max-width: 100%; height: 280px; object-fit: cover; object-position: top; border-radius: 16px; border: 2px solid #D4AF37; box-shadow: 0 8px 24px rgba(74, 14, 23, 0.16); margin: 0 auto 16px; display: block;"
           />
         </a>
 
         <h3 style="margin: 0 0 6px; font-family: Georgia, serif; font-size: 19px; color: #3B0A11; font-weight: 700;">
-          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${product.title}</a>
+          <a href="${productUrl}" target="_blank" style="color: #3B0A11; text-decoration: none;">${safeProductTitle}</a>
         </h3>
 
         ${variantDesc ? `
@@ -1008,14 +1039,14 @@ exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }
             <td style="padding: 4px 0;">📞 <strong>Store Phone:</strong> <a href="tel:+919500757024" style="color: #5B1130; font-weight: bold; text-decoration: none;">+91 95007 57024</a></td>
           </tr>
           <tr>
-            <td style="padding: 4px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20am%20interested%20in%20${encodeURIComponent(product.title)}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
+            <td style="padding: 4px 0;">💬 <strong>WhatsApp:</strong> <a href="https://wa.me/919500757024?text=Hi%20Friends%20Collections,%20I%20am%20interested%20in%20${encodeURIComponent(product.title || '')}" style="color: #2E7D32; font-weight: bold; text-decoration: none;">Chat on WhatsApp (+91 95007 57024)</a></td>
           </tr>
           <tr>
             <td style="padding: 4px 0;">📍 <strong>Showroom Hub:</strong> 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012</td>
           </tr>
-          ${phone ? `
+          ${safePhone ? `
           <tr>
-            <td style="padding: 4px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${phone}</td>
+            <td style="padding: 4px 0; color: #8C5338;">📱 <strong>Registered Alert Mobile:</strong> +91 ${safePhone}</td>
           </tr>
           ` : ''}
         </table>
@@ -1027,8 +1058,8 @@ exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }
     `;
 
     const html = wrapInFriendsTheme({
-      title: `Back in Stock: "${product.title}" is available now!`,
-      preheader: `Good news! "${product.title}" has been restocked. Shop now before it sells out again.`,
+      title: `Back in Stock: "${safeProductTitle}" is available now!`,
+      preheader: `Good news! "${safeProductTitle}" has been restocked. Shop now before it sells out again.`,
       contentHtml
     });
 
@@ -1150,32 +1181,44 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
   try {
     const customer = order.customer || {};
     const to = customer.email;
+    const effectiveOrderId = (order.paymentMethod === 'razorpay' && order.paymentDetails?.razorpayOrderId)
+      ? order.paymentDetails.razorpayOrderId
+      : (order.orderId || '');
+
     if (!to) {
-      console.log(`ℹ️ [Email Skipped] Order #${order.orderId} customer provided no email address.`);
+      console.log(`ℹ️ [Email Skipped] Order #${effectiveOrderId} customer provided no email address.`);
       return { success: false, reason: 'No customer email provided' };
     }
 
     const mailClient = await getTransporter();
     const { generateInvoicePdf, getExpectedDeliveryRange } = require('./invoiceGenerator');
 
-    const deliveryRange = order.expectedDeliveryDate || order.tracking?.estimatedDelivery || getExpectedDeliveryRange(order.createdAt || new Date());
+    const deliveryRange = escapeHtml(order.expectedDeliveryDate || order.tracking?.estimatedDelivery || getExpectedDeliveryRange(order.createdAt || new Date()));
     const isPaid = order.paymentStatus === 'paid';
     const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const trackUrl = `${clientUrl}/account?tab=track&orderId=${order.orderId}`;
-    const whatsappComplaintMsg = `Hi Friends Collections Support, I need assistance or want to raise a complaint regarding my Order #${order.orderId}.\nCustomer: ${customer.name || ''}\nPhone: +91 ${customer.phone || ''}`;
+    const trackUrl = `${clientUrl}/account?tab=track&orderId=${encodeURIComponent(effectiveOrderId)}`;
+    const whatsappComplaintMsg = `Hi Friends Collections Support, I need assistance or want to raise a complaint regarding my Order #${effectiveOrderId}.\nCustomer: ${customer.name || ''}\nPhone: +91 ${customer.phone || ''}`;
     const whatsappComplaintUrl = `https://wa.me/919500757024?text=${encodeURIComponent(whatsappComplaintMsg)}`;
 
+    const safeCustomerName = escapeHtml(customer.name || order.customerName || order.user?.name || 'Customer');
+    const safeStreet = escapeHtml(customer.address?.street || '');
+    const safeCity = escapeHtml(customer.address?.city || 'your address');
+    const safeState = escapeHtml(customer.address?.state || '');
+    const safePincode = escapeHtml(customer.address?.pincode || '');
+    const safeCustomerPhone = escapeHtml(customer.phone || '');
+
     const itemsHtml = (order.items || []).map((it) => {
-      const varTxt = [it.color, it.size].filter(Boolean).join(' • ');
+      const safeTitle = escapeHtml(it.title || it.name || it.product?.title || it.product?.name || 'Item');
+      const varTxt = [it.color, it.size].filter(Boolean).map(escapeHtml).join(' • ');
       return `
         <tr style="border-bottom: 1px solid #EEDCD0;">
           <td style="padding: 12px 8px; font-size: 13px; color: #2D2522; font-weight: 600;">
-            ${it.title}
+            ${safeTitle}
             ${varTxt ? `<br><span style="font-size: 11px; color: #8C5338; font-weight: normal;">${varTxt}</span>` : ''}
           </td>
           <td style="padding: 12px 8px; font-size: 13px; color: #4A4543; text-align: center;">
-            ${it.quantity}
+            ${Number(it.quantity) || 1}
           </td>
           <td style="padding: 12px 8px; font-size: 13px; color: #4A0E17; font-weight: 700; text-align: right;">
             ₹${(Number(it.price) * Number(it.quantity)).toLocaleString('en-IN')}
@@ -1197,7 +1240,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
           Thanks for Shopping with Us!
         </h2>
         <p class="content-text" style="text-align: center; max-width: 480px; margin: 0 auto 16px;">
-          Dear <strong>${customer.name || 'Valued Customer'}</strong>, your order has been received and confirmed. Our boutique artisans at Jamalia, Chennai are packing your garments with supreme care.
+          Dear <strong>${safeCustomerName}</strong>, your order has been received and confirmed. Our boutique artisans are packing your garments with supreme care.
         </p>
       </div>
 
@@ -1210,7 +1253,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
           📦 ${deliveryRange}
         </span>
         <span style="font-size: 11px; color: #7A726E; display: block; margin-top: 6px;">
-          Standard Boutique Express Delivery to ${customer.address?.city || 'your address'}
+          Standard Boutique Express Delivery to ${safeCity}
         </span>
       </div>
 
@@ -1218,7 +1261,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
       <div style="text-align: center; margin: 18px 0;">
         <span style="font-size: 12px; color: #665C58;">Order Reference: </span>
         <span style="font-family: monospace; font-size: 15px; font-weight: bold; color: #4A0E17; background: #FAF7F2; padding: 4px 12px; border-radius: 8px; border: 1px solid #EEDCD0;">
-          ${order.orderId}
+          ${escapeHtml(effectiveOrderId)}
         </span>
       </div>
 
@@ -1260,17 +1303,17 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
           <tr>
             <td style="vertical-align: top; width: 50%; padding-right: 10px;">
               <strong style="color: #4A0E17; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Delivering To:</strong>
-              <span style="font-weight: 600; color: #2D2522;">${customer.name}</span><br>
+              <span style="font-weight: 600; color: #2D2522;">${safeCustomerName}</span><br>
               <span style="color: #665C58;">
-                ${customer.address?.street || ''}<br>
-                ${customer.address?.city || ''}, ${customer.address?.state || ''} - ${customer.address?.pincode || ''}<br>
-                Phone: +91 ${customer.phone || ''}
+                ${safeStreet}<br>
+                ${safeCity}, ${safeState} - ${safePincode}<br>
+                Phone: +91 ${safeCustomerPhone}
               </span>
             </td>
             <td style="vertical-align: top; width: 50%; padding-left: 10px;">
               <strong style="color: #4A0E17; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Payment Method:</strong>
               ${paymentBadge}<br>
-              ${order.paymentDetails?.razorpayPaymentId ? `<span style="font-size: 11px; color: #665C58; display: block; margin-top: 4px;">Txn ID: <code style="font-family: monospace;">${order.paymentDetails.razorpayPaymentId}</code></span>` : ''}
+              ${order.paymentDetails?.razorpayPaymentId ? `<span style="font-size: 11px; color: #665C58; display: block; margin-top: 4px;">Txn ID: <code style="font-family: monospace;">${escapeHtml(order.paymentDetails.razorpayPaymentId)}</code></span>` : ''}
               <span style="font-size: 11px; color: #8C5338; display: block; margin-top: 6px;">
                 📎 <strong>Your Official Tax Invoice PDF</strong> is attached directly to this email.
               </span>
@@ -1309,8 +1352,8 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     `;
 
     const html = wrapInFriendsTheme({
-      title: `Order Received & Confirmed #${order.orderId} - Friends Collections`,
-      preheader: `Thank you for shopping with us! Order #${order.orderId} is confirmed. Expected arrival: ${deliveryRange}. Invoice attached.`,
+      title: `Order Received & Confirmed #${effectiveOrderId} - Friends Collections`,
+      preheader: `Thank you for shopping with us! Order #${effectiveOrderId} is confirmed. Expected arrival: ${deliveryRange}. Invoice attached.`,
       contentHtml
     });
 
@@ -1319,19 +1362,19 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     try {
       const pdfBuffer = await generateInvoicePdf(order);
       pdfAttachment.push({
-        filename: `Invoice-${order.orderId}.pdf`,
+        filename: `Invoice-${effectiveOrderId}.pdf`,
         content: pdfBuffer,
         contentType: 'application/pdf'
       });
     } catch (pdfErr) {
-      console.error(`⚠️ Could not attach PDF invoice to email for order #${order.orderId}:`, pdfErr);
+      console.error(`⚠️ Could not attach PDF invoice to email for order #${effectiveOrderId}:`, pdfErr);
     }
 
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
       replyTo: getSupportReplyTo(),
-      subject: `🛍️ Order Confirmed #${order.orderId} - Friends Collections (Invoice Attached)`,
+      subject: `🛍️ Order Confirmed #${effectiveOrderId} - Friends Collections (Invoice Attached)`,
       html,
       attachments: [...getLogoAttachment(), ...pdfAttachment]
     });
@@ -1353,15 +1396,19 @@ exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
     // Dual notification recipients: both old business mail and help desk mail receive the inquiry
     const businessRecipients = Array.from(new Set([adminEmail, supportEmail].filter(Boolean)));
 
-    const safeName = inquiry.name || 'Valued Customer';
-    const safeEmail = inquiry.email || 'N/A';
-    const safePhone = inquiry.phone || 'N/A';
-    const safeSubject = inquiry.subject || 'General Inquiry';
-    const safeInquiryId = inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`;
-    const safeMessage = (inquiry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-    const cleanPhoneDigits = safePhone.replace(/\D/g, '');
-    const whatsappLink = `https://wa.me/91${cleanPhoneDigits}?text=${encodeURIComponent(`Hi ${safeName}, this is Friends Collections replying to your inquiry #${safeInquiryId}.`)}`;
-    const mailtoReply = `mailto:${safeEmail}?subject=${encodeURIComponent(`Re: [Inquiry #${safeInquiryId}] ${safeSubject} - Friends Collections`)}`;
+    const safeName = escapeHtml(inquiry.name || 'Customer');
+    const safeEmail = escapeHtml(inquiry.email || 'N/A');
+    const safePhone = escapeHtml(inquiry.phone || 'N/A');
+    const safeSubject = escapeHtml(inquiry.subject || 'General Inquiry');
+    const safeInquiryId = escapeHtml(inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`);
+    const safeMessage = escapeHtml(inquiry.message || '').replace(/\n/g, '<br>');
+    const cleanPhoneDigits = (inquiry.phone || '').replace(/\D/g, '');
+    const rawName = (inquiry.name || 'Customer').trim();
+    const rawInquiryId = (inquiry.inquiryId || '').trim();
+    const rawSubject = (inquiry.subject || 'General Inquiry').trim();
+    const rawEmail = (inquiry.email || '').trim();
+    const whatsappLink = `https://wa.me/91${cleanPhoneDigits}?text=${encodeURIComponent(`Hi ${rawName}, this is Friends Collections replying to your inquiry #${rawInquiryId}.`)}`;
+    const mailtoReply = `mailto:${encodeURIComponent(rawEmail)}?subject=${encodeURIComponent(`Re: [Inquiry #${rawInquiryId}] ${rawSubject} - Friends Collections`)}`;
     const formattedDate = new Date().toLocaleString('en-IN', {
       timeZone: 'Asia/Kolkata',
       dateStyle: 'medium',
@@ -1432,7 +1479,7 @@ exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
       </div>
 
       <p class="content-text" style="font-size: 11px; color: #9CA3AF; text-align: center; margin-top: 20px;">
-        Notification generated by Friends Collections Boutique Portal • Jamalia, Chennai – 600012
+        Notification generated by Friends Collections Boutique Portal
       </p>
     `;
 
@@ -1484,12 +1531,13 @@ exports.sendContactInquiryConfirmationToUserEmail = async ({ inquiry }) => {
     }
 
     const mailClient = await getTransporter();
-    const safeName = inquiry.name || 'Valued Customer';
-    const safeSubject = inquiry.subject || 'General Inquiry';
-    const safeInquiryId = inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`;
-    const safePhone = inquiry.phone || '';
-    const safeMessage = (inquiry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-    const whatsappHelpUrl = `https://wa.me/919500757024?text=${encodeURIComponent(`Hi Friends Collections, I submitted inquiry #${safeInquiryId} and would like quick assistance.`)}`;
+    const safeName = escapeHtml(inquiry.name || 'Customer');
+    const safeSubject = escapeHtml(inquiry.subject || 'General Inquiry');
+    const safeInquiryId = escapeHtml(inquiry.inquiryId || `INQ-${Date.now().toString().slice(-6)}`);
+    const safePhone = escapeHtml(inquiry.phone || '');
+    const safeMessage = escapeHtml(inquiry.message || '').replace(/\n/g, '<br>');
+    const rawInquiryId = (inquiry.inquiryId || '').trim();
+    const whatsappHelpUrl = `https://wa.me/919500757024?text=${encodeURIComponent(`Hi Friends Collections, I submitted inquiry #${rawInquiryId} and would like quick assistance.`)}`;
 
     const contentHtml = `
       <div style="text-align: center; margin-bottom: 24px;">
@@ -1498,7 +1546,7 @@ exports.sendContactInquiryConfirmationToUserEmail = async ({ inquiry }) => {
         </span>
         <h2 class="content-title" style="margin-top: 14px; font-size: 22px;">We've Received Your Request!</h2>
         <p class="content-text" style="text-align: center; max-width: 500px; margin: 8px auto 0; font-size: 14px; color: #4B5563;">
-          Hello <strong style="color: #1F2937;">${safeName}</strong>, thank you for reaching out to Friends Collections! Our boutique team in Jamalia, Chennai has safely received your message.
+          Hello <strong style="color: #1F2937;">${safeName}</strong>, thank you for reaching out to Friends Collections! Our boutique team has safely received your message.
         </p>
       </div>
 

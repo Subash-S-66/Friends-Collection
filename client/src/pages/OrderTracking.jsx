@@ -80,11 +80,13 @@ const OrderTracking = () => {
 
   const handleDownloadInvoice = async () => {
     if (!order?.orderId) return;
+    const trackingPhone = phone || order.customer?.phone || '';
+    const phoneParam = trackingPhone ? `?phone=${encodeURIComponent(trackingPhone)}` : '';
     await confirmDownload({
       title: 'Download Tax Invoice',
       message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
       orderId: order.orderId,
-      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
+      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf${phoneParam}`,
       fileName: `Invoice-${order.orderId}.pdf`,
       details: `Friends Collections • Order #${order.orderId}`
     });
@@ -114,7 +116,7 @@ const OrderTracking = () => {
   const trackingSteps = [
     { step: 1, title: 'Order Received', desc: 'Order placed & received at boutique' },
     { step: 2, title: 'Confirmed / Packed', desc: 'Packed & inspected with boutique care' },
-    { step: 3, title: 'Dispatched / In Transit', desc: order?.tracking?.courier ? `Handed over to ${order.tracking.courier}` : 'Dispatched from Jamalia store' },
+    { step: 3, title: 'Dispatched / In Transit', desc: order?.tracking?.courier ? `Handed over to ${order.tracking.courier}` : 'Dispatched from boutique' },
     { step: 4, title: 'Delivered', desc: 'Delivered to your doorstep' }
   ];
 
@@ -401,7 +403,7 @@ const OrderTracking = () => {
                       Courier Partner & Waybill Number
                     </h4>
                     <p className="text-xs text-neutral-600 font-medium">
-                      {order.tracking?.courier || 'Jamalia Direct Store Dispatch'}
+                      {order.tracking?.courier || 'Direct Store Dispatch'}
                     </p>
                   </div>
                 </div>
@@ -438,7 +440,7 @@ const OrderTracking = () => {
               ) : (
                 <div className="p-3 rounded-xl bg-white border border-accent-100 text-xs text-neutral-600">
                   <p>
-                    Your order is currently being packed with boutique care at our Jamalia store. A tracking number will appear here as soon as our logistics partner picks it up!
+                    Your order is currently being packed with boutique care. A tracking number will appear here as soon as our logistics partner picks it up!
                   </p>
                 </div>
               )}

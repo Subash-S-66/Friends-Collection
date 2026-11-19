@@ -240,7 +240,8 @@ exports.adminGetSubscriptions = async (req, res, next) => {
       .populate('product', 'title slug images price salePrice stock')
       .populate('user', 'name phone')
       .sort({ createdAt: -1 })
-      .limit(200);
+      .limit(200)
+      .lean();
 
     res.json(subs);
   } catch (error) {

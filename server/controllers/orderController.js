@@ -366,7 +366,7 @@ exports.placeOrder = async (req, res, next) => {
           statusHistory: [{
             status: 'order_received',
             message: 'Order placed successfully (Cash on Delivery).',
-            location: 'Jamalia Boutique, Chennai',
+            location: 'Boutique Showroom',
             timestamp: new Date()
           }]
         },
@@ -501,8 +501,9 @@ exports.trackOrder = async (req, res, next) => {
 
     const lookupQuery = {
       $or: [
+        { orderId: cleanOrderId },
         { orderId: cleanOrderId.toUpperCase() },
-        { orderId: cleanOrderId }
+        { 'paymentDetails.razorpayOrderId': cleanOrderId }
       ]
     };
 
@@ -640,11 +641,15 @@ exports.adminGetOrders = async (req, res, next) => {
       }
     }
 
-    if (search) {
+    if (search && typeof search === 'string' && search.trim()) {
+      const cleanSearch = search.trim();
+      const escaped = cleanSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
       query.$or = [
-        { orderId: { $regex: search, $options: 'i' } },
-        { 'customer.phone': { $regex: search, $options: 'i' } },
-        { 'customer.name': { $regex: search, $options: 'i' } }
+        { orderId: { $regex: escaped, $options: 'i' } },
+        { 'paymentDetails.razorpayOrderId': { $regex: escaped, $options: 'i' } },
+        { 'paymentDetails.razorpayPaymentId': { $regex: escaped, $options: 'i' } },
+        { 'customer.phone': { $regex: escaped, $options: 'i' } },
+        { 'customer.name': { $regex: escaped, $options: 'i' } }
       ];
     }
 
@@ -659,7 +664,8 @@ exports.adminGetOrders = async (req, res, next) => {
     const orders = await Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     res.json({ orders, page: Number(page), pages: Math.ceil(total / Number(limit)), total });
   } catch (error) {
@@ -671,7 +677,7 @@ exports.adminGetOrders = async (req, res, next) => {
 // @route   GET /api/orders/admin/:id
 exports.adminGetOrder = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (error) {
@@ -738,7 +744,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       order.tracking.statusHistory.push({
         status: status || order.status,
         message: historyMsg,
-        location: tracking.location || 'Jamalia Hub, Chennai',
+        location: tracking.location || 'Boutique Showroom',
         timestamp: new Date()
       });
     }
@@ -759,7 +765,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         order.tracking.statusHistory.push({
           status,
           message: defaultMsgs[status] || `Status updated to ${status.replace('_', ' ')}`,
-          location: 'Jamalia Boutique, Chennai',
+          location: 'Boutique Showroom',
           timestamp: new Date()
         });
       }

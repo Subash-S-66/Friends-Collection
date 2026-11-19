@@ -84,7 +84,8 @@ exports.adminGetCategories = async (req, res, next) => {
   try {
     const categories = await Category.find()
       .populate('parent', 'name slug')
-      .sort({ priority: 1, createdAt: -1 });
+      .sort({ priority: 1, createdAt: -1 })
+      .lean();
     res.json(categories);
   } catch (error) {
     next(error);

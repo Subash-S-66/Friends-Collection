@@ -530,13 +530,36 @@ exports.verifyTokenAndLogin = async (req, res, next) => {
 
     const record = await VerificationToken.findOne({
       email: cleanEmail,
-      token: cleanToken,
+      type: { $in: ['login', 'register'] },
       used: false,
       expiresAt: { $gt: new Date() }
-    });
+    }).sort({ createdAt: -1 });
 
     if (!record) {
       return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new code.' });
+    }
+
+    if (record.attempts >= 5) {
+      record.used = true;
+      await record.save();
+      return res.status(400).json({ message: 'Too many incorrect attempts. This verification code has been invalidated for security. Please request a new code.' });
+    }
+
+    const recordBuf = Buffer.from(record.token, 'utf8');
+    const inputBuf = Buffer.from(cleanToken, 'utf8');
+    const isMatch = recordBuf.length === inputBuf.length && crypto.timingSafeEqual(recordBuf, inputBuf);
+
+    if (!isMatch) {
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts >= 5) {
+        record.used = true;
+      }
+      await record.save();
+      if (record.attempts >= 5) {
+        return res.status(400).json({ message: 'Too many incorrect attempts. This verification code has been invalidated for security. Please request a new code.' });
+      }
+      const remaining = 5 - record.attempts;
+      return res.status(400).json({ message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
     }
 
     record.used = true;
@@ -578,14 +601,36 @@ exports.verifyEmailToken = async (req, res, next) => {
 
     const record = await VerificationToken.findOne({
       email: cleanEmail,
-      token: cleanToken,
       type: { $in: ['verify-email', 'register'] },
       used: false,
       expiresAt: { $gt: new Date() }
-    });
+    }).sort({ createdAt: -1 });
 
     if (!record) {
       return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new code.' });
+    }
+
+    if (record.attempts >= 5) {
+      record.used = true;
+      await record.save();
+      return res.status(400).json({ message: 'Too many incorrect attempts. This verification code has been invalidated for security. Please request a new code.' });
+    }
+
+    const recordBuf = Buffer.from(record.token, 'utf8');
+    const inputBuf = Buffer.from(cleanToken, 'utf8');
+    const isMatch = recordBuf.length === inputBuf.length && crypto.timingSafeEqual(recordBuf, inputBuf);
+
+    if (!isMatch) {
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts >= 5) {
+        record.used = true;
+      }
+      await record.save();
+      if (record.attempts >= 5) {
+        return res.status(400).json({ message: 'Too many incorrect attempts. This verification code has been invalidated for security. Please request a new code.' });
+      }
+      const remaining = 5 - record.attempts;
+      return res.status(400).json({ message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
     }
 
     record.used = true;
@@ -733,14 +778,36 @@ exports.forgotPasswordVerify = async (req, res, next) => {
 
     const record = await VerificationToken.findOne({
       email: cleanEmail,
-      token: cleanToken,
       type: 'forgot-password',
       used: false,
       expiresAt: { $gt: new Date() }
-    });
+    }).sort({ createdAt: -1 });
 
     if (!record) {
       return res.status(400).json({ message: 'Invalid or expired password reset OTP code' });
+    }
+
+    if (record.attempts >= 5) {
+      record.used = true;
+      await record.save();
+      return res.status(400).json({ message: 'Too many incorrect attempts. This password reset OTP code has been invalidated for security. Please request a new code.' });
+    }
+
+    const recordBuf = Buffer.from(record.token, 'utf8');
+    const inputBuf = Buffer.from(cleanToken, 'utf8');
+    const isMatch = recordBuf.length === inputBuf.length && crypto.timingSafeEqual(recordBuf, inputBuf);
+
+    if (!isMatch) {
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts >= 5) {
+        record.used = true;
+      }
+      await record.save();
+      if (record.attempts >= 5) {
+        return res.status(400).json({ message: 'Too many incorrect attempts. This password reset OTP code has been invalidated for security. Please request a new code.' });
+      }
+      const remaining = 5 - record.attempts;
+      return res.status(400).json({ message: `Invalid OTP code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
     }
 
     record.used = true;
@@ -924,17 +991,46 @@ exports.verifyEmailChange = async (req, res, next) => {
       });
     }
 
-    const isOldCorrect = record.metadata?.oldEmailOtp === cleanOldOtp || record.token === cleanOldOtp;
-    const isNewCorrect = record.metadata?.newEmailOtp === cleanNewOtp;
+    if (record.attempts >= 5) {
+      record.used = true;
+      await record.save();
+      return res.status(400).json({
+        message: 'Too many incorrect attempts. This email change request has been invalidated for security. Please start over.'
+      });
+    }
+
+    const expectedOld = (record.metadata?.oldEmailOtp || record.token || '').toString();
+    const expectedNew = (record.metadata?.newEmailOtp || '').toString();
+
+    const expOldBuf = Buffer.from(expectedOld, 'utf8');
+    const actOldBuf = Buffer.from(cleanOldOtp, 'utf8');
+    const isOldCorrect = expOldBuf.length === actOldBuf.length && crypto.timingSafeEqual(expOldBuf, actOldBuf);
+
+    const expNewBuf = Buffer.from(expectedNew, 'utf8');
+    const actNewBuf = Buffer.from(cleanNewOtp, 'utf8');
+    const isNewCorrect = expNewBuf.length === actNewBuf.length && crypto.timingSafeEqual(expNewBuf, actNewBuf);
 
     if (!isOldCorrect || !isNewCorrect) {
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts >= 5) {
+        record.used = true;
+      }
+      await record.save();
+
+      if (record.attempts >= 5) {
+        return res.status(400).json({
+          message: 'Too many incorrect attempts. This email change request has been invalidated for security. Please start over.'
+        });
+      }
+
+      const remaining = 5 - record.attempts;
       let failMessage = 'Verification failed: ';
       if (!isOldCorrect && !isNewCorrect) {
-        failMessage += 'Both OTP codes are incorrect.';
+        failMessage += `Both OTP codes are incorrect. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`;
       } else if (!isOldCorrect) {
-        failMessage += 'The OTP code sent to your current email is incorrect.';
+        failMessage += `The OTP code sent to your current email is incorrect. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`;
       } else {
-        failMessage += 'The OTP code sent to your new email is incorrect.';
+        failMessage += `The OTP code sent to your new email is incorrect. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`;
       }
       return res.status(400).json({ message: failMessage });
     }

@@ -109,6 +109,13 @@ function generateSecureOrderId() {
 
 orderSchema.pre('save', async function() {
   if (!this.orderId) {
+    // If it's a Razorpay order, authoritatively use Razorpay's Order ID (e.g. order_PlQ8sXyz12345)
+    if (this.paymentMethod === 'razorpay' && this.paymentDetails?.razorpayOrderId) {
+      this.orderId = this.paymentDetails.razorpayOrderId;
+      return;
+    }
+
+    // For Cash on Delivery (COD) or store orders, generate our unique Friends Collections order ID (e.g. FC-8492-7163-9582)
     let isUnique = false;
     let candidate = '';
     let attempts = 0;
@@ -129,5 +136,7 @@ orderSchema.index({ 'customer.phone': 1 });
 orderSchema.index({ 'customer.email': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ 'paymentDetails.razorpayPaymentId': 1 }, { sparse: true });
+orderSchema.index({ 'paymentDetails.razorpayOrderId': 1 }, { sparse: true });
 
 module.exports = mongoose.model('Order', orderSchema);

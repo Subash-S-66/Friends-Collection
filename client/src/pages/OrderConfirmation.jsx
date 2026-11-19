@@ -70,11 +70,12 @@ const OrderConfirmation = () => {
 
   const handleDownloadPdf = async () => {
     if (!order?.orderId) return;
+    const phoneParam = order.customer?.phone ? `?phone=${encodeURIComponent(order.customer.phone)}` : '';
     await confirmDownload({
       title: 'Download Tax Invoice',
       message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${order.orderId}?`,
       orderId: order.orderId,
-      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf`,
+      downloadUrl: `/api/orders/${order.orderId}/invoice.pdf${phoneParam}`,
       fileName: `Invoice-${order.orderId}.pdf`,
       details: `Friends Collections • Order #${order.orderId}`
     });
@@ -115,7 +116,7 @@ const OrderConfirmation = () => {
     { 
       key: 'placed', 
       label: 'Order Placed', 
-      desc: 'Received at Jamalia Store', 
+      desc: 'Received at Boutique', 
       done: true 
     },
     { 
@@ -166,7 +167,7 @@ const OrderConfirmation = () => {
               Thank You for Shopping with Us!
             </h1>
             <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Valued Customer'}</strong>, your order has been placed and received. Our boutique artisans at Jamalia, Chennai will confirm your order and pack your garments with supreme care.
+              Dear <strong className="text-neutral-900">{order?.customer?.name || 'Customer'}</strong>, your order has been placed and received. Our boutique artisans will confirm your order and pack your garments with supreme care.
             </p>
           </div>
 
@@ -198,7 +199,7 @@ const OrderConfirmation = () => {
                   {deliveryRange}
                 </span>
                 <span className="text-[11px] text-neutral-500">
-                  Standard Boutique Express • Hand-packaged at Jamalia Boutique, Chennai
+                  Standard Boutique Express • Hand-packaged with care
                 </span>
               </div>
             </div>

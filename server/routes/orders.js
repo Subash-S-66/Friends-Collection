@@ -30,12 +30,12 @@ const SAMPLE_ORDER = {
   orderId: 'FC-SAMPLE-8899',
   createdAt: new Date(),
   customer: {
-    name: 'Priya Sharma',
+    name: 'Sample Customer',
     phone: '9876543210',
     secondaryPhone: '9500757024',
-    email: 'priya.sharma@example.com',
+    email: 'customer@example.com',
     address: {
-      street: 'Flat 4B, Lotus Apartments, 2nd Main Road, Anna Nagar',
+      street: '4th Main Road, Anna Nagar',
       city: 'Chennai',
       state: 'Tamil Nadu',
       pincode: '600040'
@@ -97,15 +97,54 @@ router.post('/invoice/sample/pdf', optionalAuth, pdfLimiter, async (req, res, ne
   }
 });
 
-// Public PDF Invoice Download
+// Helper to verify invoice download authorization & prevent IDOR data leaks
+const canAccessOrderInvoice = (order, req) => {
+  if (!order) return false;
+  // 1. Store Administrator
+  if (req.user && req.user.role === 'admin') return true;
+  // 2. Account owner matched by MongoDB User ID
+  if (req.user && order.user && req.user._id.toString() === order.user.toString()) return true;
+  // 3. User matched by account email
+  if (req.user?.email && order.customer?.email && req.user.email.toLowerCase() === order.customer.email.toLowerCase()) return true;
+  // 4. User matched by account phone
+  if (req.user?.phone && order.customer?.phone) {
+    const userPhone = req.user.phone.replace(/\D/g, '').slice(-10);
+    const orderPhone = order.customer.phone.replace(/\D/g, '').slice(-10);
+    if (userPhone && orderPhone && userPhone === orderPhone) return true;
+  }
+  // 5. Guest customer providing verified phone number (?phone=...)
+  const queryPhone = (req.query?.phone || '').replace(/\D/g, '').slice(-10);
+  if (queryPhone && queryPhone.length === 10) {
+    const orderPhone = (order.customer?.phone || '').replace(/\D/g, '').slice(-10);
+    const orderSecPhone = (order.customer?.secondaryPhone || '').replace(/\D/g, '').slice(-10);
+    if (queryPhone === orderPhone || queryPhone === orderSecPhone) return true;
+  }
+  return false;
+};
+
+// Public PDF Invoice Download (Protected against IDOR & unauthorized PII access)
 router.get('/:orderId/invoice.pdf', optionalAuth, pdfLimiter, async (req, res, next) => {
   try {
     const Order = require('../models/Order');
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const cleanId = (req.params.orderId || '').trim();
+    const order = await Order.findOne({
+      $or: [
+        { orderId: cleanId },
+        { orderId: cleanId.toUpperCase() },
+        { 'paymentDetails.razorpayOrderId': cleanId }
+      ]
+    });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
+
+    if (!canAccessOrderInvoice(order, req)) {
+      return res.status(403).json({
+        message: 'Access denied: To download this tax invoice, please sign in to the purchasing account or provide your billing phone number.'
+      });
+    }
+
     const pdfBuffer = await generateInvoicePdf(order);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${order.orderId}.pdf"`);
@@ -119,10 +158,24 @@ router.get('/invoice/:orderId/pdf', optionalAuth, pdfLimiter, async (req, res, n
   try {
     const Order = require('../models/Order');
     const { generateInvoicePdf } = require('../utils/invoiceGenerator');
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const cleanId = (req.params.orderId || '').trim();
+    const order = await Order.findOne({
+      $or: [
+        { orderId: cleanId },
+        { orderId: cleanId.toUpperCase() },
+        { 'paymentDetails.razorpayOrderId': cleanId }
+      ]
+    });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
+
+    if (!canAccessOrderInvoice(order, req)) {
+      return res.status(403).json({
+        message: 'Access denied: To download this tax invoice, please sign in to the purchasing account or provide your billing phone number.'
+      });
+    }
+
     const pdfBuffer = await generateInvoicePdf(order);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${order.orderId}.pdf"`);

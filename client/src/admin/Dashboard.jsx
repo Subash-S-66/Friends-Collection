@@ -419,7 +419,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className="text-xs text-neutral-600 font-light leading-relaxed">
-              Track customer orders, verify delivery addresses across Chennai, update fulfillment status & view invoices.
+              Track customer orders, verify delivery addresses, update fulfillment status & view invoices.
             </p>
             <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs font-bold text-primary">
               <span>View Order Fulfillment</span>

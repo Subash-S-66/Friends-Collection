@@ -361,7 +361,7 @@ const DynamicAlertModal = () => {
                   <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 text-xs text-emerald-900">
                     <span className="font-bold text-emerald-700">3.</span>
                     <span>
-                      <strong>Instant Assistance:</strong> Our Jamalia boutique team can assist you directly on WhatsApp.
+                      <strong>Instant Assistance:</strong> Our boutique team can assist you directly on WhatsApp.
                     </span>
                   </div>
                 </div>

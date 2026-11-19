@@ -11,13 +11,13 @@ const DEFAULT_INVOICE_SETTINGS = {
   address: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012',
   phone: '+91 95007 57024',
   email: 'friends.collection.support@gmail.com',
-  gstin: '33AAACF1234M1Z5',
+  gstin: '',
   gstPercentage: 5,
-  authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',
-  signatorySubtitle: 'Friends Collections Jamalia Boutique',
+  authorizedSignatory: 'Authorized Signatory',
+  signatorySubtitle: '',
   signatureImage: '',
-  footerNote: 'Thank You for Shopping with Friends Collections!',
-  terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Defective items replaced free of charge.',
+  footerNote: 'Thank You for Shopping with Us!',
+  terms: '7-Day Easy Exchange Policy on Unworn Items with Tags Intact.',
   notes: 'This is an authentic computer-generated Tax Invoice and requires no physical signature.',
   primaryColor: '#4A0E17',
   accentColor: '#C88A65'
@@ -78,21 +78,28 @@ function getExpectedDeliveryRange(orderDate = new Date()) {
  * @param {Object} [customSettings] - Optional settings override (e.g. for live preview)
  * @returns {Promise<Buffer>}
  */
-async function generateInvoicePdf(order, customSettings = null) {
+async function generateInvoicePdf(orderInput, customSettings = null) {
   const cfg = customSettings
     ? { ...DEFAULT_INVOICE_SETTINGS, ...customSettings }
     : await getInvoiceSettings();
 
+  // Normalize order: convert Mongoose Document or raw object to plain JS object so schema properties are preserved
+  const order = orderInput && typeof orderInput.toObject === 'function'
+    ? orderInput.toObject()
+    : (orderInput ? JSON.parse(JSON.stringify(orderInput)) : {});
+
   return new Promise((resolve, reject) => {
     try {
+      const displayOrderId = order.orderId || 'FC-ORDER';
+
       const doc = new PDFDocument({
         size: 'A4',
         margin: 32,
         bufferPages: true,
         info: {
-          Title: `${cfg.invoiceTitle || 'Tax Invoice'} - ${order.orderId}`,
+          Title: `${cfg.invoiceTitle || 'Tax Invoice'} - ${displayOrderId}`,
           Author: cfg.companyName || 'Friends Collections',
-          Subject: `Order #${order.orderId} Tax Invoice`
+          Subject: `Order #${displayOrderId} Tax Invoice`
         }
       });
 
@@ -167,7 +174,7 @@ async function generateInvoicePdf(order, customSettings = null) {
       doc.fillColor('#D4AF37')
         .font('Helvetica-Bold')
         .fontSize(10)
-        .text(order.orderId || 'FC-ORDER', badgeX, badgeY + 25, { align: 'center', width: badgeWidth, lineBreak: false });
+        .text(displayOrderId, badgeX, badgeY + 25, { align: 'center', width: badgeWidth, lineBreak: false });
 
       if (cfg.gstin) {
         doc.fillColor('#E2BFB3')
@@ -247,24 +254,38 @@ async function generateInvoicePdf(order, customSettings = null) {
         .text('BILLED & DELIVERED TO:', 44, boxY + 10);
 
       const customer = order.customer || {};
-      const addr = customer.address || {};
+      const customerName = (customer.name || order.customerName || order.user?.name || '').trim();
+      const addr = customer.address || order.shippingAddress || {};
 
       doc.fillColor(DARK)
         .font('Helvetica-Bold')
         .fontSize(9.5)
-        .text(customer.name || 'Valued Customer', 44, boxY + 24, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        .text(customerName || 'Customer', 44, boxY + 24, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
-        .fontSize(8)
-        .text(addr.street || '', 44, boxY + 38, { width: boxWidth - 24, lineBreak: false, ellipsis: true })
-        .text(`${addr.city || 'Chennai'}, ${addr.state || 'Tamil Nadu'} - ${addr.pincode || ''}`, 44, boxY + 50, { width: boxWidth - 24, lineBreak: false, ellipsis: true })
-        .text(`Primary Phone: +91 ${customer.phone || ''}`, 44, boxY + 63, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        .fontSize(8);
+
+      let currentAddrY = boxY + 38;
+      if (addr.street) {
+        doc.text(addr.street, 44, currentAddrY, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        currentAddrY += 12;
+      }
+      const cityStateParts = [addr.city, addr.state].filter(Boolean).join(', ');
+      const locLine = [cityStateParts, addr.pincode].filter(Boolean).join(' - ');
+      if (locLine) {
+        doc.text(locLine, 44, currentAddrY, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        currentAddrY += 12;
+      }
+      if (customer.phone) {
+        doc.text(`Primary Phone: +91 ${customer.phone}`, 44, currentAddrY, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        currentAddrY += 12;
+      }
 
       if (customer.secondaryPhone) {
-        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, boxY + 74, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        doc.text(`Alternate Phone: +91 ${customer.secondaryPhone}`, 44, currentAddrY, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       } else if (customer.email) {
-        doc.text(`Email: ${customer.email}`, 44, boxY + 74, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
+        doc.text(`Email: ${customer.email}`, 44, currentAddrY, { width: boxWidth - 24, lineBreak: false, ellipsis: true });
       }
 
       const custGst = (customer.gstNumber || order.gstNumber || '').toString().trim().toUpperCase();
@@ -361,7 +382,12 @@ async function generateInvoicePdf(order, customSettings = null) {
       );
 
       // Process items: calculate product price, resolve specific vs global GST, add GST to make total
-      const processedItems = items.map((it) => {
+      const processedItems = items.map((rawIt) => {
+        const it = rawIt && typeof rawIt.toObject === 'function'
+          ? rawIt.toObject()
+          : (rawIt ? JSON.parse(JSON.stringify(rawIt)) : {});
+
+        const itemTitle = (it.title || it.name || it.productName || it.product?.title || it.product?.name || '').trim();
         const price = Number(it.price || 0);
         const quantity = Number(it.quantity || 1);
         const lineGross = price * quantity;
@@ -398,6 +424,7 @@ async function generateInvoicePdf(order, customSettings = null) {
 
         return {
           ...it,
+          title: itemTitle || 'Item',
           price,
           quantity,
           itemGstRate,
@@ -416,7 +443,7 @@ async function generateInvoicePdf(order, customSettings = null) {
           doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(11)
             .text((cfg.companyName || 'FRIENDS COLLECTIONS').toUpperCase(), 32, 14, { characterSpacing: 1 });
           doc.fillColor('#D4AF37').font('Helvetica-Bold').fontSize(8.5)
-            .text(`${(cfg.invoiceTitle || 'TAX INVOICE').split('&')[0].trim()} (CONTINUED) • #${order.orderId}`, doc.page.width - 250, 16, { align: 'right', width: 218 });
+            .text(`${(cfg.invoiceTitle || 'TAX INVOICE').split('&')[0].trim()} (CONTINUED) • #${displayOrderId}`, doc.page.width - 250, 16, { align: 'right', width: 218 });
 
           tableY = 54;
           renderTableHeader(tableY);
@@ -432,10 +459,13 @@ async function generateInvoicePdf(order, customSettings = null) {
 
         // Item Title
         doc.font('Helvetica-Bold').fontSize(8)
-          .text(it.title || 'Designer Garment', colX.item, tableY + 5, { width: 198, lineBreak: false, ellipsis: true });
+          .text(it.title, colX.item, tableY + 5, { width: 198, lineBreak: false, ellipsis: true });
 
         // Clean Variant details (NO "Specific" or "Global" badge printed)
-        const varParts = [it.size ? `Size: ${it.size}` : '', it.color ? `Color: ${it.color}` : ''].filter(Boolean);
+        const varParts = [
+          it.size && it.size.toLowerCase() !== 'no size' ? `Size: ${it.size}` : '',
+          it.color ? `Color: ${it.color}` : ''
+        ].filter(Boolean);
         const varTxt = varParts.join(' • ');
         if (varTxt) {
           doc.font('Helvetica').fontSize(6.8).fillColor(MUTED)
@@ -575,7 +605,7 @@ async function generateInvoicePdf(order, customSettings = null) {
       doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5)
         .text(deliveryRange, guaranteeX + 12, totalsY + 24);
       doc.fillColor(MUTED).font('Helvetica').fontSize(7.5)
-        .text('Hand-inspected & packaged with love at our Jamalia boutique. Track live status using your Order Reference on our website.', guaranteeX + 12, totalsY + 40, { width: guaranteeWidth - 24 });
+        .text('Hand-inspected & packaged with care. Track live status using your Order Reference on our website.', guaranteeX + 12, totalsY + 40, { width: guaranteeWidth - 24 });
 
       // ==========================================
       // 5. FOOTER & AUTHENTICITY NOTE (Strictly pinned to last page with no overflow)
@@ -590,12 +620,12 @@ async function generateInvoicePdf(order, customSettings = null) {
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
         .fontSize(8)
-        .text(cfg.footerNote || 'Thank You for Shopping with Friends Collections!', 32, footerY + 6, { width: 330, lineBreak: false });
+        .text(cfg.footerNote || 'Thank You for Shopping with Us!', 32, footerY + 6, { width: 330, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')
         .fontSize(6.8)
-        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact • Jamalia, Perambur, Chennai - 600012', 32, footerY + 18, { width: 330, lineBreak: false });
+        .text(cfg.terms || '7-Day Easy Exchange Policy on Unworn Items with Tags Intact.', 32, footerY + 18, { width: 330, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')

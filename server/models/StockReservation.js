@@ -18,6 +18,10 @@ const stockReservationSchema = new mongoose.Schema({
   expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
+// Compound indexes for fast stock availability lookups & reservation checks
+stockReservationSchema.index({ 'items.product': 1, status: 1, expiresAt: 1 });
+stockReservationSchema.index({ sessionId: 1, status: 1 });
+
 // TTL index to automatically purge old records after 24 hours
 stockReservationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 86400 });
 

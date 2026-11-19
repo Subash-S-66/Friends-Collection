@@ -289,15 +289,45 @@ exports.verifyAndSaveSignature = async (req, res, next) => {
     // Verify token
     const tokenRecord = await VerificationToken.findOne({
       email: adminEmail,
-      token: cleanOtp,
       type: 'signature-change',
       used: false,
       expiresAt: { $gt: new Date() }
-    });
+    }).sort({ createdAt: -1 });
 
     if (!tokenRecord) {
       return res.status(400).json({
-        message: 'Invalid or expired OTP code. Please verify the 6 digits or request a fresh OTP.'
+        message: 'Invalid or expired OTP code. Please request a fresh OTP.'
+      });
+    }
+
+    if (tokenRecord.attempts >= 5) {
+      tokenRecord.used = true;
+      await tokenRecord.save();
+      return res.status(400).json({
+        message: 'Too many incorrect attempts. This signature verification OTP has been invalidated for security. Please request a new code.'
+      });
+    }
+
+    const crypto = require('crypto');
+    const recordBuf = Buffer.from(tokenRecord.token, 'utf8');
+    const inputBuf = Buffer.from(cleanOtp, 'utf8');
+    const isMatch = recordBuf.length === inputBuf.length && crypto.timingSafeEqual(recordBuf, inputBuf);
+
+    if (!isMatch) {
+      tokenRecord.attempts = (tokenRecord.attempts || 0) + 1;
+      if (tokenRecord.attempts >= 5) {
+        tokenRecord.used = true;
+      }
+      await tokenRecord.save();
+
+      if (tokenRecord.attempts >= 5) {
+        return res.status(400).json({
+          message: 'Too many incorrect attempts. This signature verification OTP has been invalidated for security. Please request a new code.'
+        });
+      }
+      const remaining = 5 - tokenRecord.attempts;
+      return res.status(400).json({
+        message: `Invalid OTP code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
       });
     }
 

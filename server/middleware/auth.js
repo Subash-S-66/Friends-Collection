@@ -18,7 +18,7 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized, no token' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     req.user = await User.findById(decoded.id).select('-password');
 
     if (!req.user) {
@@ -26,7 +26,9 @@ const auth = async (req, res, next) => {
     }
 
     // Token Version Verification (Session Revocation / Instant Kill Switch)
-    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== (req.user.tokenVersion || 0)) {
+    const userTokenVersion = req.user.tokenVersion || 0;
+    const tokenVersion = decoded.tokenVersion ?? 0;
+    if (tokenVersion !== userTokenVersion) {
       return res.status(401).json({
         message: 'This session has been revoked or expired. Please sign in again.',
         sessionRevoked: true
@@ -49,9 +51,9 @@ const optionalAuth = async (req, res, next) => {
     }
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
       const user = await User.findById(decoded.id).select('-password');
-      if (user && (decoded.tokenVersion === undefined || decoded.tokenVersion === (user.tokenVersion || 0))) {
+      if (user && (decoded.tokenVersion ?? 0) === (user.tokenVersion || 0)) {
         req.user = user;
       }
     }

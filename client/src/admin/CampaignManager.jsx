@@ -51,7 +51,7 @@ const FESTIVAL_TEMPLATES = [
   </ul>
 </div>
 <p style="text-align: center; font-size: 13px; color: #78716C; margin-top: 14px;">
-  Visit our boutique at Jamalia, Chennai or place your order online right away!
+  Visit our physical boutique store or place your order online right away!
 </p>
 `
   },
@@ -1081,7 +1081,7 @@ const CampaignManager = () => {
               {/* Royal Footer */}
               <div className="bg-[#FAF6F0] p-5 text-center text-[10px] text-[#8C827A] border-t border-[#EEDCD0] space-y-1">
                 <p className="font-bold text-[#4A0E17] text-xs">
-                  Friends Collections • Jamalia Store
+                  Friends Collections • Flagship Boutique
                 </p>
                 <p>7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 600012</p>
                 <p>WhatsApp Helpline: +91 95007 57024 • Help Desk: friends.collection.support@gmail.com</p>
