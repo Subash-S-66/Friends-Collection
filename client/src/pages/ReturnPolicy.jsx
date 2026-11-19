@@ -36,7 +36,7 @@ const ReturnPolicy = () => {
             ...prev,
             ...res.data,
             storeAddress: res.data.contactInfo?.address || res.data.storeAddress || prev.storeAddress,
-            storeEmail: res.data.contactInfo?.email || res.data.storeEmail || prev.storeEmail,
+            storeEmail: res.data.supportEmail || res.data.storeEmail || res.data.contactInfo?.email || prev.storeEmail,
             storePhone: res.data.contactInfo?.phones?.[0] || res.data.storePhone || prev.storePhone,
             whatsappNumber: res.data.whatsappNumber || (res.data.contactInfo?.phones?.[0] ? res.data.contactInfo.phones[0].replace(/[^0-9]/g, '') : prev.whatsappNumber)
           }));

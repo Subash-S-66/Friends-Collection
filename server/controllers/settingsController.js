@@ -22,7 +22,7 @@ exports.getSettings = async (req, res, next) => {
     }
 
     // Always expose storeEmail & supportEmail for contact and help desk
-    const supportEmail = settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com';
+    const supportEmail = process.env.SUPPORT_EMAIL || settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || 'friends.collection.support@gmail.com';
     settingsObj.storeEmail = supportEmail;
     settingsObj.supportEmail = supportEmail;
 
@@ -203,7 +203,7 @@ exports.adminGetSettings = async (req, res, next) => {
     }
 
     // Always expose storeEmail & supportEmail for contact and help desk
-    const supportEmail = settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com';
+    const supportEmail = process.env.SUPPORT_EMAIL || settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || 'friends.collection.support@gmail.com';
     settingsObj.storeEmail = supportEmail;
     settingsObj.supportEmail = supportEmail;
 
