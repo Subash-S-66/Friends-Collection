@@ -221,6 +221,28 @@ const OrderConfirmation = () => {
             </div>
           </div>
 
+          {/* Cancellation / Refund Notice */}
+          {(order?.status === 'cancelled' || order?.paymentStatus === 'refund_processing' || order?.paymentStatus === 'refunded') && (
+            <div className={`p-4 rounded-2xl text-left border text-xs space-y-1 ${
+              order?.paymentStatus === 'refunded'
+                ? 'bg-neutral-100 border-neutral-300 text-neutral-800'
+                : order?.paymentStatus === 'refund_processing'
+                ? 'bg-amber-50 border-amber-300 text-amber-950'
+                : 'bg-red-50 border-red-200 text-red-900'
+            }`}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <span>{order?.paymentStatus === 'refunded' ? 'Refunded' : (order?.paymentStatus === 'refund_processing' ? `Item is cancelled and refund is processing with ID: ${order?.paymentDetails?.refundId || order?.orderId}` : 'Item is cancelled')}</span>
+              </div>
+              <p className="text-[11px] opacity-85">
+                {order?.paymentStatus === 'refunded'
+                  ? 'Payment has been successfully refunded to your original payment account.'
+                  : order?.paymentStatus === 'refund_processing'
+                  ? 'Your refund is under process with the banking network (5 to 7 working days).'
+                  : 'This order was cancelled.'}
+              </p>
+            </div>
+          )}
+
           {/* Interactive Fulfillment Timeline Stepper */}
           <div className="pt-2 text-left">
             <div className="flex items-center justify-between mb-3">

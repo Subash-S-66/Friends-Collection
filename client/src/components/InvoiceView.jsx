@@ -75,6 +75,14 @@ const InvoiceView = ({
   const isYetToMove = order.status === 'yet_to_move' || order.status === 'order_received' || order.status === 'pending';
   const isOrderReceived = isYetToMove;
   const isPaid = order.paymentStatus === 'paid';
+  const isCancelled = order.status === 'cancelled';
+  const isRefunded = order.paymentStatus === 'refunded' || order.paymentDetails?.refundStatus === 'processed';
+  const isRefundProcessing = !isRefunded && (
+    order.paymentStatus === 'refund_processing' ||
+    order.paymentDetails?.refundStatus === 'pending' ||
+    (isCancelled && (order.paymentStatus === 'refund_processing' || Boolean(order.paymentDetails?.refundId)))
+  );
+  const refundId = order.paymentDetails?.refundId || order.paymentDetails?.razorpayPaymentId || order.orderId;
 
   const getFulfillmentLabel = (st) => {
     switch (st) {
@@ -249,12 +257,22 @@ const InvoiceView = ({
             <span className="text-neutral-500">Payment Status:</span>
             <span
               className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${
-                isPaid
+                isRefunded
+                  ? 'bg-neutral-800 text-white border border-neutral-700'
+                  : isRefundProcessing
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : isPaid
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   : 'bg-amber-100 text-amber-900 border border-amber-300'
               }`}
             >
-              {isPaid ? 'PAID' : 'PAYMENT PENDING'}
+              {isRefunded
+                ? 'REFUNDED'
+                : isRefundProcessing
+                ? 'REFUND IN PROGRESS'
+                : isPaid
+                ? 'PAID'
+                : 'PAYMENT PENDING'}
             </span>
           </div>
 
@@ -274,11 +292,43 @@ const InvoiceView = ({
               <span className="font-mono font-bold text-neutral-900">{order.paymentDetails.razorpayPaymentId}</span>
             </div>
           )}
+          {order.paymentDetails?.refundId && (
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-neutral-500">Refund ID:</span>
+              <span className="font-mono font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                {order.paymentDetails.refundId}
+              </span>
+            </div>
+          )}
+          {order.paymentDetails?.refundArn && (
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-neutral-500">Bank ARN / UTR:</span>
+              <span className="font-mono font-bold text-neutral-900 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">
+                {order.paymentDetails.refundArn}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
-            <span className="text-neutral-500">Expected Delivery:</span>
-            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-              {order.expectedDeliveryDate || order.tracking?.estimatedDelivery || '3 to 6 Business Days'}
+            <span className="text-neutral-500">
+              {isCancelled || isRefundProcessing || isRefunded ? 'Order Status:' : 'Expected Delivery:'}
+            </span>
+            <span className={`font-semibold px-2 py-0.5 rounded text-[11px] ${
+              isRefunded
+                ? 'text-neutral-800 bg-neutral-100 border border-neutral-300'
+                : isRefundProcessing
+                ? 'text-amber-800 bg-amber-50 border border-amber-200'
+                : isCancelled
+                ? 'text-red-800 bg-red-50 border border-red-200'
+                : 'text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200'
+            }`}>
+              {isRefunded
+                ? 'Refunded'
+                : isRefundProcessing
+                ? 'Cancelled (Refund Processing)'
+                : isCancelled
+                ? 'Item Cancelled'
+                : (order.expectedDeliveryDate || order.tracking?.estimatedDelivery || '3 to 6 Business Days')}
             </span>
           </div>
 
@@ -286,7 +336,9 @@ const InvoiceView = ({
             <span className="text-neutral-500">Fulfillment Status:</span>
             <span
               className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${
-                isYetToMove
+                isCancelled
+                  ? 'bg-red-100 text-red-800 border border-red-200'
+                  : isYetToMove
                   ? 'bg-amber-50 text-amber-800 border border-amber-200'
                   : order.status === 'shipped'
                   ? 'bg-purple-100 text-purple-800 border border-purple-200'
@@ -309,6 +361,58 @@ const InvoiceView = ({
           )}
         </div>
       </div>
+
+      {/* Cancellation & Refund Status Notification in Invoice */}
+      {(isCancelled || isRefundProcessing || isRefunded) && (
+        <div
+          className={`p-4 sm:p-5 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in ${
+            isRefunded
+              ? 'bg-neutral-100/90 border-neutral-300 text-neutral-800'
+              : isRefundProcessing
+              ? 'bg-amber-50 border-amber-300 text-amber-950'
+              : 'bg-red-50 border-red-200 text-red-900'
+          }`}
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  isRefunded
+                    ? 'bg-neutral-800 text-white'
+                    : isRefundProcessing
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-red-600 text-white'
+                }`}
+              >
+                {isRefunded ? 'Refunded' : isRefundProcessing ? 'Refund in Progress' : 'Cancelled'}
+              </span>
+              <p className="font-bold text-sm sm:text-base">
+                {isRefunded
+                  ? 'Refunded'
+                  : isRefundProcessing
+                  ? `Item is cancelled and refund is processing with ID: ${refundId}`
+                  : 'Item is cancelled'}
+              </p>
+            </div>
+            <p className="text-[11px] opacity-85">
+              {isRefunded
+                ? 'The payment has been fully refunded back to your original source account.'
+                : isRefundProcessing
+                ? 'Your refund has been initiated and is currently being processed by the banking network (typically 5 to 7 working days).'
+                : 'This order was cancelled. Items have been restocked.'}
+            </p>
+          </div>
+
+          <div className="text-left sm:text-right shrink-0 space-y-0.5 font-mono text-[11px]">
+            {order.paymentDetails?.refundId && (
+              <p>Refund ID: <strong className="text-neutral-900">{order.paymentDetails.refundId}</strong></p>
+            )}
+            {order.paymentDetails?.refundArn && (
+              <p>Bank ARN / UTR: <strong className="text-neutral-900">{order.paymentDetails.refundArn}</strong></p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 3. Itemized Table */}
       {(() => {

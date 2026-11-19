@@ -2310,6 +2310,24 @@ const BannerManager = () => {
                     )}
                   </div>
 
+                  {/* Best Banner Image Size Guidance Banner */}
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/15 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-primary flex items-center gap-1.5">
+                        📐 Recommended Banner Image Size for Best Quality:
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white">
+                        16:9 Landscape
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-neutral-700 text-[11px]">
+                      <p>• Aspect Ratio: <strong className="text-primary">16:9 Landscape</strong></p>
+                      <p>• Ideal Size: <strong className="text-primary">1920 × 1080 px</strong></p>
+                      <p>• Also Works: <strong className="text-neutral-900">1920 × 1200 px (16:10)</strong></p>
+                      <p>• Formats: <strong className="text-neutral-900">JPG, PNG, WEBP</strong></p>
+                    </div>
+                  </div>
+
                   {/* Hidden File Input */}
                   <input
                     ref={fileInputRef}
@@ -2376,9 +2394,12 @@ const BannerManager = () => {
                           <p className="text-[11px] text-neutral-500 font-medium">
                             Supports JPG, PNG, WEBP (Landscape recommended)
                           </p>
-                          <p className="text-[10px] text-accent-800 font-semibold pt-0.5">
-                            Exact banner size: <strong className="text-primary font-bold">1920 × 1080 px</strong> (16:9 ratio) or <strong className="text-primary font-bold">1920 × 1200 px</strong> (16:10 ratio)
-                          </p>
+                          <div className="text-left w-full max-w-xs mx-auto mt-1 p-2 rounded-lg bg-primary/5 border border-primary/10 text-[10px] space-y-0.5">
+                            <p className="font-bold text-primary">📐 Best Banner Image Size:</p>
+                            <p className="text-neutral-700">• Aspect Ratio: <strong className="text-primary">16:9 Landscape</strong></p>
+                            <p className="text-neutral-700">• Ideal Size: <strong className="text-primary">1920 × 1080 px</strong></p>
+                            <p className="text-neutral-700">• Also works: <strong className="text-neutral-900">1920 × 1200 px</strong> (16:10)</p>
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -2648,6 +2669,24 @@ const BannerManager = () => {
                     className="hidden"
                   />
 
+                  {/* Best Cover Image Size Guidance Banner */}
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-primary/5 border border-primary/15 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-primary flex items-center gap-1.5">
+                        📐 Recommended Cover Image Size for Best Quality:
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white">
+                        16:9 Landscape
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-neutral-700 text-[11px]">
+                      <p>• Aspect Ratio: <strong className="text-primary">16:9 Landscape</strong></p>
+                      <p>• Ideal Size: <strong className="text-primary">1920 × 1080 px</strong></p>
+                      <p>• Also Works: <strong className="text-neutral-900">1920 × 1200 px (16:10)</strong></p>
+                      <p>• Formats: <strong className="text-neutral-900">JPG, PNG, WEBP</strong></p>
+                    </div>
+                  </div>
+
                   {staticCoverPreview ? (
                     <div className="space-y-2">
                       <div className="relative rounded-2xl overflow-hidden border-2 border-accent-200 aspect-[16/8] bg-neutral-900 group shadow-sm">
@@ -2688,9 +2727,13 @@ const BannerManager = () => {
                         <p className="text-xs font-bold text-neutral-800 group-hover:text-primary transition-colors">
                           Click to Upload Single Static Cover Image *
                         </p>
-                        <p className="text-[11px] text-neutral-500">
-                          Recommended size: 1920 × 1080 px or 1920 × 1200 px (JPG, PNG, WEBP)
-                        </p>
+                        <div className="text-left w-full max-w-xs mx-auto mt-1 p-2 rounded-lg bg-primary/5 border border-primary/10 text-[10px] space-y-0.5">
+                          <p className="font-bold text-primary">📐 Best Cover Image Size:</p>
+                          <p className="text-neutral-700">• Aspect Ratio: <strong className="text-primary">16:9 Landscape</strong></p>
+                          <p className="text-neutral-700">• Ideal Size: <strong className="text-primary">1920 × 1080 px</strong></p>
+                          <p className="text-neutral-700">• Also works: <strong className="text-neutral-900">1920 × 1200 px</strong> (16:10)</p>
+                          <p className="text-neutral-700">• Format: <strong className="text-neutral-900">JPG, PNG, or WEBP</strong></p>
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {

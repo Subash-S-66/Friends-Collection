@@ -143,11 +143,12 @@ const Account = () => {
 
   const handleDownloadInvoice = async (targetOrder) => {
     if (!targetOrder?.orderId) return;
+    const phoneParam = targetOrder.customer?.phone ? `?phone=${encodeURIComponent(targetOrder.customer.phone)}` : '';
     await confirmDownload({
       title: 'Download Tax Invoice',
       message: `Would you like to generate and download the authentic Tax Invoice PDF for Order #${targetOrder.orderId}?`,
       orderId: targetOrder.orderId,
-      downloadUrl: `/api/orders/${targetOrder.orderId}/invoice.pdf`,
+      downloadUrl: `/api/orders/${targetOrder.orderId}/invoice.pdf${phoneParam}`,
       fileName: `Invoice-${targetOrder.orderId}.pdf`,
       details: `Friends Collections • Order #${targetOrder.orderId}`
     });
@@ -1641,13 +1642,12 @@ const Account = () => {
               <div className="pt-2 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setInvoiceOrder(detailOrder);
-                  }}
+                  onClick={() => handleDownloadInvoice(detailOrder)}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-accent-50 text-accent-800 hover:bg-accent-100 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
+                  title="Download Tax Invoice"
                 >
                   <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-                  <span>Invoice</span>
+                  <span>Download Invoice</span>
                 </button>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1715,13 +1715,12 @@ const Account = () => {
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
-                      onClick={() => {
-                        setInvoiceOrder(trackingOrder);
-                      }}
+                      onClick={() => handleDownloadInvoice(trackingOrder)}
                       className="px-4 py-2 rounded-xl bg-accent-50 hover:bg-accent-100 text-accent-800 border border-accent-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Download Tax Invoice"
                     >
                       <HiOutlineDownload className="w-4 h-4 text-accent-700" />
-                      <span>Invoice</span>
+                      <span>Download Invoice</span>
                     </button>
                     <button
                       type="button"

@@ -142,16 +142,22 @@ export const ConfirmProvider = ({ children }) => {
         await config.onExecuteDownload();
       } else if (config.downloadUrl) {
         // Fetch blob or anchor click
-        try {
-          let targetUrl = config.downloadUrl;
-          if (
-            targetUrl &&
-            targetUrl.startsWith('/api') &&
-            import.meta.env.VITE_API_URL &&
-            import.meta.env.VITE_API_URL !== '/api'
-          ) {
-            targetUrl = `${import.meta.env.VITE_API_URL}${targetUrl.replace(/^\/api/, '')}`;
+        let targetUrl = config.downloadUrl;
+        if (
+          targetUrl &&
+          targetUrl.startsWith('/api') &&
+          import.meta.env.VITE_API_URL &&
+          import.meta.env.VITE_API_URL !== '/api'
+        ) {
+          const apiBase = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+          if (apiBase.endsWith('/api')) {
+            targetUrl = `${apiBase}${targetUrl.replace(/^\/api/, '')}`;
+          } else {
+            targetUrl = `${apiBase}${targetUrl}`;
           }
+        }
+
+        try {
           const headers = {};
           const token = localStorage.getItem('fc_token');
           if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -168,9 +174,9 @@ export const ConfirmProvider = ({ children }) => {
           link.remove();
           window.URL.revokeObjectURL(blobUrl);
         } catch {
-          // Fallback direct open
+          // Fallback direct open using resolved targetUrl
           const link = document.createElement('a');
-          link.href = config.downloadUrl;
+          link.href = targetUrl;
           link.download = config.fileName || 'Tax-Invoice.pdf';
           document.body.appendChild(link);
           link.click();

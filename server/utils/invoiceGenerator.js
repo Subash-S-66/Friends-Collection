@@ -126,6 +126,14 @@ async function generateInvoicePdf(orderInput, customSettings = null) {
       });
       const deliveryRange = order.expectedDeliveryDate || order.tracking?.estimatedDelivery || getExpectedDeliveryRange(order.createdAt || new Date());
       const isPaid = order.paymentStatus === 'paid';
+      const isCancelled = order.status === 'cancelled';
+      const isRefunded = order.paymentStatus === 'refunded' || order.paymentDetails?.refundStatus === 'processed';
+      const isRefundProcessing = !isRefunded && (
+        order.paymentStatus === 'refund_processing' ||
+        order.paymentDetails?.refundStatus === 'pending' ||
+        (isCancelled && (order.paymentStatus === 'refund_processing' || Boolean(order.paymentDetails?.refundId)))
+      );
+      const refundId = order.paymentDetails?.refundId || order.paymentDetails?.razorpayPaymentId || order.orderId;
       const grandTotal = (Number(order.totalAmount) || 0) + (Number(order.shippingCharge) || 0);
 
       // ==========================================
@@ -310,23 +318,48 @@ async function generateInvoicePdf(orderInput, customSettings = null) {
       doc.text('Order Date:', rightBoxX + 12, boxY + 24);
       doc.fillColor(DARK).font('Helvetica-Bold').text(orderDate, rightBoxX + 88, boxY + 24);
 
-      doc.fillColor(MUTED).font('Helvetica').text('Expected Date:', rightBoxX + 12, boxY + 38);
-      doc.fillColor(GREEN).font('Helvetica-Bold').text(deliveryRange, rightBoxX + 88, boxY + 38);
-
-      doc.fillColor(MUTED).font('Helvetica').text('Payment Method:', rightBoxX + 12, boxY + 51);
-      const methodLabel = order.paymentMethod === 'razorpay' ? 'Razorpay Online' : 'Cash on Delivery (COD)';
-      doc.fillColor(DARK).font('Helvetica-Bold').text(methodLabel, rightBoxX + 88, boxY + 51);
-
-      doc.fillColor(MUTED).font('Helvetica').text('Payment Status:', rightBoxX + 12, boxY + 64);
-      const statusLabel = isPaid ? 'PAID / CONFIRMED' : 'PAYMENT PENDING';
-      doc.fillColor(isPaid ? GREEN : '#C05621').font('Helvetica-Bold').text(statusLabel, rightBoxX + 88, boxY + 64);
-
-      if (order.paymentDetails?.razorpayPaymentId) {
-        doc.fillColor(MUTED).font('Helvetica').text('Transaction ID:', rightBoxX + 12, boxY + 77);
-        doc.fillColor(DARK).font('Helvetica').text(order.paymentDetails.razorpayPaymentId, rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
+      if (isCancelled || isRefundProcessing || isRefunded) {
+        doc.fillColor(MUTED).font('Helvetica').text('Order Status:', rightBoxX + 12, boxY + 38);
+        const statusText = isRefunded
+          ? 'Refunded'
+          : isRefundProcessing
+          ? 'Cancelled (Refund Processing)'
+          : 'Item Cancelled';
+        const statusColor = isRefunded ? '#2D3748' : (isRefundProcessing ? '#C05621' : '#991B1B');
+        doc.fillColor(statusColor).font('Helvetica-Bold').fontSize(8).text(statusText, rightBoxX + 88, boxY + 38, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
       } else {
-        doc.fillColor(MUTED).font('Helvetica').text('Fulfillment:', rightBoxX + 12, boxY + 77);
-        doc.fillColor(DARK).font('Helvetica').text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
+        doc.fillColor(MUTED).font('Helvetica').text('Expected Date:', rightBoxX + 12, boxY + 38);
+        doc.fillColor(GREEN).font('Helvetica-Bold').text(deliveryRange, rightBoxX + 88, boxY + 38);
+      }
+
+      doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Payment Status:', rightBoxX + 12, boxY + 51);
+      let statusLabel = isPaid ? 'PAID / CONFIRMED' : 'PAYMENT PENDING';
+      let statusColor = isPaid ? GREEN : '#C05621';
+      if (isRefunded) {
+        statusLabel = 'REFUNDED';
+        statusColor = '#2D3748';
+      } else if (isRefundProcessing) {
+        statusLabel = 'REFUND IN PROGRESS';
+        statusColor = '#C05621';
+      } else if (isCancelled) {
+        statusLabel = 'CANCELLED';
+        statusColor = '#991B1B';
+      }
+      doc.fillColor(statusColor).font('Helvetica-Bold').fontSize(8).text(statusLabel, rightBoxX + 88, boxY + 51);
+
+      doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Payment Method:', rightBoxX + 12, boxY + 64);
+      const methodLabel = order.paymentMethod === 'razorpay' ? 'Razorpay Online' : 'Cash on Delivery (COD)';
+      doc.fillColor(DARK).font('Helvetica-Bold').text(methodLabel, rightBoxX + 88, boxY + 64);
+
+      if (order.paymentDetails?.refundId) {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Refund ID:', rightBoxX + 12, boxY + 77);
+        doc.fillColor('#92400E').font('Helvetica-Bold').fontSize(7.5).text(order.paymentDetails.refundId, rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
+      } else if (order.paymentDetails?.razorpayPaymentId) {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Transaction ID:', rightBoxX + 12, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').fontSize(8).text(order.paymentDetails.razorpayPaymentId, rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
+      } else {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Fulfillment:', rightBoxX + 12, boxY + 77);
+        doc.fillColor(DARK).font('Helvetica').fontSize(8).text((order.status || 'Confirmed').toUpperCase(), rightBoxX + 88, boxY + 77, { width: boxWidth - 96, lineBreak: false, ellipsis: true });
       }
 
       if (cfg.gstin) {
@@ -596,16 +629,44 @@ async function generateInvoicePdf(orderInput, customSettings = null) {
           .text(`INR ${grandTotal.toLocaleString('en-IN')}`, totalsX + 90, totalsY + 47, { align: 'right', width: 116 });
       }
 
-      // Left of Totals: Delivery Guarantee Banner
+      // Left of Totals: Delivery Guarantee / Refund Status Banner
       const guaranteeX = 32;
       const guaranteeWidth = totalsX - guaranteeX - 12;
-      doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
-      doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
-        .text('ESTIMATED ARRIVAL WINDOW', guaranteeX + 12, totalsY + 10);
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5)
-        .text(deliveryRange, guaranteeX + 12, totalsY + 24);
-      doc.fillColor(MUTED).font('Helvetica').fontSize(7.5)
-        .text('Hand-inspected & packaged with care. Track live status using your Order Reference on our website.', guaranteeX + 12, totalsY + 40, { width: guaranteeWidth - 24 });
+
+      if (isRefundProcessing) {
+        doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#FFFBEB', '#FCD34D');
+        doc.fillColor('#92400E').font('Helvetica-Bold').fontSize(8.5)
+          .text('REFUND IN PROGRESS', guaranteeX + 12, totalsY + 8);
+        doc.fillColor('#78350F').font('Helvetica-Bold').fontSize(9)
+          .text(`Item is cancelled and refund is processing with ID: ${refundId}`, guaranteeX + 12, totalsY + 20, { width: guaranteeWidth - 24 });
+        doc.fillColor('#92400E').font('Helvetica').fontSize(7)
+          .text('The refund has been initiated and takes 5 to 7 working days to reflect in your original payment account.', guaranteeX + 12, totalsY + 41, { width: guaranteeWidth - 24 });
+      } else if (isRefunded) {
+        doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#F3F4F6', '#D1D5DB');
+        doc.fillColor('#1F2937').font('Helvetica-Bold').fontSize(8.5)
+          .text('PAYMENT REFUNDED', guaranteeX + 12, totalsY + 8);
+        doc.fillColor('#111827').font('Helvetica-Bold').fontSize(10)
+          .text('Refunded', guaranteeX + 12, totalsY + 20);
+        const arnText = order.paymentDetails?.refundArn ? `Bank ARN: ${order.paymentDetails.refundArn} • ` : (order.paymentDetails?.refundId ? `Refund ID: ${order.paymentDetails.refundId} • ` : '');
+        doc.fillColor('#4B5563').font('Helvetica').fontSize(7.5)
+          .text(`${arnText}Payment has been successfully settled and refunded back to your account.`, guaranteeX + 12, totalsY + 38, { width: guaranteeWidth - 24 });
+      } else if (isCancelled) {
+        doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#FEF2F2', '#FECACA');
+        doc.fillColor('#991B1B').font('Helvetica-Bold').fontSize(8.5)
+          .text('ORDER CANCELLED', guaranteeX + 12, totalsY + 8);
+        doc.fillColor('#7F1D1D').font('Helvetica-Bold').fontSize(10)
+          .text('Item is cancelled', guaranteeX + 12, totalsY + 20);
+        doc.fillColor('#991B1B').font('Helvetica').fontSize(7.5)
+          .text('This order has been cancelled and garments restocked back into collection.', guaranteeX + 12, totalsY + 38, { width: guaranteeWidth - 24 });
+      } else {
+        doc.roundedRect(guaranteeX, totalsY, guaranteeWidth, totalsBoxHeight, 8).fillAndStroke('#F6FAF7', '#C6E3D0');
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
+          .text('ESTIMATED ARRIVAL WINDOW', guaranteeX + 12, totalsY + 10);
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5)
+          .text(deliveryRange, guaranteeX + 12, totalsY + 24);
+        doc.fillColor(MUTED).font('Helvetica').fontSize(7.5)
+          .text('Hand-inspected & packaged with care. Track live status using your Order Reference on our website.', guaranteeX + 12, totalsY + 40, { width: guaranteeWidth - 24 });
+      }
 
       // ==========================================
       // 5. FOOTER & AUTHENTICITY NOTE (Strictly pinned to last page with no overflow)
@@ -617,10 +678,18 @@ async function generateInvoicePdf(orderInput, customSettings = null) {
       doc.rect(32, footerY, doc.page.width - 64, 0.75).fill(BORDER_COLOR);
 
       // Left Column: Terms, notes & gratitude
+      const footerNotice = isRefunded
+        ? 'Order Refunded • Payment Credited Back'
+        : isRefundProcessing
+        ? `Item is cancelled and refund is processing with ID: ${refundId}`
+        : isCancelled
+        ? 'Order Cancelled'
+        : (cfg.footerNote || 'Thank You for Shopping with Us!');
+
       doc.fillColor(PRIMARY)
         .font('Helvetica-Bold')
         .fontSize(8)
-        .text(cfg.footerNote || 'Thank You for Shopping with Us!', 32, footerY + 6, { width: 330, lineBreak: false });
+        .text(footerNotice, 32, footerY + 6, { width: 330, lineBreak: false });
 
       doc.fillColor(MUTED)
         .font('Helvetica')

@@ -2357,6 +2357,27 @@ const ProductManager = () => {
                   </div>
                 </div>
 
+                {/* Image Size Recommendation Notice */}
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-[11px] space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-primary flex items-center gap-1.5 text-xs">
+                      📐 Recommended Product Image Size:
+                    </p>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white">
+                      3:4 Portrait Ratio
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-neutral-700">
+                    <p>• Aspect Ratio: <strong className="text-primary font-bold">3:4 Portrait</strong></p>
+                    <p>• Ideal Resolution: <strong className="text-primary font-bold">900 × 1200 px</strong></p>
+                    <p>• Minimum Size: <strong className="text-neutral-900 font-semibold">600 × 800 px</strong></p>
+                    <p>• Supported Formats: <strong className="text-neutral-900 font-semibold">JPG, PNG, or WEBP</strong></p>
+                  </div>
+                  <p className="text-[10px] text-neutral-500 pt-0.5">
+                    💡 3:4 portrait photos look best across shop cards, mobile feeds, and zoom galleries.
+                  </p>
+                </div>
+
                 {/* File picker */}
                 <div>
                   <input
@@ -2364,10 +2385,10 @@ const ProductManager = () => {
                     multiple
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-light cursor-pointer"
+                    className="block w-full text-xs text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-light cursor-pointer shadow-xs"
                   />
                   <p className="text-[10px] text-neutral-400 mt-1">
-                    Tip: You can select multiple files at once. You can freely re-order or remove photos using the buttons on each card.
+                    Tip: You can select multiple files at once. You can freely re-order or remove photos using the buttons on each card below.
                   </p>
                 </div>
 
