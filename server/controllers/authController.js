@@ -211,7 +211,7 @@ exports.updateProfile = async (req, res, next) => {
     if (address && address.street && address.city && address.pincode) {
       const cleanStreet = address.street.trim();
       const cleanCity = address.city.trim();
-      const cleanState = (address.state || 'Tamil Nadu').trim();
+      const cleanState = (address.state || '').trim();
       const cleanPincode = address.pincode.trim();
       const cleanLabel = (address.label || 'Home').trim();
       const cleanGst = address.gstNumber ? address.gstNumber.trim().toUpperCase() : (user.gstNumber || '');

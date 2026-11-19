@@ -15,6 +15,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { getCachedSettings, setCachedSettings, parseShippingSettings } from '../utils/settings';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -94,36 +95,34 @@ const Checkout = () => {
     }
   };
 
-  const [threshold, setThreshold] = useState(999);
-  const [shippingFee, setShippingFee] = useState(79);
-  const [gstPercentage, setGstPercentage] = useState(5);
+  const initialSettings = parseShippingSettings(getCachedSettings());
+  const [threshold, setThreshold] = useState(initialSettings.freeShippingThreshold);
+  const [shippingFee, setShippingFee] = useState(initialSettings.shippingFee);
+  const [gstPercentage, setGstPercentage] = useState(initialSettings.gstPercentage ?? 5);
+  const [settingsLoaded, setSettingsLoaded] = useState(initialSettings.isLoaded);
+
   useEffect(() => {
     API.get('/settings').then(res => {
-      if (res.data?.shippingCharge) {
-        if (res.data.shippingCharge.amount !== undefined) {
-          setShippingFee(Number(res.data.shippingCharge.amount));
+      if (res.data && typeof res.data === 'object') {
+        setCachedSettings(res.data);
+        const parsed = parseShippingSettings(res.data);
+        if (parsed.freeShippingThreshold !== null) {
+          setThreshold(parsed.freeShippingThreshold);
         }
-        if (res.data.shippingCharge.freeAbove !== undefined) {
-          setThreshold(Number(res.data.shippingCharge.freeAbove));
+        if (parsed.shippingFee !== null) {
+          setShippingFee(parsed.shippingFee);
         }
-      }
-      if (res.data?.freeShippingThreshold !== undefined) {
-        setThreshold(Number(res.data.freeShippingThreshold));
-      }
-      if (res.data?.shippingFee !== undefined) {
-        setShippingFee(Number(res.data.shippingFee));
-      }
-      if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
-        setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
-      } else if (res.data?.gstPercentage !== undefined) {
-        setGstPercentage(Number(res.data.gstPercentage));
+        if (parsed.gstPercentage !== null) {
+          setGstPercentage(parsed.gstPercentage);
+        }
+        setSettingsLoaded(true);
       }
     }).catch(() => {});
   }, []);
 
   const freeShippingThreshold = threshold;
-  const isFreeShipping = subtotal >= freeShippingThreshold;
-  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
+  const isFreeShipping = settingsLoaded && freeShippingThreshold !== null ? subtotal >= freeShippingThreshold : false;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : (shippingFee ?? 0));
   const grandTotal = subtotal + shippingCharge;
 
   // Compute item-level custom GST or fallback to store global GST
@@ -198,8 +197,8 @@ const Checkout = () => {
     email: '',
     gstNumber: '',
     street: '',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
+    city: '',
+    state: '',
     pincode: '',
     saveInfo: true,
     paymentMethod: 'razorpay', // 'razorpay' | 'cod'
@@ -283,8 +282,8 @@ const Checkout = () => {
         email: saved.email || '',
         gstNumber: saved.gstNumber || '',
         street: saved.street || '',
-        city: saved.city || 'Chennai',
-        state: saved.state || 'Tamil Nadu',
+        city: saved.city || '',
+        state: saved.state || '',
         pincode: saved.pincode || '',
       }));
     }
@@ -724,7 +723,7 @@ const Checkout = () => {
                     required
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="e.g. Priya Sundaram"
+                    placeholder="Enter your full name"
                     className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                   />
                 </div>
@@ -753,7 +752,7 @@ const Checkout = () => {
                       maxLength={10}
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="95007 57024"
+                      placeholder="10-digit mobile number"
                       className={`w-full pl-12 pr-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all bg-neutral-50/50 ${
                         formData.phone.length > 0 && !isPhoneValid
                           ? 'border-red-400 focus:ring-red-400 focus:border-red-400 bg-red-50/20'
@@ -792,7 +791,7 @@ const Checkout = () => {
                       maxLength={10}
                       value={formData.secondaryPhone}
                       onChange={handleChange}
-                      placeholder="e.g. 98401 12345 (Optional)"
+                      placeholder="Alternate mobile number (Optional)"
                       className="w-full pl-12 pr-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                     />
                   </div>
@@ -822,7 +821,7 @@ const Checkout = () => {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="priya@example.com"
+                    placeholder="name@example.com"
                     className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all bg-neutral-50/50 ${
                       formData.email.length > 0 && !isEmailValid
                         ? 'border-red-400 focus:ring-red-400 focus:border-red-400 bg-red-50/20'
@@ -981,7 +980,7 @@ const Checkout = () => {
                     required
                     value={formData.street}
                     onChange={handleChange}
-                    placeholder="Flat 3B, 7/4 Perambur High Road, Jamalia"
+                    placeholder="House / Flat no., Apartment, Street name, Area"
                     className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                   />
                 </div>
@@ -997,7 +996,7 @@ const Checkout = () => {
                       required
                       value={formData.city}
                       onChange={handleChange}
-                      placeholder="Chennai"
+                      placeholder="Enter City / District"
                       className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                     />
                   </div>
@@ -1012,7 +1011,7 @@ const Checkout = () => {
                       required
                       value={formData.state}
                       onChange={handleChange}
-                      placeholder="Tamil Nadu"
+                      placeholder="Enter State"
                       className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                     />
                   </div>
@@ -1028,7 +1027,7 @@ const Checkout = () => {
                       maxLength={6}
                       value={formData.pincode}
                       onChange={handleChange}
-                      placeholder="600012"
+                      placeholder="6-digit PIN code"
                       className="w-full px-4 py-3 rounded-xl border border-accent-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-neutral-50/50"
                     />
                   </div>
@@ -1338,7 +1337,9 @@ const Checkout = () => {
               <div className="flex justify-between text-neutral-600">
                 <span>Delivery Charge</span>
                 <span className="font-bold text-neutral-900 font-numeric">
-                  {isFreeShipping ? (
+                  {!settingsLoaded ? (
+                    <span className="inline-block w-14 h-4 bg-neutral-200/80 rounded animate-pulse" />
+                  ) : isFreeShipping ? (
                     <span className="text-emerald-700 text-xs font-bold uppercase font-sans">FREE</span>
                   ) : (
                     formatPrice(shippingCharge)
@@ -1364,14 +1365,20 @@ const Checkout = () => {
                     </span>
                   )}
                 </div>
-                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(grandTotal)}</span>
+                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
+                  {!settingsLoaded ? (
+                    <span className="inline-block w-20 h-6 bg-neutral-200/80 rounded animate-pulse" />
+                  ) : (
+                    formatPrice(grandTotal)
+                  )}
+                </span>
               </div>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !settingsLoaded}
               className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? (
@@ -1381,6 +1388,8 @@ const Checkout = () => {
                     {formData.paymentMethod === 'razorpay' ? 'Opening Secure Payment Gateway...' : 'Confirming Order... Please wait'}
                   </span>
                 </>
+              ) : !settingsLoaded ? (
+                <span>Loading checkout rates...</span>
               ) : formData.paymentMethod === 'razorpay' ? (
                 <>
                   <HiOutlineLockClosed className="w-4 h-4 text-accent-300" />
@@ -1403,7 +1412,14 @@ const Checkout = () => {
               </p>
             )}
 
-            <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-500 pt-2">
+            <p className="text-center text-[11px] text-neutral-500 leading-normal px-1">
+              By confirming this order, you agree to Friends Collections&apos;{' '}
+              <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline hover:text-primary-light">Terms of Service</Link>,{' '}
+              <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline hover:text-primary-light">Privacy Policy</Link>, and{' '}
+              <Link to="/returns" target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline hover:text-primary-light">Return & Refund Policy</Link>.
+            </p>
+
+            <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-500 pt-1">
               <HiOutlineShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Safe & Secure • Direct Store Fulfillment by Friends Collections</span>
             </div>

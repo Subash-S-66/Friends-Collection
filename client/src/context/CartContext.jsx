@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { getCachedSettings, setCachedSettings, parseShippingSettings } from '../utils/settings';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
@@ -431,26 +432,21 @@ export const CartProvider = ({ children }) => {
   const totalItems = availableItems.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = availableItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Dynamic store-wide shipping & free delivery settings
-  const [shippingFee, setShippingFee] = useState(79);
-  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+  // Dynamic store-wide shipping & free delivery settings (Synchronous cache-first, NO static 79/999)
+  const initialSettings = parseShippingSettings(getCachedSettings());
+  const [shippingFee, setShippingFee] = useState(initialSettings.shippingFee);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(initialSettings.freeShippingThreshold);
+  const [settingsLoaded, setSettingsLoaded] = useState(initialSettings.isLoaded);
 
   const fetchShippingSettings = useCallback(async () => {
     try {
       const res = await API.get('/settings');
-      if (res.data?.shippingCharge) {
-        if (res.data.shippingCharge.amount !== undefined) {
-          setShippingFee(Number(res.data.shippingCharge.amount));
-        }
-        if (res.data.shippingCharge.freeAbove !== undefined) {
-          setFreeShippingThreshold(Number(res.data.shippingCharge.freeAbove));
-        }
-      }
-      if (res.data?.freeShippingThreshold !== undefined) {
-        setFreeShippingThreshold(Number(res.data.freeShippingThreshold));
-      }
-      if (res.data?.shippingFee !== undefined) {
-        setShippingFee(Number(res.data.shippingFee));
+      if (res.data && typeof res.data === 'object') {
+        setCachedSettings(res.data);
+        const parsed = parseShippingSettings(res.data);
+        if (parsed.shippingFee !== null) setShippingFee(parsed.shippingFee);
+        if (parsed.freeShippingThreshold !== null) setFreeShippingThreshold(parsed.freeShippingThreshold);
+        setSettingsLoaded(true);
       }
     } catch (e) {
       console.warn('Error fetching shipping settings in CartContext:', e);
@@ -462,13 +458,28 @@ export const CartProvider = ({ children }) => {
   }, [fetchShippingSettings]);
 
   useEffect(() => {
+    const onSettingsUpdated = (e) => {
+      if (e.detail) {
+        const parsed = parseShippingSettings(e.detail);
+        if (parsed.shippingFee !== null) setShippingFee(parsed.shippingFee);
+        if (parsed.freeShippingThreshold !== null) setFreeShippingThreshold(parsed.freeShippingThreshold);
+        setSettingsLoaded(true);
+      } else {
+        fetchShippingSettings();
+      }
+    };
+    window.addEventListener('store_settings_updated', onSettingsUpdated);
+    return () => window.removeEventListener('store_settings_updated', onSettingsUpdated);
+  }, [fetchShippingSettings]);
+
+  useEffect(() => {
     if (isCartOpen) {
       fetchShippingSettings();
     }
   }, [isCartOpen, fetchShippingSettings]);
 
-  const isFreeShipping = subtotal >= freeShippingThreshold;
-  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
+  const isFreeShipping = settingsLoaded && freeShippingThreshold !== null ? subtotal >= freeShippingThreshold : false;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : (shippingFee ?? 0));
 
   // Guest address saving
   const getSavedAddress = () => {
@@ -501,6 +512,7 @@ export const CartProvider = ({ children }) => {
         subtotal,
         shippingFee,
         freeShippingThreshold,
+        settingsLoaded,
         isFreeShipping,
         shippingCharge,
         fetchShippingSettings,

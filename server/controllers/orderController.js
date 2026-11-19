@@ -144,10 +144,6 @@ exports.placeOrder = async (req, res, next) => {
           message: 'Please verify your email or phone number before placing orders.'
         });
       }
-      // If customer email differs from token owner, bind to authenticated user to prevent token hijacking
-      if (req.user.email && req.user.email.toLowerCase() !== cleanEmail && req.user.role !== 'admin') {
-        customer.email = req.user.email.toLowerCase();
-      }
     }
 
     if (customer.secondaryPhone && customer.secondaryPhone.trim()) {
@@ -542,25 +538,6 @@ exports.trackOrder = async (req, res, next) => {
       delete orderObj.paymentDetails.razorpaySignature;
     }
 
-    // Mask sensitive PII for unverified guest viewers
-    if (!isAdmin && !isOwner && !isPhoneMatched) {
-      if (orderObj.customer) {
-        if (orderObj.customer.phone) {
-          orderObj.customer.phone = orderObj.customer.phone.slice(0, 2) + '******' + orderObj.customer.phone.slice(-2);
-        }
-        if (orderObj.customer.secondaryPhone) {
-          orderObj.customer.secondaryPhone = orderObj.customer.secondaryPhone.slice(0, 2) + '******' + orderObj.customer.secondaryPhone.slice(-2);
-        }
-        if (orderObj.customer.email) {
-          const parts = orderObj.customer.email.split('@');
-          orderObj.customer.email = (parts[0] || '').slice(0, 2) + '***@' + (parts[1] || '');
-        }
-        if (orderObj.customer.address) {
-          orderObj.customer.address.street = '*** (Provide mobile number to view full address) ***';
-        }
-      }
-    }
-
     res.json(orderObj);
   } catch (error) {
     next(error);
@@ -586,32 +563,11 @@ exports.getOrdersByPhone = async (req, res, next) => {
       ]
     }).sort({ createdAt: -1 });
 
-    const isAdmin = req.user && req.user.role === 'admin';
-    const isOwner = req.user && req.user.phone && req.user.phone.replace(/\D/g, '').slice(-10) === cleanPhone;
-
     const sanitizedOrders = orders.map((o) => {
       const obj = o.toObject();
       delete obj.securityAudit;
       if (obj.paymentDetails) {
         delete obj.paymentDetails.razorpaySignature;
-      }
-      // Mask PII if viewer is not the authenticated owner or admin to prevent phone enumeration scraping
-      if (!isAdmin && !isOwner) {
-        if (obj.customer) {
-          if (obj.customer.phone) {
-            obj.customer.phone = obj.customer.phone.slice(0, 2) + '******' + obj.customer.phone.slice(-2);
-          }
-          if (obj.customer.secondaryPhone) {
-            obj.customer.secondaryPhone = obj.customer.secondaryPhone.slice(0, 2) + '******' + obj.customer.secondaryPhone.slice(-2);
-          }
-          if (obj.customer.email) {
-            const parts = obj.customer.email.split('@');
-            obj.customer.email = (parts[0] || '').slice(0, 2) + '***@' + (parts[1] || '');
-          }
-          if (obj.customer.address) {
-            obj.customer.address.street = '*** (Sign in to view full delivery address) ***';
-          }
-        }
       }
       return obj;
     });

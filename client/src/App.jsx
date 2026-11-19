@@ -37,6 +37,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 const InvoicePage = lazy(() => import('./pages/InvoicePage'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
+const ReturnPolicy = lazy(() => import('./pages/ReturnPolicy'));
 
 // Lazy-Loaded Admin Dashboard Modules (Heavy bundles isolated from storefront visitors)
 const AdminLayout = lazy(() => import('./admin/AdminLayout'));
@@ -123,6 +124,11 @@ const AppLayout = () => {
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/returns" element={<ReturnPolicy />} />
+            <Route path="/return-policy" element={<ReturnPolicy />} />
+            <Route path="/refund-policy" element={<ReturnPolicy />} />
+            <Route path="/cancellation-refund" element={<ReturnPolicy />} />
+            <Route path="/refund" element={<ReturnPolicy />} />
 
             {/* Admin Dashboard Routes */}
             <Route path="/admin" element={<AdminLayout />}>

@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineDocumentText, HiOutlineScale, HiOutlineMail, HiOutlineLocationMarker } from 'react-icons/hi';
+import {
+  HiOutlineScale,
+  HiOutlineShieldCheck,
+  HiOutlineRefresh,
+  HiOutlineDocumentText,
+  HiOutlineMail,
+  HiOutlineLocationMarker,
+  HiOutlinePhone,
+  HiOutlineLockClosed,
+  HiOutlineExclamationCircle,
+  HiOutlineCheckCircle,
+  HiOutlineTruck,
+  HiOutlineCash,
+  HiOutlineClock
+} from 'react-icons/hi';
 import API from '../utils/api';
 
 const Terms = () => {
@@ -8,121 +22,374 @@ const Terms = () => {
     storeName: 'Friends Collections',
     storeEmail: 'friends.collection06@gmail.com',
     storePhone: '+91 95007 57024',
-    storeAddress: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 600012'
+    whatsappNumber: '919500757024',
+    storeAddress: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012, Tamil Nadu'
   });
 
   useEffect(() => {
-    API.get('/settings').then(res => {
-      if (res.data && Object.keys(res.data).length > 0) {
-        setSettings(prev => ({ ...prev, ...res.data }));
-      }
-    }).catch(() => {});
+    API.get('/settings')
+      .then((res) => {
+        if (res.data && Object.keys(res.data).length > 0) {
+          setSettings((prev) => ({
+            ...prev,
+            ...res.data,
+            storeAddress: res.data.contactInfo?.address || res.data.storeAddress || prev.storeAddress,
+            storeEmail: res.data.contactInfo?.email || res.data.storeEmail || prev.storeEmail,
+            storePhone: res.data.contactInfo?.phones?.[0] || res.data.storePhone || prev.storePhone,
+            whatsappNumber: res.data.whatsappNumber || (res.data.contactInfo?.phones?.[0] ? res.data.contactInfo.phones[0].replace(/[^0-9]/g, '') : prev.whatsappNumber)
+          }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
+  const cleanPhone = (settings.storePhone || '+91 95007 57024').replace(/\s+/g, '');
+
   return (
-    <div className="min-h-screen bg-cream py-12 sm:py-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+    <div className="min-h-screen bg-cream py-10 sm:py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
+        
+        {/* Navigation Tabs between Legal Documents */}
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 p-1.5 bg-neutral-100 rounded-2xl border border-neutral-200 text-xs sm:text-sm font-medium">
+          <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white font-semibold shadow-sm">
+            <HiOutlineScale className="w-4 h-4 text-accent-300" />
+            <span>Terms of Service</span>
+          </span>
+          <Link
+            to="/privacy"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-white/70 transition-all"
+          >
+            <HiOutlineShieldCheck className="w-4 h-4 text-neutral-500" />
+            <span>Privacy Policy</span>
+          </Link>
+          <Link
+            to="/returns"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-white/70 transition-all"
+          >
+            <HiOutlineRefresh className="w-4 h-4 text-neutral-500" />
+            <span>Return & Refund Policy</span>
+          </Link>
+        </div>
+
         {/* Header */}
         <div className="text-center space-y-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-accent-100 text-accent-800 border border-accent-200">
-            <HiOutlineScale className="w-4 h-4 text-accent-700" />
-            Terms of Service
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-accent-100 text-accent-900 border border-accent-200">
+            <HiOutlineScale className="w-4 h-4 text-accent-800" />
+            Legal Terms & Conditions of Sale
           </span>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900">
-            Terms & Conditions
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900 tracking-tight">
+            Terms of Use & Service
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-500">
-            Last Updated: October 2026 • Governing {settings.storeName}
+          <p className="text-xs sm:text-sm text-neutral-500 max-w-2xl mx-auto leading-relaxed">
+            Governing {settings.storeName} • In strict compliance with the Indian Information Technology Act, 2000, Indian Contract Act, 1872, and the Consumer Protection (E-Commerce) Rules, 2020.
+          </p>
+          <p className="text-[11px] text-neutral-400">
+            Last Updated: November 2026 • Effective Immediately
           </p>
         </div>
 
         {/* Content Box */}
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200 shadow-sm space-y-8 text-neutral-700 leading-relaxed text-sm">
+          
+          {/* Statutory Electronic Records Notice */}
+          <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 space-y-1">
+            <p className="font-bold text-neutral-900">
+              Electronic Records Legal Notice (Information Technology Act, 2000):
+            </p>
+            <p>
+              This document is an electronic record generated by a computer system and does not require any physical or digital signatures. This document is published in accordance with the provisions of Rule 3(1) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 and the Consumer Protection (E-Commerce) Rules, 2020 that mandate publishing the rules, regulations, privacy policy, and Terms of Use for access or usage of the <strong>{settings.storeName}</strong> platform.
+            </p>
+          </div>
+
+          {/* Section 1: Acceptance & Legal Agreement */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              1. Acceptance of Terms
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">1</span>
+              <span>Acceptance of Terms & Binding Agreement</span>
             </h2>
             <p>
-              By accessing or using the <strong>{settings.storeName}</strong> website, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, please do not use our services.
+              Welcome to <strong>{settings.storeName}</strong> (&ldquo;we&rdquo;, &ldquo;our&rdquo;, &ldquo;us&rdquo;, or &ldquo;Store&rdquo;). By accessing, browsing, registering an account, or placing an order through this website or associated digital storefronts, you (&ldquo;User&rdquo;, &ldquo;Customer&rdquo;, or &ldquo;You&rdquo;) acknowledge that you have read, understood, and irrevocably agree to be bound by these Terms of Service, our <Link to="/privacy" className="text-primary font-semibold underline">Privacy Policy</Link>, and our <Link to="/returns" className="text-primary font-semibold underline">Return & Refund Policy</Link>.
+            </p>
+            <p>
+              If you do not unconditionally agree to all terms and conditions set forth herein, you must immediately discontinue your use of this storefront.
             </p>
           </section>
 
+          {/* Section 2: User Eligibility & Account Responsibilities */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              2. User Accounts & Google Authentication
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">2</span>
+              <span>User Eligibility & Account Security</span>
             </h2>
-            <p>
-              You may register an account or sign in securely using Google OAuth. You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              3. Products, Pricing & Availability
-            </h2>
-            <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
-              <li>All garments, sarees, and apparel displayed on our storefront are subject to availability.</li>
-              <li>We make every effort to display true fabric colors accurately, though monitor displays may exhibit minor hue variations.</li>
-              <li>Prices are listed in Indian Rupees (₹ INR) and include applicable taxes unless stated otherwise. We reserve the right to revise pricing or promotions at any time.</li>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li><strong>Capacity to Contract:</strong> Use of this storefront is available only to persons who can form legally binding contracts under the Indian Contract Act, 1872. Persons who are &ldquo;incompetent to contract&rdquo; (including minors under 18 years of age) are not eligible to transact unless supervised by a parent or legal guardian.</li>
+              <li><strong>Account Confidentiality:</strong> You are solely responsible for maintaining the confidentiality of your username, password, or Google authentication tokens. You agree to accept full responsibility for all activities and orders placed under your account.</li>
+              <li><strong>Accurate Information:</strong> You agree to provide true, accurate, current, and complete shipping address, recipient contact numbers, and email. {settings.storeName} shall not be held liable for delayed or non-delivery resulting from incorrect pincodes or incorrect phone numbers provided by you.</li>
+              <li><strong>Account Termination:</strong> We reserve the right to suspend or terminate accounts that provide fictitious details, engage in unauthorized chargebacks, or misuse promotional coupon codes.</li>
             </ul>
           </section>
 
+          {/* Section 3: Product Authenticity, Ethnic Apparel & Fabric Variations */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              4. Orders, Payments & Cash on Delivery (COD)
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">3</span>
+              <span>Product Descriptions, Handcrafted Weaves & Display Variations</span>
             </h2>
-            <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
-              <li><strong>Online Payments:</strong> Online transactions are processed in real-time through Razorpay via UPI, Credit/Debit cards, or NetBanking.</li>
-              <li><strong>Cash on Delivery (COD):</strong> COD is available for eligible items. Items marked as COD-restricted will require pre-payment at checkout.</li>
-              <li><strong>Order Cancellation:</strong> We reserve the right to decline or cancel orders in cases of stock discrepancies or suspect transactions, with immediate full refund.</li>
+            <p className="text-xs text-neutral-600">
+              We take pride in presenting our ethnic wear, sarees, salwars, kurtis, and lehengas with utmost authenticity. However, in the realm of specialized textile manufacturing:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li><strong>Handcrafted Nature:</strong> Many of our traditional sarees and designer garments involve handloom weaving, manual embroidery, zari embellishments, and artisanal dye baths. Minor irregularities in weave texture, thread slubs, or print alignments are hallmarks of authentic craftsmanship and shall not be deemed manufacturing defects.</li>
+              <li><strong>Color Reproduction & Monitor Calibration:</strong> We photograph garments in professional studio conditions. Depending on the color calibration, brightness, and screen resolution of your monitor, smartphone (OLED/AMOLED/LCD), or tablet, there may be a 5% to 10% natural variation in visual shade or hue.</li>
+              <li><strong>Stock Availability:</strong> All catalog items are subject to live stock availability. If an ordered item is discovered to be out of stock during pre-dispatch quality verification, we will notify you immediately and issue a 100% full refund without deduction.</li>
             </ul>
           </section>
 
+          {/* Section 4: Pricing, Taxes (GST) & Typographical Errors */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              5. Shipping & Deliveries
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">4</span>
+              <span>Pricing, Indian Goods & Services Tax (GST) & Corrections</span>
             </h2>
-            <p>
-              Orders are dispatched from our Jamalia boutique in Chennai. Standard delivery timelines range from 2 to 5 business days within Tamil Nadu, and 4 to 8 business days across other regions of India.
-            </p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li><strong>Currency:</strong> All prices displayed on the storefront are denominated in Indian Rupees (₹ INR).</li>
+              <li><strong>Inclusive of GST:</strong> All garment prices include applicable Goods and Services Tax (GST) under Indian tax laws (e.g. 5%, 12%, or 18% based on apparel item value). Official computerized GST Tax Invoices are generated for every order and made available for instant download in the customer account.</li>
+              <li><strong>Typographical & System Errors:</strong> In the rare event a product is listed at an incorrect price or with erroneous specifications due to an unintentional clerical or technical glitch, {settings.storeName} shall have the right to refuse or cancel any orders placed for that product, regardless of whether the order was confirmed or your payment was processed. If your payment was already deducted, a 100% full refund will be processed immediately.</li>
+            </ul>
           </section>
 
+          {/* Section 5: Order Acceptance, Contract Formation & Reseller Limits */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              6. Governing Law
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">5</span>
+              <span>Order Placement, Contract Formation & Quantity Limits</span>
             </h2>
-            <p>
-              These terms shall be governed by and construed in accordance with the laws of India, under the jurisdiction of the courts located in Chennai, Tamil Nadu.
+            <p className="text-xs text-neutral-600">
+              Your placement of an order constitutes an offer to purchase the specified products.
             </p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li><strong>Acknowledgment vs Acceptance:</strong> Receipt of an automated Order Confirmation SMS, WhatsApp message, or email confirms receipt of your order request but does <em>not</em> constitute legal acceptance of your offer. The legal contract of sale is concluded only when the package is audited, packed, and handed over to our licensed courier partner with an assigned tracking AWB number.</li>
+              <li><strong>Commercial Reseller Restrictions:</strong> Our platform is designed for genuine retail consumers. We reserve the explicit right to decline, restrict, or cancel bulk orders that appear to be placed by commercial resellers or unauthorized distributors without prior written trade partnership.</li>
+            </ul>
           </section>
 
+          {/* Section 6: Payment Terms & Cash on Delivery (COD) Rules */}
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2">
-              7. Customer Support
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">6</span>
+              <span>Payment Terms, Gateway Security & Cash on Delivery (COD) Rules</span>
             </h2>
-            <div className="bg-neutral-50 rounded-2xl p-4 space-y-2 border border-neutral-200">
-              <p className="font-semibold text-neutral-900">{settings.storeName}</p>
-              <p className="flex items-center gap-2 text-xs text-neutral-600">
-                <HiOutlineLocationMarker className="w-4 h-4 text-accent-700 shrink-0" />
-                <span>{settings.storeAddress}</span>
+            <div className="space-y-2.5 text-xs text-neutral-600">
+              <p>
+                We accept payments through India&apos;s leading RBI-authorized payment aggregator, <strong>Razorpay</strong>, as well as Cash on Delivery (COD) on eligible pin codes:
               </p>
-              <p className="flex items-center gap-2 text-xs text-neutral-600">
-                <HiOutlineMail className="w-4 h-4 text-accent-700 shrink-0" />
-                <span>{settings.storeEmail}</span>
+              <div className="p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-1.5">
+                <p className="font-bold text-neutral-900">Prepaid Payment Protection (Razorpay):</p>
+                <p>
+                  Transactions are encrypted under industry-standard 256-bit SSL and comply with Payment Card Industry Data Security Standards (PCI-DSS Level 1). Supported instruments include UPI (Google Pay, PhonePe, Paytm, BHIM), NetBanking across 50+ Indian banks, Credit Cards (Visa, MasterCard, RuPay, Amex), and Debit Cards. {settings.storeName} never captures, views, or stores your card CVV, PIN, or net banking passwords on our servers.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1.5">
+                <p className="font-bold text-amber-900">Cash on Delivery (COD) Strict Terms & Anti-Abuse Clause:</p>
+                <ul className="list-disc pl-5 space-y-1 text-amber-900">
+                  <li>COD is a privilege provided for customer convenience. Payment must be handed over in full to the courier personnel before the parcel package is unsealed.</li>
+                  <li><strong>Verification:</strong> High-value COD orders may undergo automated phone call or WhatsApp OTP verification prior to dispatch.</li>
+                  <li><strong>COD Refusal / Blacklisting:</strong> If a customer repeatedly refuses delivery at their doorstep, provides an untraceable phone number, or defaults on COD acceptance without a legitimate product complaint, their shipping address and mobile number will be permanently blacklisted from Cash on Delivery privileges across our network.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 7: Shipping, Delivery & Force Majeure */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">7</span>
+              <span>Shipping, Delivery Timelines & Risk of Loss</span>
+            </h2>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li><strong>Dispatch Location:</strong> Orders are dispatched directly from our flagship showroom in Jamalia, Chennai, Tamil Nadu.</li>
+              <li><strong>Delivery Schedules:</strong> Typical delivery timelines are <strong>2 to 5 business days</strong> within Tamil Nadu and South India, and <strong>4 to 8 business days</strong> for the rest of India. While we partner with top-tier courier networks (Delhivery, BlueDart, DTDC, India Post), actual delivery speeds may vary due to regional factors, weather conditions, or festive surges.</li>
+              <li><strong>Delivery Attempts:</strong> Courier partners make up to <strong>3 delivery attempts</strong>. If the parcel cannot be delivered due to customer unavailability, incorrect address, or phone switched off, it will be returned to our Chennai hub (Return to Origin).</li>
+              <li><strong>Risk of Loss:</strong> All products purchased from the website are manufactured pursuant to a shipment contract. Title and risk of loss for such items pass to you upon physical delivery and signing for the parcel at your designated shipping destination.</li>
+              <li><strong>Force Majeure:</strong> {settings.storeName} shall not be held liable for any delay, failure to deliver, or courier disruption resulting from acts of God, flood, cyclone, strikes, transportation blockades, government lockdown, pandemics, or civil unrest beyond our reasonable operational control.</li>
+            </ul>
+          </section>
+
+          {/* Section 8: Cancellations, Returns & Unboxing Requirement */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">8</span>
+              <span>Cancellations, Returns, Exchanges & Mandatory Unboxing Video</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              All returns, size exchanges, and refunds are governed strictly by our dedicated <Link to="/returns" className="text-primary font-semibold underline">Return & Refund Policy</Link>, which forms an integral part of these Terms. Key terms include:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li>A <strong>3-day return/exchange window</strong> applies from the confirmed timestamp of physical delivery.</li>
+              <li>Garments must be strictly <strong>unworn, unwashed, unaltered</strong>, and have all original tags intact.</li>
+              <li><strong>Mandatory Unboxing Video for Discrepancy Claims:</strong> To protect against courier pilferage and transit damage, claims for transit damage, missing items, or wrong products received must be supported by a single, unedited 360-degree unboxing video recorded from the sealed outer package to unwrapping, submitted within 24 to 48 hours of delivery.</li>
+              <li>Refunds are processed within <strong>5 to 7 business days</strong> following our Chennai inspection team&apos;s physical Quality Check approval.</li>
+            </ul>
+          </section>
+
+          {/* Section 9: Prohibited Conduct & Fraud Prevention */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">9</span>
+              <span>Prohibited Activities & User Conduct</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              When using or accessing our website, you expressly agree that you will not:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-600">
+              <li>Use web scrapers, crawlers, automated bots, or data extraction tools to systematically harvest our product catalog, images, descriptions, or pricing without prior express written permission.</li>
+              <li>Interfere with or attempt to compromise the security, integrity, or proper functioning of the website or payment pathways.</li>
+              <li>Submit false or fraudulent orders, initiate frivolous payment gateway chargebacks, or file deceptive consumer claims.</li>
+              <li>Engage in abusive, defamatory, threatening, or vulgar communication with our customer service team, delivery executives, or showroom staff.</li>
+            </ul>
+          </section>
+
+          {/* Section 10: Intellectual Property Rights */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">10</span>
+              <span>Intellectual Property Rights</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              All content on this storefront — including but not limited to the brand name &ldquo;{settings.storeName}&rdquo;, official logo, typography, styling, curated catalogs, product photographs, design layout, software code, and graphic icons — is the proprietary intellectual property of {settings.storeName} and is protected under the Indian Copyright Act, 1957, Trade Marks Act, 1999, and international intellectual property conventions.
+            </p>
+            <p className="text-xs text-neutral-600">
+              You are granted a limited, non-transferable, revocable license to access the website for personal shopping purposes only. No content may be duplicated, modified, reproduced, or commercially exploited without our prior written authorization.
+            </p>
+          </section>
+
+          {/* Section 11: Limitation of Liability & Disclaimers */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">11</span>
+              <span>Disclaimer of Warranties & Limitation of Liability</span>
+            </h2>
+            <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 space-y-2">
+              <p>
+                To the maximum extent permitted under applicable law, {settings.storeName} provides this website, catalog, and products on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis without any express or implied warranties, other than statutory merchantability guarantees.
+              </p>
+              <p className="font-bold text-neutral-900">
+                Monetary Liability Ceiling:
+              </p>
+              <p>
+                In no event shall {settings.storeName}, its proprietors, partners, employees, or logistics agents be liable for any indirect, incidental, special, punitive, exemplary, or consequential damages whatsoever (including loss of profits, wedding planning delays, or business interruption).
+              </p>
+              <p className="font-bold text-neutral-900">
+                The total aggregate financial liability of {settings.storeName} arising out of or relating to any order, dispute, or contract shall be strictly capped at the actual purchase price paid by the customer for the specific individual product giving rise to the claim.
               </p>
             </div>
           </section>
+
+          {/* Section 12: Indemnification */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">12</span>
+              <span>Indemnification</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              You agree to defend, indemnify, and hold harmless {settings.storeName}, its owners, affiliates, and representatives from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising from or related to your breach of these Terms, your misuse of the platform, or your violation of any applicable law or third-party rights.
+            </p>
+          </section>
+
+          {/* Section 13: Governing Law & Exclusive Jurisdiction */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">13</span>
+              <span>Governing Law & Exclusive Judicial Jurisdiction</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              These Terms, transactions, and any dispute, claim, or controversy arising out of or in connection with your purchase or use of {settings.storeName} shall be governed by, interpreted, and construed exclusively in accordance with the substantive laws of the <strong>Republic of India</strong>, without regard to conflicts of law principles.
+            </p>
+            <p className="text-xs font-semibold text-neutral-800">
+              Subject to mandatory pre-litigation amicable conciliation, you and {settings.storeName} mutually agree to submit to the exclusive jurisdiction of the competent courts of law located at Chennai, Tamil Nadu, India.
+            </p>
+          </section>
+
+          {/* Section 14: Statutory Grievance Redressal Mechanism */}
+          <section className="space-y-3">
+            <h2 className="font-serif text-lg font-bold text-neutral-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center font-mono">14</span>
+              <span>Statutory Grievance Redressal & Nodal Officer</span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              In compliance with the <strong>Information Technology Act, 2000</strong> and rules made thereunder, as well as Rule 5(9) of the <strong>Consumer Protection (E-Commerce) Rules, 2020</strong>, the contact details of the designated Grievance Officer are set forth below:
+            </p>
+
+            <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-200 space-y-3 text-xs">
+              <div className="border-b border-neutral-200 pb-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-accent-800 bg-accent-100 px-2 py-0.5 rounded-md">
+                  Grievance & Compliance Desk
+                </span>
+                <p className="font-bold text-sm text-neutral-900 mt-1">
+                  Nodal Grievance Officer • {settings.storeName}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-neutral-700">
+                <div className="flex items-start gap-2.5">
+                  <HiOutlineLocationMarker className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">Registered Showroom Address:</span>
+                    <span>{settings.storeAddress}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <HiOutlineMail className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">Direct Grievance Email:</span>
+                    <a href={`mailto:${settings.storeEmail}`} className="text-primary underline font-medium">
+                      {settings.storeEmail}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <HiOutlinePhone className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">Customer Helpline:</span>
+                    <a href={`tel:${cleanPhone}`} className="text-neutral-900 font-medium">
+                      {settings.storePhone}
+                    </a>
+                    <span className="text-[11px] text-neutral-500 block">Mon – Sat, 10:00 AM – 8:00 PM IST</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <HiOutlineClock className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">Statutory Redressal SLA:</span>
+                    <span>Acknowledgment within <strong>48 hours</strong>; resolution within <strong>30 days</strong>.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
 
-        {/* Footer Navigation Back to Store */}
-        <div className="text-center">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            to="/"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-light transition-all"
+            to="/shop"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-light transition-all"
           >
             ← Return to Storefront
           </Link>
+          <Link
+            to="/returns"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-white border border-neutral-300 text-neutral-700 text-xs font-bold hover:bg-neutral-50 transition-all"
+          >
+            Review Return & Refund Policy →
+          </Link>
         </div>
+
       </div>
     </div>
   );

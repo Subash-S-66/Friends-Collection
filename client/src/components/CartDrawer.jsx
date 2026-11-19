@@ -29,7 +29,8 @@ const CartDrawer = () => {
     isCartOpen,
     setIsCartOpen,
     refreshCartStock,
-    freeShippingThreshold = 999
+    freeShippingThreshold,
+    settingsLoaded
   } = useCart();
   const { confirm } = useConfirm();
   const [notifyModalState, setNotifyModalState] = useState({
@@ -51,10 +52,11 @@ const CartDrawer = () => {
     }
   };
 
-  const progressPercent = freeShippingThreshold > 0
-    ? Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))
-    : 100;
-  const remainingForFree = Math.max(0, freeShippingThreshold - subtotal);
+  const hasThreshold = freeShippingThreshold !== null && freeShippingThreshold !== undefined;
+  const progressPercent = hasThreshold
+    ? (freeShippingThreshold > 0 ? Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100)) : 100)
+    : 0;
+  const remainingForFree = hasThreshold ? Math.max(0, freeShippingThreshold - subtotal) : 0;
 
 
   return (
@@ -121,21 +123,28 @@ const CartDrawer = () => {
 
               {/* Free Shipping Progress Indicator */}
               <div className="bg-primary/5 px-4 py-3 border-b border-accent-100">
-                <div className="flex items-center justify-between text-xs font-medium text-primary mb-1.5">
-                  {remainingForFree > 0 ? (
-                    <span>
-                      Add <strong>₹{remainingForFree}</strong> more for <strong>FREE Delivery</strong>
-                    </span>
-                  ) : (
-                    <span className="text-emerald-700 font-semibold">🎉 You unlocked FREE Delivery!</span>
-                  )}
-                  <span className="text-neutral-500">{progressPercent}%</span>
-                </div>
+                {!settingsLoaded && !hasThreshold ? (
+                  <div className="flex items-center justify-between text-xs py-0.5">
+                    <span className="inline-block w-40 h-3 bg-neutral-200/80 rounded animate-pulse" />
+                    <span className="inline-block w-8 h-3 bg-neutral-200/80 rounded animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-xs font-medium text-primary mb-1.5">
+                    {remainingForFree > 0 ? (
+                      <span>
+                        Add <strong>₹{remainingForFree}</strong> more for <strong>FREE Delivery</strong>
+                      </span>
+                    ) : (
+                      <span className="text-emerald-700 font-semibold">🎉 You unlocked FREE Delivery!</span>
+                    )}
+                    <span className="text-neutral-500">{progressPercent}%</span>
+                  </div>
+                )}
                 <div className="w-full h-1.5 bg-neutral-200 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-primary rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: `${progressPercent}%` }}
+                    animate={{ width: `${!settingsLoaded && !hasThreshold ? 0 : progressPercent}%` }}
                     transition={{ duration: 0.5, ease: 'easeOut' }}
                   />
                 </div>

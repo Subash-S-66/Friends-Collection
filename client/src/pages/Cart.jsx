@@ -12,6 +12,7 @@ import {
 import { useCart } from '../context/CartContext';
 import { useConfirm } from '../context/ConfirmContext';
 import API from '../utils/api';
+import { getCachedSettings, setCachedSettings, parseShippingSettings } from '../utils/settings';
 import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
 import NotifyModal from '../components/NotifyModal';
 
@@ -65,36 +66,33 @@ const Cart = () => {
     refreshCartStock();
   }, [refreshCartStock]);
 
-  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
-  const [shippingFee, setShippingFee] = useState(79);
-  const [gstPercentage, setGstPercentage] = useState(5);
+  const initialSettings = parseShippingSettings(getCachedSettings());
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(initialSettings.freeShippingThreshold);
+  const [shippingFee, setShippingFee] = useState(initialSettings.shippingFee);
+  const [gstPercentage, setGstPercentage] = useState(initialSettings.gstPercentage ?? 5);
+  const [settingsLoaded, setSettingsLoaded] = useState(initialSettings.isLoaded);
 
   useEffect(() => {
     API.get('/settings').then(res => {
-      if (res.data?.shippingCharge) {
-        if (res.data.shippingCharge.amount !== undefined) {
-          setShippingFee(Number(res.data.shippingCharge.amount));
+      if (res.data && typeof res.data === 'object') {
+        setCachedSettings(res.data);
+        const parsed = parseShippingSettings(res.data);
+        if (parsed.freeShippingThreshold !== null) {
+          setFreeShippingThreshold(parsed.freeShippingThreshold);
         }
-        if (res.data.shippingCharge.freeAbove !== undefined) {
-          setFreeShippingThreshold(Number(res.data.shippingCharge.freeAbove));
+        if (parsed.shippingFee !== null) {
+          setShippingFee(parsed.shippingFee);
         }
-      }
-      if (res.data?.freeShippingThreshold !== undefined) {
-        setFreeShippingThreshold(Number(res.data.freeShippingThreshold));
-      }
-      if (res.data?.shippingFee !== undefined) {
-        setShippingFee(Number(res.data.shippingFee));
-      }
-      if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
-        setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
-      } else if (res.data?.gstPercentage !== undefined) {
-        setGstPercentage(Number(res.data.gstPercentage));
+        if (parsed.gstPercentage !== null) {
+          setGstPercentage(parsed.gstPercentage);
+        }
+        setSettingsLoaded(true);
       }
     }).catch(() => {});
   }, []);
 
-  const isFreeShipping = subtotal >= freeShippingThreshold;
-  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
+  const isFreeShipping = settingsLoaded && freeShippingThreshold !== null ? subtotal >= freeShippingThreshold : false;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : (shippingFee ?? 0));
   const totalAmount = subtotal + shippingCharge;
   const hasCustomGst = (availableItems || []).some(
     (it) => (it.product?.gstRate !== null && it.product?.gstRate !== undefined && Number(it.product.gstRate) !== gstPercentage) ||
@@ -330,14 +328,16 @@ const Cart = () => {
               <div className="flex justify-between text-neutral-600">
                 <span>Standard Delivery</span>
                 <span className="font-bold text-neutral-900 font-numeric">
-                  {isFreeShipping ? (
+                  {!settingsLoaded ? (
+                    <span className="inline-block w-14 h-4 bg-neutral-200/80 rounded animate-pulse" />
+                  ) : isFreeShipping ? (
                     <span className="text-emerald-700 uppercase text-xs font-bold font-sans">FREE</span>
                   ) : (
                     formatPrice(shippingCharge)
                   )}
                 </span>
               </div>
-              {!isFreeShipping && subtotal > 0 && (
+              {settingsLoaded && !isFreeShipping && subtotal > 0 && freeShippingThreshold !== null && (
                 <p className="text-xs text-accent-700 bg-accent-50 p-2.5 rounded-xl border border-accent-200">
                   Add <strong className="font-numeric">₹{Math.max(0, freeShippingThreshold - subtotal)}</strong> more to qualify for <strong>FREE Delivery</strong>!
                 </p>
@@ -353,7 +353,13 @@ const Cart = () => {
                     </span>
                   )}
                 </div>
-                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">{formatPrice(totalAmount)}</span>
+                <span className="font-numeric text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
+                  {!settingsLoaded ? (
+                    <span className="inline-block w-20 h-6 bg-neutral-200/80 rounded animate-pulse" />
+                  ) : (
+                    formatPrice(totalAmount)
+                  )}
+                </span>
               </div>
             </div>
 

@@ -30,8 +30,8 @@ const AddressModal = ({
   const [formData, setFormData] = useState({
     label: 'Home',
     street: '',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
+    city: '',
+    state: '',
     pincode: '',
     phone: '',
     secondaryPhone: '',
@@ -49,8 +49,8 @@ const AddressModal = ({
         setFormData({
           label: address.label || 'Home',
           street: address.street || '',
-          city: address.city || 'Chennai',
-          state: address.state || 'Tamil Nadu',
+          city: address.city || '',
+          state: address.state || '',
           pincode: address.pincode || '',
           phone: address.phone || defaultPhone || '',
           secondaryPhone: address.secondaryPhone || defaultSecondaryPhone || '',
@@ -61,8 +61,8 @@ const AddressModal = ({
         setFormData({
           label: 'Home',
           street: '',
-          city: 'Chennai',
-          state: 'Tamil Nadu',
+          city: '',
+          state: '',
           pincode: '',
           phone: defaultPhone || '',
           secondaryPhone: defaultSecondaryPhone || '',
@@ -265,7 +265,7 @@ const AddressModal = ({
                 required
                 value={formData.street}
                 onChange={handleChange}
-                placeholder="e.g. Flat 3B, 7/4 Perambur High Road, Jamalia"
+                placeholder="House / Flat no., Apartment, Street name, Area"
                 className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-neutral-900 bg-neutral-50/50 focus:bg-white focus:outline-hidden focus:ring-2 transition-all resize-none ${
                   errors.street
                     ? 'border-red-400 focus:ring-red-200'
@@ -287,7 +287,7 @@ const AddressModal = ({
                   required
                   value={formData.city}
                   onChange={handleChange}
-                  placeholder="Chennai"
+                  placeholder="Enter City / District"
                   className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-neutral-900 bg-neutral-50/50 focus:bg-white focus:outline-hidden focus:ring-2 transition-all ${
                     errors.city
                       ? 'border-red-400 focus:ring-red-200'
@@ -307,7 +307,7 @@ const AddressModal = ({
                   required
                   value={formData.state}
                   onChange={handleChange}
-                  placeholder="Tamil Nadu"
+                  placeholder="Enter State"
                   className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-neutral-900 bg-neutral-50/50 focus:bg-white focus:outline-hidden focus:ring-2 transition-all ${
                     errors.state
                       ? 'border-red-400 focus:ring-red-200'
@@ -334,7 +334,7 @@ const AddressModal = ({
                   setFormData((prev) => ({ ...prev, pincode: val }));
                   if (errors.pincode) setErrors((prev) => ({ ...prev, pincode: null }));
                 }}
-                placeholder="600012"
+                placeholder="6-digit PIN code"
                 className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-neutral-900 bg-neutral-50/50 focus:bg-white focus:outline-hidden focus:ring-2 transition-all font-mono ${
                   errors.pincode
                     ? 'border-red-400 focus:ring-red-200'

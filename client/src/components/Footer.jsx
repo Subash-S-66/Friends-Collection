@@ -101,6 +101,9 @@ const Footer = () => {
                 <Link to="/contact" className="hover:text-accent-300 transition-colors">Contact & Location</Link>
               </li>
               <li>
+                <Link to="/returns" className="hover:text-accent-300 transition-colors">Return & Refund Policy</Link>
+              </li>
+              <li>
                 <Link to="/account" className="hover:text-accent-300 transition-colors font-semibold text-accent-300">📦 Track Your Order</Link>
               </li>
               <li>
@@ -168,10 +171,12 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
           <p>© {new Date().getFullYear()} {storeName}. All Rights Reserved.</p>
-          <div className="flex items-center gap-4 text-xs text-neutral-400">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs text-neutral-400">
             <Link to="/privacy" className="hover:text-accent-300 transition-colors">Privacy Policy</Link>
             <span>•</span>
             <Link to="/terms" className="hover:text-accent-300 transition-colors">Terms of Service</Link>
+            <span>•</span>
+            <Link to="/returns" className="hover:text-accent-300 transition-colors">Return & Refund Policy</Link>
           </div>
           <p className="flex items-center gap-1.5">
             Designed with <span className="text-red-400">♥</span> in Chennai for effortless shopping
