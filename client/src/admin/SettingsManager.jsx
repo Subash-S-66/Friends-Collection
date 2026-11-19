@@ -23,6 +23,7 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
+import { getCachedSettings, setCachedSettings, parseShippingSettings } from '../utils/settings';
 import { useTheme, THEME_PRESETS, adjustColor } from '../context/ThemeContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useAuth } from '../context/AuthContext';
@@ -58,10 +59,11 @@ const SettingsManager = () => {
   const [announcementText, setAnnouncementText] = useState('🎉 Free Shipping on Orders Above ₹999!');
   const [announcementActive, setAnnouncementActive] = useState(true);
 
-  // 3. Shipping & Taxes state
-  const [shippingFee, setShippingFee] = useState('79');
-  const [freeAbove, setFreeAbove] = useState('999');
-  const [storeGstRate, setStoreGstRate] = useState('5');
+  // 3. Shipping & Taxes state (Synchronously initialized from DB cache, no static 79/999)
+  const initialSettings = parseShippingSettings(getCachedSettings());
+  const [shippingFee, setShippingFee] = useState(initialSettings.shippingFee !== null ? initialSettings.shippingFee.toString() : '');
+  const [freeAbove, setFreeAbove] = useState(initialSettings.freeShippingThreshold !== null ? initialSettings.freeShippingThreshold.toString() : '');
+  const [storeGstRate, setStoreGstRate] = useState(initialSettings.gstPercentage !== null ? initialSettings.gstPercentage.toString() : '5');
 
   // 4. Store Info state
   const [storeAddress, setStoreAddress] = useState('7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 12');
@@ -139,14 +141,12 @@ const SettingsManager = () => {
           setAnnouncementText(data.announcementBar.text || '');
           setAnnouncementActive(Boolean(data.announcementBar.isActive));
         }
-        const loadedShippingFee = data.shippingCharge?.amount !== undefined
-          ? data.shippingCharge.amount
-          : (data.shippingFee !== undefined ? data.shippingFee : 79);
-        const loadedFreeAbove = data.shippingCharge?.freeAbove !== undefined
-          ? data.shippingCharge.freeAbove
-          : (data.freeShippingThreshold !== undefined ? data.freeShippingThreshold : 999);
-        setShippingFee(loadedShippingFee.toString());
-        setFreeAbove(loadedFreeAbove.toString());
+        if (data) {
+          setCachedSettings(data);
+          const parsed = parseShippingSettings(data);
+          if (parsed.shippingFee !== null) setShippingFee(parsed.shippingFee.toString());
+          if (parsed.freeShippingThreshold !== null) setFreeAbove(parsed.freeShippingThreshold.toString());
+        }
         if (data.invoiceSettings?.gstPercentage !== undefined) {
           setStoreGstRate(data.invoiceSettings.gstPercentage.toString());
         }
@@ -322,9 +322,12 @@ const SettingsManager = () => {
       await API.put('/settings/admin/shippingCharge', {
         value: { amount: Number(shippingFee), freeAbove: Number(freeAbove) },
       });
-      // Also update invoiceSettings gstPercentage
+      // Also update invoiceSettings gstPercentage and update local cache
       try {
         const curRes = await API.get('/settings');
+        if (curRes.data) {
+          setCachedSettings(curRes.data);
+        }
         const invSettings = curRes.data?.invoiceSettings || {};
         await API.put('/settings/admin/invoiceSettings', {
           value: {
