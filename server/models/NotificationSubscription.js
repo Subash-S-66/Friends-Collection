@@ -48,5 +48,6 @@ notificationSubscriptionSchema.index(
   { email: 1, product: 1, 'variant.color': 1, 'variant.size': 1 },
   { unique: true }
 );
+notificationSubscriptionSchema.index({ product: 1, notified: 1 });
 
 module.exports = mongoose.model('NotificationSubscription', notificationSubscriptionSchema);

@@ -4,7 +4,7 @@ const Settings = require('../models/Settings');
 // @route   GET /api/settings
 exports.getSettings = async (req, res, next) => {
   try {
-    const settings = await Settings.find();
+    const settings = await Settings.find().lean();
     const settingsObj = {};
     settings.forEach(s => { settingsObj[s.key] = s.value; });
 
@@ -186,7 +186,7 @@ exports.updateSetting = async (req, res, next) => {
 // @route   GET /api/settings/admin/all
 exports.adminGetSettings = async (req, res, next) => {
   try {
-    const settings = await Settings.find();
+    const settings = await Settings.find().lean();
     const settingsObj = {};
     settings.forEach(s => { settingsObj[s.key] = s.value; });
 

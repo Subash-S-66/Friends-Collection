@@ -50,9 +50,12 @@ productSchema.pre('save', function(next) {
 });
 
 productSchema.index({ slug: 1, isActive: 1 });
+productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isFeatured: 1, createdAt: -1 });
+productSchema.index({ category: 1, isActive: 1, createdAt: -1 });
+productSchema.index({ subcategory: 1, isActive: 1, createdAt: -1 });
+productSchema.index({ gender: 1, isActive: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, stock: 1, views: -1 });
 productSchema.index({ title: 'text', description: 'text', tags: 'text' });
-productSchema.index({ gender: 1, isActive: 1 });
-productSchema.index({ category: 1, isActive: 1 });
-productSchema.index({ subcategory: 1, isActive: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

@@ -13,5 +13,6 @@ const categorySchema = new mongoose.Schema({
 
 categorySchema.index({ gender: 1, parent: 1, priority: 1 });
 categorySchema.index({ parent: 1, priority: 1 });
+categorySchema.index({ isActive: 1, priority: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Category', categorySchema);

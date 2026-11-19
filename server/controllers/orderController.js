@@ -478,14 +478,12 @@ exports.getMyOrders = async (req, res, next) => {
       query.$or.push({ 'customer.email': userEmail });
     }
 
-    const orders = await Order.find(query).sort({ createdAt: -1 });
+    const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
 
-    // Auto-link any matching orders that were unlinked
-    for (const o of orders) {
-      if (!o.user) {
-        o.user = req.user._id;
-        await o.save().catch(() => {});
-      }
+    // Auto-link any matching orders that were unlinked in a single atomic batch
+    const unlinkedOrderIds = orders.filter((o) => !o.user).map((o) => o._id);
+    if (unlinkedOrderIds.length > 0) {
+      Order.updateMany({ _id: { $in: unlinkedOrderIds } }, { $set: { user: req.user._id } }).catch(() => {});
     }
 
     res.json(orders);
@@ -503,7 +501,8 @@ exports.trackOrder = async (req, res, next) => {
 
     const lookupQuery = {
       $or: [
-        { orderId: { $regex: new RegExp(`^${cleanOrderId}$`, 'i') } }
+        { orderId: cleanOrderId.toUpperCase() },
+        { orderId: cleanOrderId }
       ]
     };
 
@@ -511,7 +510,7 @@ exports.trackOrder = async (req, res, next) => {
       lookupQuery.$or.push({ _id: cleanOrderId });
     }
 
-    const order = await Order.findOne(lookupQuery);
+    const order = await Order.findOne(lookupQuery).lean();
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found. Please verify your Order ID.' });
@@ -532,7 +531,7 @@ exports.trackOrder = async (req, res, next) => {
       }
     }
 
-    const orderObj = order.toObject();
+    const orderObj = { ...order };
     delete orderObj.securityAudit;
     if (orderObj.paymentDetails) {
       delete orderObj.paymentDetails.razorpaySignature;
@@ -573,20 +572,26 @@ exports.getOrdersByPhone = async (req, res, next) => {
       return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
     }
 
-    const phoneRegex = new RegExp(`${cleanPhone}$`);
+    const phoneVariants = [
+      cleanPhone,
+      `+91${cleanPhone}`,
+      `+91 ${cleanPhone}`,
+      `91${cleanPhone}`,
+      `0${cleanPhone}`
+    ];
     const orders = await Order.find({
       $or: [
-        { 'customer.phone': { $regex: phoneRegex } },
-        { 'customer.secondaryPhone': { $regex: phoneRegex } }
+        { 'customer.phone': { $in: phoneVariants } },
+        { 'customer.secondaryPhone': { $in: phoneVariants } }
       ]
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
 
     const isOwnerOrAdmin =
       (req.user && req.user.role === 'admin') ||
       (req.user && req.user.phone && req.user.phone.replace(/\D/g, '').endsWith(cleanPhone));
 
     const sanitizedOrders = orders.map((o) => {
-      const obj = o.toObject();
+      const obj = { ...o };
       delete obj.securityAudit;
       if (obj.paymentDetails) {
         delete obj.paymentDetails.razorpaySignature;

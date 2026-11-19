@@ -14,11 +14,13 @@ const { auth } = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const upload = require('../middleware/upload');
 const { cacheMiddleware, invalidateCache } = require('../utils/cache');
+const { flushCategoryHelperCache } = require('../utils/settingsHelper');
 
 // Auto-invalidation middleware when admin mutates categories
 const flushCategoryCache = (req, res, next) => {
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      flushCategoryHelperCache();
       invalidateCache('/api/categories');
       invalidateCache('/api/categories/tree');
       invalidateCache('/api/products/homepage-bundle');

@@ -23,17 +23,28 @@ const DEFAULT_INVOICE_SETTINGS = {
   accentColor: '#C88A65'
 };
 
+let cachedInvoiceSettings = null;
+let lastInvoiceSettingsFetch = 0;
+const INVOICE_SETTINGS_TTL_MS = 60 * 1000;
+
 /**
  * Retrieve saved invoice settings from MongoDB, falling back to boutique defaults
  */
 async function getInvoiceSettings() {
+  const now = Date.now();
+  if (cachedInvoiceSettings && now - lastInvoiceSettingsFetch < INVOICE_SETTINGS_TTL_MS) {
+    return cachedInvoiceSettings;
+  }
+
   try {
     if (mongoose.connection.readyState !== 1) {
       return DEFAULT_INVOICE_SETTINGS;
     }
-    const settingDoc = await Settings.findOne({ key: 'invoiceSettings' });
+    const settingDoc = await Settings.findOne({ key: 'invoiceSettings' }).lean();
     if (settingDoc && settingDoc.value) {
-      return { ...DEFAULT_INVOICE_SETTINGS, ...settingDoc.value };
+      cachedInvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...settingDoc.value };
+      lastInvoiceSettingsFetch = now;
+      return cachedInvoiceSettings;
     }
   } catch (err) {
     console.warn('Could not read invoiceSettings from DB, using defaults:', err.message);

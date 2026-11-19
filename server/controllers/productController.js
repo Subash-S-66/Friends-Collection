@@ -1,7 +1,7 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const { uploadAndProcessImage, deleteMultipleCloudinaryImages } = require('../config/cloudinary');
-const { getHiddenDepartments } = require('../utils/settingsHelper');
+const { getHiddenDepartments, getExcludedCategoryIds } = require('../utils/settingsHelper');
 
 // @desc    Get all products (public)
 // @route   GET /api/products
@@ -22,19 +22,8 @@ exports.getProducts = async (req, res, next) => {
       query.gender = { $nin: hiddenDepartments };
     }
 
-    // Collect all inactive categories and categories belonging to hidden departments
-    const excludedCats = await Category.find({
-      $or: [
-        { isActive: false },
-        ...(hiddenDepartments.length > 0 ? [{ gender: { $in: hiddenDepartments } }] : [])
-      ]
-    }).select('_id parent isActive').lean();
-    const excludedCatIds = excludedCats.map((c) => c._id.toString());
-    const inactiveParentIds = excludedCats.filter((c) => !c.parent).map((c) => c._id);
-    if (inactiveParentIds.length > 0) {
-      const childSubs = await Category.find({ parent: { $in: inactiveParentIds } }).select('_id').lean();
-      childSubs.forEach((s) => excludedCatIds.push(s._id.toString()));
-    }
+    // Collect all inactive categories and categories belonging to hidden departments (cached)
+    const excludedCatIds = await getExcludedCategoryIds();
 
     // Category filter
     if (category) {
@@ -131,6 +120,7 @@ exports.getProducts = async (req, res, next) => {
     const [total, products] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
+        .select('-description')
         .populate('category', 'name slug gender')
         .populate('subcategory', 'name slug')
         .sort(sortOption)
@@ -168,19 +158,8 @@ exports.getSearchSuggestions = async (req, res, next) => {
       .filter((s) => !hiddenDepartments.includes(s.gender))
       .map((s) => s.text);
 
-    // Collect inactive category IDs
-    const excludedCats = await Category.find({
-      $or: [
-        { isActive: false },
-        ...(hiddenDepartments.length > 0 ? [{ gender: { $in: hiddenDepartments } }] : [])
-      ]
-    }).select('_id parent').lean();
-    const excludedCatIds = excludedCats.map((c) => c._id.toString());
-    const inactiveParentIds = excludedCats.filter((c) => !c.parent).map((c) => c._id);
-    if (inactiveParentIds.length > 0) {
-      const childSubs = await Category.find({ parent: { $in: inactiveParentIds } }).select('_id').lean();
-      childSubs.forEach((s) => excludedCatIds.push(s._id.toString()));
-    }
+    // Collect inactive category IDs (cached)
+    const excludedCatIds = await getExcludedCategoryIds();
 
     if (!q) {
       // Return popular trending dresses when search is focused but empty

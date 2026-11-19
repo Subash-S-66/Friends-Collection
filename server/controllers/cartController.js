@@ -130,8 +130,7 @@ exports.getCart = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const enriched = await enrichItemsWithLiveStock(user.cart || []);
-    // Update user cart with validated live values
-    user.cart = enriched.map((i) => ({
+    const updatedCart = enriched.map((i) => ({
       product: i.product,
       title: i.title,
       price: i.price,
@@ -144,7 +143,25 @@ exports.getCart = async (req, res, next) => {
       stock: i.stock,
       acceptCashOnDelivery: i.acceptCashOnDelivery !== false
     }));
-    await user.save().catch(() => {});
+
+    // Only persist if cart state actually changed to avoid redundant DB write operations on simple GET reads
+    const isCartChanged =
+      (user.cart || []).length !== updatedCart.length ||
+      (user.cart || []).some((old, idx) => {
+        const n = updatedCart[idx];
+        return (
+          !n ||
+          String(old.product) !== String(n.product) ||
+          old.quantity !== n.quantity ||
+          old.stock !== n.stock ||
+          old.price !== n.price
+        );
+      });
+
+    if (isCartChanged) {
+      user.cart = updatedCart;
+      await user.save().catch(() => {});
+    }
 
     res.json({
       items: enriched,
