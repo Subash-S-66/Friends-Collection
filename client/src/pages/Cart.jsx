@@ -66,12 +66,24 @@ const Cart = () => {
   }, [refreshCartStock]);
 
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+  const [shippingFee, setShippingFee] = useState(79);
   const [gstPercentage, setGstPercentage] = useState(5);
 
   useEffect(() => {
     API.get('/settings').then(res => {
-      if (res.data?.freeShippingThreshold) {
+      if (res.data?.shippingCharge) {
+        if (res.data.shippingCharge.amount !== undefined) {
+          setShippingFee(Number(res.data.shippingCharge.amount));
+        }
+        if (res.data.shippingCharge.freeAbove !== undefined) {
+          setFreeShippingThreshold(Number(res.data.shippingCharge.freeAbove));
+        }
+      }
+      if (res.data?.freeShippingThreshold !== undefined) {
         setFreeShippingThreshold(Number(res.data.freeShippingThreshold));
+      }
+      if (res.data?.shippingFee !== undefined) {
+        setShippingFee(Number(res.data.shippingFee));
       }
       if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
         setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
@@ -82,7 +94,7 @@ const Cart = () => {
   }, []);
 
   const isFreeShipping = subtotal >= freeShippingThreshold;
-  const shippingCharge = isFreeShipping ? 0 : 79;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
   const totalAmount = subtotal + shippingCharge;
   const hasCustomGst = (availableItems || []).some(
     (it) => (it.product?.gstRate !== null && it.product?.gstRate !== undefined && Number(it.product.gstRate) !== gstPercentage) ||
@@ -327,7 +339,7 @@ const Cart = () => {
               </div>
               {!isFreeShipping && subtotal > 0 && (
                 <p className="text-xs text-accent-700 bg-accent-50 p-2.5 rounded-xl border border-accent-200">
-                  Add <strong className="font-numeric">₹{freeShippingThreshold - subtotal}</strong> more to qualify for <strong>FREE Delivery</strong>!
+                  Add <strong className="font-numeric">₹{Math.max(0, freeShippingThreshold - subtotal)}</strong> more to qualify for <strong>FREE Delivery</strong>!
                 </p>
               )}
               <div className="pt-4 border-t border-neutral-100 flex justify-between items-baseline text-base">

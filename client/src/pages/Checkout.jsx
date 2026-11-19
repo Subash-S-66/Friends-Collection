@@ -95,11 +95,23 @@ const Checkout = () => {
   };
 
   const [threshold, setThreshold] = useState(999);
+  const [shippingFee, setShippingFee] = useState(79);
   const [gstPercentage, setGstPercentage] = useState(5);
   useEffect(() => {
     API.get('/settings').then(res => {
-      if (res.data?.freeShippingThreshold) {
+      if (res.data?.shippingCharge) {
+        if (res.data.shippingCharge.amount !== undefined) {
+          setShippingFee(Number(res.data.shippingCharge.amount));
+        }
+        if (res.data.shippingCharge.freeAbove !== undefined) {
+          setThreshold(Number(res.data.shippingCharge.freeAbove));
+        }
+      }
+      if (res.data?.freeShippingThreshold !== undefined) {
         setThreshold(Number(res.data.freeShippingThreshold));
+      }
+      if (res.data?.shippingFee !== undefined) {
+        setShippingFee(Number(res.data.shippingFee));
       }
       if (res.data?.invoiceSettings?.gstPercentage !== undefined) {
         setGstPercentage(Number(res.data.invoiceSettings.gstPercentage));
@@ -111,7 +123,7 @@ const Checkout = () => {
 
   const freeShippingThreshold = threshold;
   const isFreeShipping = subtotal >= freeShippingThreshold;
-  const shippingCharge = isFreeShipping ? 0 : 79;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
   const grandTotal = subtotal + shippingCharge;
 
   // Compute item-level custom GST or fallback to store global GST

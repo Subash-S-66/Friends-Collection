@@ -139,10 +139,14 @@ const SettingsManager = () => {
           setAnnouncementText(data.announcementBar.text || '');
           setAnnouncementActive(Boolean(data.announcementBar.isActive));
         }
-        if (data.shippingCharge) {
-          setShippingFee(data.shippingCharge.amount?.toString() || '79');
-          setFreeAbove(data.shippingCharge.freeAbove?.toString() || '999');
-        }
+        const loadedShippingFee = data.shippingCharge?.amount !== undefined
+          ? data.shippingCharge.amount
+          : (data.shippingFee !== undefined ? data.shippingFee : 79);
+        const loadedFreeAbove = data.shippingCharge?.freeAbove !== undefined
+          ? data.shippingCharge.freeAbove
+          : (data.freeShippingThreshold !== undefined ? data.freeShippingThreshold : 999);
+        setShippingFee(loadedShippingFee.toString());
+        setFreeAbove(loadedFreeAbove.toString());
         if (data.invoiceSettings?.gstPercentage !== undefined) {
           setStoreGstRate(data.invoiceSettings.gstPercentage.toString());
         }
