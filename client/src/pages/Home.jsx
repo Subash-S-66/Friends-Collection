@@ -401,7 +401,11 @@ const Home = () => {
   const storePhone = settings.storePhone || '+91 95007 57024';
   const whatsappNum = settings.whatsappNumber || '919500757024';
   const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
-  const freeShipping = settings.freeShippingThreshold || settings.shippingCharge?.freeAbove || 999;
+  const freeShipping = settings.freeShippingThreshold !== undefined && settings.freeShippingThreshold !== null
+    ? settings.freeShippingThreshold
+    : (settings.shippingCharge?.freeAbove !== undefined && settings.shippingCharge.freeAbove !== null
+      ? settings.shippingCharge.freeAbove
+      : null);
 
   return (
     <div className="flex flex-col min-h-screen bg-cream">
@@ -749,7 +753,9 @@ const Home = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-neutral-900 leading-tight">Free Shipping</p>
-              <p className="text-xs text-neutral-600 mt-0.5">On orders above ₹{freeShipping}</p>
+              <p className="text-xs text-neutral-600 mt-0.5">
+                {freeShipping !== null ? `On orders above ₹${freeShipping}` : 'On qualifying boutique orders'}
+              </p>
             </div>
           </div>
 

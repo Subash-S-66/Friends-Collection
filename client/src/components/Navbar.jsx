@@ -19,6 +19,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import API from '../utils/api';
+import { getCachedSettings, setCachedSettings } from '../utils/settings';
 import SearchAutocomplete from './SearchAutocomplete';
 import AnnouncementBar from './AnnouncementBar';
 
@@ -30,9 +31,15 @@ const Navbar = () => {
   const [categoryTree, setCategoryTree] = useState([]);
   const [hiddenDepartments, setHiddenDepartments] = useState([]);
   
-  const [announcement, setAnnouncement] = useState({
-    text: '🎉 Free Shipping on Orders Above ₹999!',
-    isActive: true,
+  const cachedSettings = getCachedSettings();
+  const [announcement, setAnnouncement] = useState(() => {
+    if (cachedSettings?.announcementBar) {
+      return cachedSettings.announcementBar;
+    }
+    return {
+      text: '',
+      isActive: false,
+    };
   });
 
   // Flipkart Mega Menu state: 'women' | 'men' | 'kids' | null
@@ -95,6 +102,9 @@ const Navbar = () => {
   useEffect(() => {
     API.get('/settings')
       .then((res) => {
+        if (res.data && typeof res.data === 'object') {
+          setCachedSettings(res.data);
+        }
         if (res.data?.announcementBar) {
           setAnnouncement(res.data.announcementBar);
         }
