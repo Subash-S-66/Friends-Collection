@@ -67,7 +67,7 @@ const HorizontalScrollContainer = ({
       window.removeEventListener('resize', updateScrollBounds);
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, [updateScrollBounds, children]);
+  }, [updateScrollBounds]);
 
   // Mouse wheel listener: Convert mouse wheel deltaY to horizontal scroll
   useEffect(() => {

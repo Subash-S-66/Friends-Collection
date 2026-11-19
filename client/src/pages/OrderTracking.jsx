@@ -16,7 +16,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useConfirm } from '../context/ConfirmContext';
-import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError, getCustomerMilestones } from '../utils/formatters';
 
 const OrderTracking = () => {
   const { confirmDownload } = useConfirm();
@@ -444,27 +444,31 @@ const OrderTracking = () => {
               )}
 
               {/* Status History / Milestone logs */}
-              {Array.isArray(order.tracking?.statusHistory) && order.tracking.statusHistory.length > 0 && (
-                <div className="pt-2 border-t border-accent-200/50 space-y-2">
-                  <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
-                    Milestone Updates:
-                  </span>
-                  <div className="space-y-1.5">
-                    {order.tracking.statusHistory.map((h, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-xs text-neutral-600">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent-700 shrink-0 mt-1.5" />
-                        <div className="flex-1">
-                          <span className="font-semibold text-neutral-800">{h.message || h.status}</span>
-                          {h.location && <span className="text-neutral-500 text-[11px]"> • {h.location}</span>}
+              {(() => {
+                const customerMilestones = getCustomerMilestones(order.tracking?.statusHistory);
+                if (!customerMilestones.length) return null;
+                return (
+                  <div className="pt-2 border-t border-accent-200/50 space-y-2">
+                    <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
+                      Milestone Updates:
+                    </span>
+                    <div className="space-y-1.5">
+                      {customerMilestones.map((h, i) => (
+                        <div key={i} className="flex items-start gap-2.5 text-xs text-neutral-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-700 shrink-0 mt-1.5" />
+                          <div className="flex-1">
+                            <span className="font-semibold text-neutral-800">{h.message || h.status}</span>
+                            {h.location && <span className="text-neutral-500 text-[11px]"> • {h.location}</span>}
+                          </div>
+                          <span className="text-[11px] text-neutral-400 shrink-0">
+                            {new Date(h.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-neutral-400 shrink-0">
-                          {new Date(h.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Delivery Address & Customer Details */}

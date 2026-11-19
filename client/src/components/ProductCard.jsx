@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { HiOutlineShoppingBag, HiCheck, HiOutlineBell } from 'react-icons/hi';
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import NotifyModal from './NotifyModal';
@@ -13,12 +13,12 @@ const ProductCard = ({ product }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [selectedColorOverride, setSelectedColorOverride] = useState(null);
-  const discount = getDiscount(product.price, product.salePrice);
+  const discount = useMemo(() => getDiscount(product.price, product.salePrice), [product.price, product.salePrice]);
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 3;
 
   // Extract distinct colors and their images for color dot previews
-  const colorSwatches = (() => {
+  const colorSwatches = useMemo(() => {
     const list = [];
     const seen = new Set();
 
@@ -53,7 +53,7 @@ const ProductCard = ({ product }) => {
     }
 
     return list;
-  })();
+  }, [product.colorImages, product.variants, product.colors]);
 
   const activeSwatch = selectedColorOverride
     ? colorSwatches.find((s) => s.color.toLowerCase() === selectedColorOverride.toLowerCase())
@@ -117,8 +117,9 @@ const ProductCard = ({ product }) => {
   };
 
   // Clean product images: remove any store logo mistakenly placed in product images
-  const cleanImages = (product.images || []).filter(
-    (img) => typeof img === 'string' && !img.toLowerCase().includes('logo')
+  const cleanImages = useMemo(
+    () => (product.images || []).filter((img) => typeof img === 'string' && !img.toLowerCase().includes('logo')),
+    [product.images]
   );
 
   const rawPrimary = activeSwatch?.image || cleanImages[0];
@@ -339,14 +340,16 @@ const ProductCard = ({ product }) => {
         </div>
       </Link>
 
-      {/* Notify Modal */}
-      <NotifyModal
-        isOpen={notifyOpen}
-        onClose={() => setNotifyOpen(false)}
-        product={product}
-      />
+      {/* Notify Modal (only mounted when active) */}
+      {notifyOpen && (
+        <NotifyModal
+          isOpen={notifyOpen}
+          onClose={() => setNotifyOpen(false)}
+          product={product}
+        />
+      )}
     </motion.div>
   );
 };
 
-export default ProductCard;
+export default memo(ProductCard);

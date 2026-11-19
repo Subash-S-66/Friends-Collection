@@ -744,17 +744,20 @@ exports.updateOrderStatus = async (req, res, next) => {
       if (!Array.isArray(order.tracking.statusHistory)) order.tracking.statusHistory = [];
       const defaultMsgs = {
         order_received: 'Order placed & received at boutique.',
-        confirmed: 'Order received & confirmed by admin. Garments packed with boutique care.',
+        confirmed: 'Order confirmed & packed with boutique care.',
         shipped: 'Order dispatched with courier partner.',
         delivered: 'Order delivered to doorstep.',
         cancelled: 'Order cancelled.'
       };
-      order.tracking.statusHistory.push({
-        status,
-        message: defaultMsgs[status] || `Status updated to ${status}`,
-        location: 'Jamalia Hub, Chennai',
-        timestamp: new Date()
-      });
+      const alreadyHasThisStatus = order.tracking.statusHistory.some(h => h.status === status);
+      if (!alreadyHasThisStatus) {
+        order.tracking.statusHistory.push({
+          status,
+          message: defaultMsgs[status] || `Status updated to ${status.replace('_', ' ')}`,
+          location: 'Jamalia Boutique, Chennai',
+          timestamp: new Date()
+        });
+      }
     }
 
     // If cancelled, restore stock for base product and variants

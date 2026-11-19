@@ -28,7 +28,7 @@ import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
-import { formatPrice, getImageUrl, handleImageError } from '../utils/formatters';
+import { formatPrice, getImageUrl, handleImageError, getCustomerMilestones } from '../utils/formatters';
 import AddressModal from '../components/AddressModal';
 import EditProfileModal from '../components/EditProfileModal';
 
@@ -543,23 +543,27 @@ const Account = () => {
           )}
 
           {/* Milestones History */}
-          {order.tracking?.statusHistory?.length > 0 && (
-            <div className="pt-3 border-t border-neutral-100 space-y-2">
-              <span className="text-xs font-bold uppercase text-neutral-700 tracking-wider block">
-                Recent Milestones & Status Logs
-              </span>
-              <div className="space-y-2">
-                {order.tracking.statusHistory.slice().reverse().map((h, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
-                    <span className="font-medium text-neutral-800">• {h.message}</span>
-                    <span className="text-neutral-400 font-mono text-[11px]">
-                      {new Date(h.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
+          {(() => {
+            const customerMilestones = getCustomerMilestones(order.tracking?.statusHistory);
+            if (!customerMilestones.length) return null;
+            return (
+              <div className="pt-3 border-t border-neutral-100 space-y-2">
+                <span className="text-xs font-bold uppercase text-neutral-700 tracking-wider block">
+                  Recent Milestones & Status
+                </span>
+                <div className="space-y-2">
+                  {customerMilestones.slice().reverse().map((h, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
+                      <span className="font-medium text-neutral-800">• {h.message}</span>
+                      <span className="text-neutral-400 font-mono text-[11px]">
+                        {new Date(h.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Destination & Summary Card */}
@@ -1534,21 +1538,25 @@ const Account = () => {
                   )}
                 </div>
 
-                {detailOrder.tracking?.statusHistory?.length > 0 && (
-                  <div className="pt-2 border-t border-neutral-200 space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider block">
-                      Milestones
-                    </span>
-                    {detailOrder.tracking.statusHistory.slice().reverse().map((h, i) => (
-                      <div key={i} className="flex items-center justify-between text-[11px] text-neutral-700">
-                        <span className="font-medium">• {h.message}</span>
-                        <span className="text-neutral-400 text-[10px]">
-                          {new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const customerMilestones = getCustomerMilestones(detailOrder.tracking?.statusHistory);
+                  if (!customerMilestones.length) return null;
+                  return (
+                    <div className="pt-2 border-t border-neutral-200 space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider block">
+                        Milestones
+                      </span>
+                      {customerMilestones.slice().reverse().map((h, i) => (
+                        <div key={i} className="flex items-center justify-between text-[11px] text-neutral-700">
+                          <span className="font-medium">• {h.message}</span>
+                          <span className="text-neutral-400 text-[10px]">
+                            {new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Items List */}
