@@ -21,6 +21,11 @@ exports.getSettings = async (req, res, next) => {
       settingsObj.freeShippingThreshold = 999;
     }
 
+    // Always expose storeEmail & supportEmail for contact and help desk
+    const supportEmail = settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com';
+    settingsObj.storeEmail = supportEmail;
+    settingsObj.supportEmail = supportEmail;
+
     res.json(settingsObj);
   } catch (error) {
     next(error);
@@ -196,6 +201,11 @@ exports.adminGetSettings = async (req, res, next) => {
       settingsObj.shippingFee = 79;
       settingsObj.freeShippingThreshold = 999;
     }
+
+    // Always expose storeEmail & supportEmail for contact and help desk
+    const supportEmail = settingsObj.contactInfo?.email || settingsObj.invoiceSettings?.email || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com';
+    settingsObj.storeEmail = supportEmail;
+    settingsObj.supportEmail = supportEmail;
 
     res.json(settingsObj);
   } catch (error) {

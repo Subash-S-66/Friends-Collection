@@ -59,7 +59,7 @@ const Contact = () => {
     settings.storeAddress ||
     '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012, Tamil Nadu';
   const storeHours = settings.storeHours || 'Monday to Sunday: 10:00 AM – 9:30 PM';
-  const storeEmail = settings.storeEmail || 'friends.collection06@gmail.com';
+  const storeEmail = settings.storeEmail || settings.supportEmail || 'friends.collection.support@gmail.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();

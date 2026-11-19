@@ -19,7 +19,7 @@ import API from '../utils/api';
 const Privacy = () => {
   const [settings, setSettings] = useState({
     storeName: 'Friends Collections',
-    storeEmail: 'friends.collection06@gmail.com',
+    storeEmail: 'friends.collection.support@gmail.com',
     storePhone: '+91 95007 57024',
     whatsappNumber: '919500757024',
     storeAddress: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012, Tamil Nadu'

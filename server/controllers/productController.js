@@ -288,7 +288,8 @@ exports.getProduct = async (req, res, next) => {
     const hiddenDepartments = await getHiddenDepartments();
     const product = await Product.findOne({ slug: req.params.slug, isActive: true })
       .populate('category', 'name slug gender isActive parent')
-      .populate('subcategory', 'name slug gender isActive parent');
+      .populate('subcategory', 'name slug gender isActive parent')
+      .lean();
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });

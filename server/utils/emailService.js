@@ -5,14 +5,16 @@ const fs = require('fs');
 let transporter = null;
 
 // HTTP-based Email Sender via Brevo REST API (HTTPS Port 443 - 100% reliable on Render Free Tier)
-const sendViaBrevo = async ({ from, to, subject, html, text, attachments }) => {
+const sendViaBrevo = async ({ from, to, replyTo, subject, html, text, attachments }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.SMTP_USER || process.env.ADMIN_EMAIL || 'friends.collection06@gmail.com';
   const senderName = process.env.BUSINESS_NAME || 'Friends Collections';
 
   const toList = Array.isArray(to)
-    ? to.map((e) => (typeof e === 'string' ? { email: e } : e))
-    : [{ email: to }];
+    ? to.map((e) => (typeof e === 'string' ? { email: e.trim() } : e))
+    : (typeof to === 'string' && to.includes(',')
+      ? to.split(',').map((e) => ({ email: e.trim() }))
+      : [{ email: typeof to === 'string' ? to.trim() : to }]);
 
   const payload = {
     sender: { name: senderName, email: senderEmail },
@@ -21,6 +23,19 @@ const sendViaBrevo = async ({ from, to, subject, html, text, attachments }) => {
     htmlContent: html,
     ...(text ? { textContent: text } : {})
   };
+
+  if (replyTo) {
+    if (typeof replyTo === 'string') {
+      const match = replyTo.match(/(?:(.*)<)?([^<>]+)>/);
+      if (match) {
+        payload.replyTo = { name: (match[1] || '').trim() || senderName, email: match[2].trim() };
+      } else {
+        payload.replyTo = { email: replyTo.trim() };
+      }
+    } else if (typeof replyTo === 'object' && replyTo.email) {
+      payload.replyTo = replyTo;
+    }
+  }
 
   if (attachments && attachments.length > 0) {
     payload.attachment = attachments
@@ -62,17 +77,22 @@ const sendViaBrevo = async ({ from, to, subject, html, text, attachments }) => {
 };
 
 // HTTP-based Email Sender via Resend REST API (HTTPS Port 443 - 100% reliable on Render Free Tier)
-const sendViaResend = async ({ from, to, subject, html, text, attachments }) => {
+const sendViaResend = async ({ from, to, replyTo, subject, html, text, attachments }) => {
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM || 'Friends Collections <onboarding@resend.dev>';
-  const toList = Array.isArray(to) ? to : [to];
+  const toList = Array.isArray(to)
+    ? to
+    : (typeof to === 'string' && to.includes(',')
+      ? to.split(',').map((e) => e.trim())
+      : [to]);
 
   const payload = {
     from: fromAddress,
     to: toList,
     subject,
     html,
-    ...(text ? { text } : {})
+    ...(text ? { text } : {}),
+    ...(replyTo ? { reply_to: replyTo } : {})
   };
 
   if (attachments && attachments.length > 0) {
@@ -113,29 +133,14 @@ const sendViaResend = async ({ from, to, subject, html, text, attachments }) => 
   return { messageId: data.id || 'resend-' + Date.now() };
 };
 
-// Initialize or get the transporter
-const getTransporter = async () => {
-  if (transporter) return transporter;
-
-  // 1. Check HTTP-based APIs first (Port 443 - Immune to cloud PaaS SMTP blocking)
-  if (process.env.BREVO_API_KEY) {
-    console.log('🚀 [Email Service] Initialized Brevo HTTP API (Port 443)');
-    transporter = { sendMail: sendViaBrevo };
-    return transporter;
-  }
-
-  if (process.env.RESEND_API_KEY) {
-    console.log('🚀 [Email Service] Initialized Resend HTTP API (Port 443)');
-    transporter = { sendMail: sendViaResend };
-    return transporter;
-  }
-
-  // 2. Standard SMTP (Localhost or VPS/Cloud with outbound port 465/587 open)
+let smtpTransporter = null;
+const getSmtpTransporter = () => {
+  if (smtpTransporter) return smtpTransporter;
   const smtpUser = process.env.SMTP_USER || process.env.ADMIN_EMAIL || 'friends.collection06@gmail.com';
   const smtpPass = process.env.SMTP_PASS;
 
   if (smtpPass) {
-    transporter = nodemailer.createTransport({
+    smtpTransporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: Number(process.env.SMTP_PORT) || 465,
       secure: process.env.SMTP_SECURE !== 'false',
@@ -143,39 +148,67 @@ const getTransporter = async () => {
         user: smtpUser,
         pass: smtpPass
       },
-      connectionTimeout: 6000, // 6s connection timeout to fail fast if blocked
-      greetingTimeout: 5000,
-      socketTimeout: 8000
+      connectionTimeout: 8000,
+      greetingTimeout: 6000,
+      socketTimeout: 10000
     });
-  } else {
-    // Development / fallback: Create Ethereal test account or console logger
-    console.log('ℹ️ [Nodemailer] SMTP_PASS not configured. Creating test transporter...');
-    try {
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-      console.log('✅ [Nodemailer] Test Ethereal transporter initialized:', testAccount.user);
-    } catch {
-      // Fallback stub
-      transporter = {
-        sendMail: async (options) => {
-          console.log('\n================== [EMAIL STUB] ==================');
-          console.log(`To: ${options.to}`);
-          console.log(`Subject: ${options.subject}`);
-          console.log(`Preview: ${options.text || 'HTML Email Sent'}`);
-          console.log('==================================================\n');
-          return { messageId: 'stub-' + Date.now() };
-        }
-      };
-    }
   }
+  return smtpTransporter;
+};
+
+// Initialize or get the transporter with automatic multi-provider failover
+const getTransporter = async () => {
+  if (transporter) return transporter;
+
+  transporter = {
+    sendMail: async (options) => {
+      let lastError = null;
+
+      // 1. Try Brevo HTTP API if configured
+      if (process.env.BREVO_API_KEY) {
+        try {
+          return await sendViaBrevo(options);
+        } catch (brevoErr) {
+          console.warn('⚠️ [Email Service] Brevo dispatch failed, attempting failover:', brevoErr.message);
+          lastError = brevoErr;
+        }
+      }
+
+      // 2. Try Resend HTTP API if configured
+      if (process.env.RESEND_API_KEY) {
+        try {
+          return await sendViaResend(options);
+        } catch (resendErr) {
+          console.warn('⚠️ [Email Service] Resend dispatch failed, attempting failover:', resendErr.message);
+          lastError = resendErr;
+        }
+      }
+
+      // 3. Try Standard SMTP (Gmail / Old Business Mail)
+      const smtp = getSmtpTransporter();
+      if (smtp) {
+        try {
+          const info = await smtp.sendMail(options);
+          console.log('✅ [Email Service] Successfully sent via Gmail SMTP:', info?.messageId);
+          return info;
+        } catch (smtpErr) {
+          console.error('❌ [Email Service] SMTP dispatch error:', smtpErr.message);
+          lastError = smtpErr;
+        }
+      }
+
+      // 4. Fallback stub if in development and nothing worked
+      if (!process.env.SMTP_PASS && !process.env.BREVO_API_KEY && !process.env.RESEND_API_KEY) {
+        console.log('\n================== [EMAIL STUB] ==================');
+        console.log(`To: ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
+        console.log(`Subject: ${options.subject}`);
+        console.log('==================================================\n');
+        return { messageId: 'stub-' + Date.now() };
+      }
+
+      throw lastError || new Error('No working email transporter available');
+    }
+  };
 
   return transporter;
 };
@@ -188,10 +221,16 @@ const EMAIL_LOGO_URL =
 // Return empty array because logo is served via HTTPS CDN, preventing 1.7MB file attachments on emails
 const getLogoAttachment = () => [];
 
+// Default support help desk email and replyTo configuration
+const DEFAULT_SUPPORT_EMAIL = 'friends.collection.support@gmail.com';
+const getSupportEmail = () => process.env.SUPPORT_EMAIL || DEFAULT_SUPPORT_EMAIL;
+const getSupportReplyTo = () => process.env.SUPPORT_REPLY_TO || `"Friends Collections Support" <${getSupportEmail()}>`;
+
 // Royal HTML Email Base Template
 const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
   const currentYear = new Date().getFullYear();
   const clientUrl = process.env.CLIENT_URL || 'https://friends-collection.vercel.app';
+  const supportEmail = getSupportEmail();
 
   return `
 <!DOCTYPE html>
@@ -406,7 +445,7 @@ const wrapInFriendsTheme = ({ title, preheader, contentHtml }) => {
               7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 600012
             </p>
             <p style="margin: 0 0 12px;">
-              WhatsApp Helpline: <a href="https://wa.me/919500757024">+91 95007 57024</a> • Email: <a href="mailto:friends.collection06@gmail.com">friends.collection06@gmail.com</a>
+              WhatsApp Helpline: <a href="https://wa.me/919500757024">+91 95007 57024</a> • Help Desk: <a href="mailto:${supportEmail}">${supportEmail}</a>
             </p>
             <div style="border-top: 1px solid #E5D5C8; padding-top: 10px; font-size: 10px; color: #A89C94;">
               © ${currentYear} Friends Collections. All rights reserved.<br>
@@ -443,7 +482,7 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
 
       <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center;">
         If you did not request this token, please ignore this email or reach out to our team at 
-        <a href="mailto:friends.collection06@gmail.com" style="color: #4A0E17;">friends.collection06@gmail.com</a>.
+        <a href="mailto:${getSupportEmail()}" style="color: #4A0E17;">${getSupportEmail()}</a>.
       </p>
     `;
 
@@ -456,6 +495,7 @@ exports.sendVerificationTokenEmail = async ({ to, token, name }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🔑 ${token} is your Friends Collections Verification Code`,
       html,
       attachments: getLogoAttachment()
@@ -497,7 +537,7 @@ exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
 
       <p class="content-text" style="font-size: 12px; color: #9E9590; text-align: center; border-top: 1px solid #EEDCD0; padding-top: 14px; margin-top: 20px;">
         If you did not request this password reset, please disregard this email or notify us immediately at 
-        <a href="mailto:friends.collection06@gmail.com" style="color: #4A0E17; font-weight: 600;">friends.collection06@gmail.com</a>.
+        <a href="mailto:${getSupportEmail()}" style="color: #4A0E17; font-weight: 600;">${getSupportEmail()}</a>.
       </p>
     `;
 
@@ -510,6 +550,7 @@ exports.sendForgotPasswordOtpEmail = async ({ to, token, name }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🔑 ${token} is your Friends Collections Password Reset Code`,
       html,
       attachments: getLogoAttachment()
@@ -565,6 +606,7 @@ exports.sendAccountVerificationEmail = async ({ to, token, verifyUrl, name }) =>
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `✨ Verify your Friends Collections Account (${token})`,
       html,
       attachments: getLogoAttachment()
@@ -615,7 +657,7 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
 
       <p class="content-text" style="font-size: 11px; color: #9E9590; text-align: center; border-top: 1px solid #EEDCD0; padding-top: 14px; margin-top: 16px;">
         If you did not make this request, please disregard this email or report immediately to 
-        <a href="mailto:friends.collection06@gmail.com" style="color: #4A0E17; font-weight: 600;">friends.collection06@gmail.com</a>.
+        <a href="mailto:${getSupportEmail()}" style="color: #4A0E17; font-weight: 600;">${getSupportEmail()}</a>.
       </p>
     `;
 
@@ -628,6 +670,7 @@ exports.sendOldEmailChangeOtp = async ({ to, token, newEmail, name }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🔒 ${token} is your Security Code to Authorize Email Change`,
       html,
       attachments: getLogoAttachment()
@@ -681,6 +724,7 @@ exports.sendNewEmailChangeOtp = async ({ to, token, currentEmail, name }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `✨ ${token} is your Code to Confirm New Email Address`,
       html,
       attachments: getLogoAttachment()
@@ -862,6 +906,7 @@ exports.sendBackInStockSubscriptionEmail = async ({ to, name, phone, product, va
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🔔 Waitlist Confirmed: "${product.title}" at Friends Collections`,
       html,
       attachments: getLogoAttachment()
@@ -990,6 +1035,7 @@ exports.sendBackInStockAlertEmail = async ({ to, name, phone, product, variant }
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🎉 BACK IN STOCK: "${product.title}" is Now Available!`,
       html,
       attachments: getLogoAttachment()
@@ -1086,6 +1132,7 @@ exports.sendCampaignEmail = async ({ to, name, campaign }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: campaign.subject,
       html,
       attachments: getLogoAttachment()
@@ -1257,7 +1304,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
 
       <p class="content-text" style="font-size: 12px; color: #7A726E; text-align: center; margin-top: 20px;">
         Friends Collections Boutique • 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012<br>
-        Direct Hotline: <a href="tel:+919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a>
+        Direct Helpline: <a href="tel:+919500757024" style="color: #4A0E17; font-weight: 600;">+91 95007 57024</a> • Help Desk: <a href="mailto:${getSupportEmail()}" style="color: #4A0E17; font-weight: 600;">${getSupportEmail()}</a>
       </p>
     `;
 
@@ -1283,6 +1330,7 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject: `🛍️ Order Confirmed #${order.orderId} - Friends Collections (Invoice Attached)`,
       html,
       attachments: [...getLogoAttachment(), ...pdfAttachment]
@@ -1299,10 +1347,11 @@ exports.sendOrderConfirmationEmail = async ({ order }) => {
 exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
   try {
     const mailClient = await getTransporter();
-    const businessEmail =
-      process.env.BUSINESS_EMAIL ||
-      process.env.ADMIN_EMAIL ||
-      'friends.collection06@gmail.com';
+    const adminEmail = (process.env.ADMIN_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection06@gmail.com').trim().toLowerCase();
+    const supportEmail = (process.env.SUPPORT_EMAIL || 'friends.collection.support@gmail.com').trim().toLowerCase();
+
+    // Dual notification recipients: both old business mail and help desk mail receive the inquiry
+    const businessRecipients = Array.from(new Set([adminEmail, supportEmail].filter(Boolean)));
 
     const safeName = inquiry.name || 'Valued Customer';
     const safeEmail = inquiry.email || 'N/A';
@@ -1396,7 +1445,7 @@ exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
 
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
-      to: businessEmail,
+      to: businessRecipients,
       replyTo: safeEmail !== 'N/A' ? `${safeName} <${safeEmail}>` : undefined,
       subject,
       html,
@@ -1415,7 +1464,7 @@ exports.sendContactInquiryToBusinessEmail = async ({ inquiry }) => {
       success: true,
       messageId: info?.messageId,
       previewUrl,
-      to: businessEmail,
+      to: businessRecipients.join(', '),
       subject,
       html
     };
@@ -1514,6 +1563,7 @@ exports.sendContactInquiryConfirmationToUserEmail = async ({ inquiry }) => {
       <div style="background: #F8FAFC; border-radius: 16px; padding: 16px 20px; font-size: 12px; color: #64748B; text-align: center; line-height: 1.6; border: 1px solid #E2E8F0;">
         <strong style="color: #0F172A;">Friends Collections Boutique</strong><br>
         📍 7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012<br>
+        ✉️ Help Desk: <a href="mailto:${getSupportEmail()}" style="color: #4A0E17; font-weight: 700;">${getSupportEmail()}</a><br>
         📞 Direct Helpline: <a href="tel:+919500757024" style="color: #4A0E17; font-weight: 700;">+91 95007 57024</a> • ⏰ Open All 7 Days (10:00 AM – 9:30 PM)
       </div>
     `;
@@ -1528,6 +1578,7 @@ exports.sendContactInquiryConfirmationToUserEmail = async ({ inquiry }) => {
     const info = await mailClient.sendMail({
       from: process.env.EMAIL_FROM || '"Friends Collections" <friends.collection06@gmail.com>',
       to,
+      replyTo: getSupportReplyTo(),
       subject,
       html,
       attachments: getLogoAttachment()

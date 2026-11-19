@@ -1084,7 +1084,7 @@ const CampaignManager = () => {
                   Friends Collections • Jamalia Store
                 </p>
                 <p>7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai - 600012</p>
-                <p>WhatsApp Helpline: +91 95007 57024 • friends.collection06@gmail.com</p>
+                <p>WhatsApp Helpline: +91 95007 57024 • Help Desk: friends.collection.support@gmail.com</p>
                 <p className="text-[#A89C94] pt-1">
                   © 2026 Friends Collections. All rights reserved.
                 </p>

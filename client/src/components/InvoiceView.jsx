@@ -16,7 +16,7 @@ export const DEFAULT_INVOICE_SETTINGS = {
   invoiceTitle: 'TAX INVOICE & BILL OF SUPPLY',
   address: '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012',
   phone: '+91 95007 57024',
-  email: 'friends.collection06@gmail.com',
+  email: 'friends.collection.support@gmail.com',
   gstin: '33AAACF1234M1Z5',
   gstPercentage: 5,
   authorizedSignatory: 'Authorized Signatory • Jamalia Boutique',

@@ -68,7 +68,7 @@ const SettingsManager = () => {
   // 4. Store Info state
   const [storeAddress, setStoreAddress] = useState('7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 12');
   const [storePhone, setStorePhone] = useState('9500757024');
-  const [storeEmail, setStoreEmail] = useState('friends.collection06@gmail.com');
+  const [storeEmail, setStoreEmail] = useState('friends.collection.support@gmail.com');
   const [storeInstagram, setStoreInstagram] = useState('friends_collection_in');
 
   // 5. Department Visibility state

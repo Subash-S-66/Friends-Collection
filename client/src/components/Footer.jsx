@@ -24,7 +24,7 @@ const Footer = () => {
   const storePhone = settings.storePhone || '+91 95007 57024';
   const whatsappNum = settings.whatsappNumber || '919500757024';
   const storeAddress = settings.storeAddress || '7/4 Perambur High Road, 1st Cross St, Jamalia, Chennai – 600012';
-  const storeEmail = settings.storeEmail || 'friends.collection06@gmail.com';
+  const storeEmail = settings.storeEmail || settings.supportEmail || 'friends.collection.support@gmail.com';
   const storeName = settings.storeName || 'Friends Collections';
   const tagline = settings.tagline || 'Style That Defines You';
 

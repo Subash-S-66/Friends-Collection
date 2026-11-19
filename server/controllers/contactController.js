@@ -73,7 +73,7 @@ exports.submitInquiry = async (req, res, next) => {
           messageId: userResult?.messageId
         },
         businessEmail: {
-          to: businessResult?.to || process.env.BUSINESS_EMAIL || 'friends.collection06@gmail.com',
+          to: businessResult?.to || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com',
           subject: businessResult?.subject || `📩 [New Request #${inquiryData.inquiryId}] ${inquiryData.subject} from ${inquiryData.name}`,
           html: businessResult?.html || '',
           previewUrl: businessResult?.previewUrl || null,
