@@ -19,6 +19,7 @@ import API from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import NotifyModal from '../components/NotifyModal';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../utils/formatters';
 import { getCachedProduct, setCachedProduct } from '../utils/productCache';
 
@@ -26,6 +27,7 @@ const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToCart, freeShippingThreshold, settingsLoaded } = useCart();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -123,14 +125,16 @@ const ProductDetail = () => {
     };
   }, [slug]);
 
-  // Check if current customer is waitlisted for this variant
+  // Check if current customer is waitlisted for this variant (only when logged in)
   useEffect(() => {
-    if (product?._id) {
+    if (product?._id && user?.email) {
       API.get(`/notifications/status?productId=${product._id}&color=${encodeURIComponent(selectedColor || '')}&size=${encodeURIComponent(selectedSize || '')}`)
         .then((res) => setIsWaitlisted(Boolean(res.data?.subscribed)))
         .catch(() => setIsWaitlisted(false));
+    } else {
+      setIsWaitlisted(false);
     }
-  }, [product?._id, selectedColor, selectedSize]);
+  }, [product?._id, selectedColor, selectedSize, user?.email]);
 
   // Safe variant stock derivation before early returns
   const isNoSizeProduct = Boolean(
@@ -999,15 +1003,17 @@ const ProductDetail = () => {
         </div>
       )}
 
-      {/* Back In Stock Notify Modal */}
-      <NotifyModal
-        isOpen={notifyModalOpen}
-        onClose={() => setNotifyModalOpen(false)}
-        product={product}
-        selectedColor={selectedColor}
-        selectedSize={selectedSize}
-        onSubscribed={() => setIsWaitlisted(true)}
-      />
+      {/* Back In Stock Notify Modal (only mounted when active) */}
+      {notifyModalOpen && (
+        <NotifyModal
+          isOpen={notifyModalOpen}
+          onClose={() => setNotifyModalOpen(false)}
+          product={product}
+          selectedColor={selectedColor}
+          selectedSize={selectedSize}
+          onSubscribed={() => setIsWaitlisted(true)}
+        />
+      )}
     </motion.div>
   );
 };
