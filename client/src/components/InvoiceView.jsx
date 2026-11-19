@@ -447,18 +447,11 @@ const InvoiceView = ({
                           {formatPrice(item.gstAmount)}
                         </span>
                         {item.itemGstRate > 0 ? (
-                          <div className="flex flex-col items-end gap-0.5 pt-0.5">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold text-[10px] tracking-tight">
-                              {item.itemGstRate}% GST
-                            </span>
-                            <span className="text-[9px] text-neutral-400 font-sans tracking-tight">
-                              {isInterState
-                                ? 'IGST'
-                                : `CGST ${(item.itemGstRate / 2).toFixed(1)}% + SGST ${(item.itemGstRate / 2).toFixed(1)}%`}
-                            </span>
-                          </div>
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold text-[10px] tracking-tight mt-0.5">
+                            {item.itemGstRate}%
+                          </span>
                         ) : (
-                          <span className="text-[10px] text-neutral-400 italic block pt-0.5">0% (Exempt)</span>
+                          <span className="text-[10px] text-neutral-400 italic block pt-0.5">0%</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-right align-top whitespace-nowrap pt-3">

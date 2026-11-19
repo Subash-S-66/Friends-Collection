@@ -441,11 +441,11 @@ async function generateInvoicePdf(order, customSettings = null) {
         doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
           .text(it.quantity > 1 ? `INR ${(it.taxableAmount / it.quantity).toFixed(2)}/pc` : 'Taxable Base', colX.productPrice, tableY + 16, { align: 'right', width: 84 });
 
-        // GST (Rate & Amount + CGST/SGST/IGST breakdown - Flipkart style)
+        // GST (Rate & Amount in table)
         doc.font('Helvetica-Bold').fontSize(8).fillColor(DARK)
           .text(`INR ${it.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, colX.gst, tableY + 5, { align: 'right', width: 88 });
-        doc.font('Helvetica').fontSize(6.5).fillColor(MUTED)
-          .text(it.itemGstRate > 0 ? `${it.itemGstRate}% (${isInterState ? 'IGST' : `CGST ${(it.itemGstRate / 2).toFixed(1)}% + SGST ${(it.itemGstRate / 2).toFixed(1)}%`})` : '0% Exempt', colX.gst, tableY + 16, { align: 'right', width: 88 });
+        doc.font('Helvetica').fontSize(6.8).fillColor(MUTED)
+          .text(it.itemGstRate > 0 ? `${it.itemGstRate}%` : '0%', colX.gst, tableY + 16, { align: 'right', width: 88 });
 
         // Row Total (Product Price + GST)
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(DARK)
