@@ -41,7 +41,7 @@ const Cart = () => {
       type: 'danger',
       confirmText: 'Yes, Remove',
       cancelText: 'Keep in Bag',
-      details: item.size ? `Selected: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : null
+      details: (item.size && item.size.toLowerCase() !== 'no size') ? `Selected: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : (item.color ? `Color: ${item.color}` : null)
     });
     if (ok) {
       removeItem(index);
@@ -188,12 +188,12 @@ const Cart = () => {
                         {item.title}
                       </Link>
 
-                      {(item.size || item.color) && (
+                      {((item.size && item.size.toLowerCase() !== 'no size') || item.color) && (
                         <p className="text-xs text-neutral-500">
-                          {item.size && (
+                          {item.size && item.size.toLowerCase() !== 'no size' && (
                             <span className="font-semibold text-neutral-700">Size: {item.size}</span>
                           )}
-                          {item.size && item.color && ' • '}
+                          {item.size && item.size.toLowerCase() !== 'no size' && item.color && ' • '}
                           {item.color && <span>Color: {item.color}</span>}
                         </p>
                       )}

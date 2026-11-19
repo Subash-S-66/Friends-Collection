@@ -417,9 +417,9 @@ const InvoiceView = ({
                           {item.title}
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-neutral-500">
-                          {(item.size || item.color) && (
+                          {((item.size && item.size.toLowerCase() !== 'no size') || item.color) && (
                             <span className="font-medium text-neutral-700">
-                              {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(' • ')}
+                              {[item.size && item.size.toLowerCase() !== 'no size' && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(' • ')}
                             </span>
                           )}
                           <span className="text-[10px] text-neutral-400 font-mono">

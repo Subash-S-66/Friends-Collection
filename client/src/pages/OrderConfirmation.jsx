@@ -330,7 +330,7 @@ const OrderConfirmation = () => {
                         <div className="min-w-0">
                           <p className="font-semibold text-neutral-900 truncate">{item.title}</p>
                           <p className="text-neutral-500 text-[11px]">
-                            Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                            Qty: {item.quantity} {item.size && item.size.toLowerCase() !== 'no size' && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                           </p>
                           <p className="text-neutral-400 text-[10px]">
                             Unit: <strong className="font-numeric">{formatPrice(item.price)}</strong>

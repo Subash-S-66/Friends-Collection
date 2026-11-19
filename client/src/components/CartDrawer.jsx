@@ -43,7 +43,7 @@ const CartDrawer = () => {
       type: 'danger',
       confirmText: 'Yes, Remove',
       cancelText: 'Keep in Bag',
-      details: item.size ? `Variant: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : null
+      details: (item.size && item.size.toLowerCase() !== 'no size') ? `Variant: Size ${item.size}${item.color ? ` • ${item.color}` : ''}` : (item.color ? `Color: ${item.color}` : null)
     });
     if (ok) {
       removeItem(index);
@@ -216,13 +216,13 @@ const CartDrawer = () => {
                             </div>
 
                             {/* Variant tag */}
-                            {(item.size || item.color) && (
+                            {((item.size && item.size.toLowerCase() !== 'no size') || item.color) && (
                               <p className="text-xs text-neutral-500 mt-0.5">
                                 {item.color && (
                                   <span className="font-medium text-neutral-700">{item.color}</span>
                                 )}
-                                {item.size && item.color && ' • '}
-                                {item.size && (
+                                {item.size && item.size.toLowerCase() !== 'no size' && item.color && ' • '}
+                                {item.size && item.size.toLowerCase() !== 'no size' && (
                                   <span className="font-medium text-neutral-700">Size: {item.size}</span>
                                 )}
                               </p>

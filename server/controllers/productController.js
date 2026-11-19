@@ -586,7 +586,7 @@ const resolveImageRef = (ref, images) => {
 // @route   POST /api/products/admin
 exports.createProduct = async (req, res, next) => {
   try {
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, acceptCashOnDelivery, gstRate } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, hasSizes, sizes, colors, variants, colorImages, stock, tags, isFeatured, acceptCashOnDelivery, gstRate } = req.body;
 
     let parsedGstRate = null;
     if (gstRate !== undefined && gstRate !== null && gstRate !== '' && gstRate !== 'null' && gstRate !== 'default') {
@@ -662,8 +662,19 @@ exports.createProduct = async (req, res, next) => {
     }
 
     // Parse sizes & colors
-    const parsedSizes = sizes ? (typeof sizes === 'string' ? JSON.parse(sizes) : sizes) : [];
+    let parsedSizes = sizes ? (typeof sizes === 'string' ? JSON.parse(sizes) : sizes) : [];
     const parsedColors = colors ? (typeof colors === 'string' ? JSON.parse(colors) : colors) : [];
+
+    const parsedHasSizes = hasSizes !== undefined
+      ? (hasSizes === 'true' || hasSizes === true)
+      : (Array.isArray(parsedSizes) && parsedSizes.length > 0 && !parsedSizes.includes('No Size'));
+
+    if (!parsedHasSizes) {
+      parsedSizes = [];
+      if (Array.isArray(parsedVariants)) {
+        parsedVariants = parsedVariants.map(v => ({ ...v, size: '' }));
+      }
+    }
 
     const product = await Product.create({
       title,
@@ -674,6 +685,7 @@ exports.createProduct = async (req, res, next) => {
       category,
       subcategory: subcategory && subcategory !== 'null' && subcategory !== '' ? subcategory : null,
       gender: gender || 'women',
+      hasSizes: parsedHasSizes,
       sizes: parsedSizes,
       colors: parsedColors,
       variants: parsedVariants,
@@ -702,7 +714,7 @@ exports.updateProduct = async (req, res, next) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     const prevStock = product.stock || 0;
-    const { title, description, price, salePrice, category, subcategory, gender, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, acceptCashOnDelivery, existingImages, gstRate } = req.body;
+    const { title, description, price, salePrice, category, subcategory, gender, hasSizes, sizes, colors, variants, colorImages, stock, tags, isFeatured, isActive, acceptCashOnDelivery, existingImages, gstRate } = req.body;
 
     if (title) product.title = title;
     if (description !== undefined) product.description = description;
@@ -713,7 +725,20 @@ exports.updateProduct = async (req, res, next) => {
       product.subcategory = subcategory && subcategory !== 'null' && subcategory !== '' ? subcategory : null;
     }
     if (gender) product.gender = gender;
-    if (sizes) product.sizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+    if (hasSizes !== undefined) {
+      product.hasSizes = hasSizes === 'true' || hasSizes === true;
+    }
+    if (sizes !== undefined) {
+      const parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+      if (product.hasSizes === false || (Array.isArray(parsedSizes) && parsedSizes.includes('No Size'))) {
+        product.hasSizes = false;
+        product.sizes = [];
+      } else {
+        product.sizes = parsedSizes;
+      }
+    } else if (product.hasSizes === false) {
+      product.sizes = [];
+    }
     if (colors) product.colors = typeof colors === 'string' ? JSON.parse(colors) : colors;
 
     // Process images first so finalImages is available to resolve slot references
@@ -768,6 +793,7 @@ exports.updateProduct = async (req, res, next) => {
           }
           return {
             ...v,
+            size: product.hasSizes === false ? '' : (v.size || ''),
             image: primaryImage,
             images: resolvedList
           };

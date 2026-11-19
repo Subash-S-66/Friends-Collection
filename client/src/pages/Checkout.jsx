@@ -216,7 +216,7 @@ const Checkout = () => {
       type: 'danger',
       confirmText: 'Yes, Remove',
       cancelText: 'Keep Item',
-      details: itemToRemove.size ? `Size: ${itemToRemove.size}${itemToRemove.color ? ` • ${itemToRemove.color}` : ''}` : null
+      details: (itemToRemove.size && itemToRemove.size.toLowerCase() !== 'no size') ? `Size: ${itemToRemove.size}${itemToRemove.color ? ` • ${itemToRemove.color}` : ''}` : (itemToRemove.color ? `Color: ${itemToRemove.color}` : null)
     });
     if (!ok) return;
 
@@ -1179,7 +1179,7 @@ const Checkout = () => {
                                 className="flex items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-xl border border-amber-200 text-[11px] shadow-2xs"
                               >
                                 <span className="font-semibold text-neutral-800 truncate">
-                                  • {item.title} {item.size && `(${item.size})`}
+                                  • {item.title} {item.size && item.size.toLowerCase() !== 'no size' && `(${item.size})`}
                                 </span>
                                 <button
                                   type="button"
@@ -1246,7 +1246,7 @@ const Checkout = () => {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-xs font-bold text-neutral-900 truncate">{item.title}</h4>
                     <p className="text-[11px] text-neutral-500">
-                      Qty: {item.quantity} {item.size && `• Size: ${item.size}`}
+                      Qty: {item.quantity} {item.size && item.size.toLowerCase() !== 'no size' && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                       {item.acceptCashOnDelivery === false && (

@@ -671,7 +671,7 @@ const OrderManager = () => {
                                 className="w-9 h-11 object-cover object-top rounded-md border border-neutral-200"
                               />
                               <div className="hidden group-hover/thumb:block absolute bottom-full left-0 z-20 bg-neutral-900 text-white text-[10px] p-1.5 rounded whitespace-nowrap shadow-lg">
-                                {item.title} ({item.size || 'Std'}) x {item.quantity}
+                                {item.title} {item.size && item.size.toLowerCase() !== 'no size' ? `(${item.size}) ` : ''}x {item.quantity}
                               </div>
                             </div>
                           ))}
@@ -1234,7 +1234,7 @@ const OrderManager = () => {
                       <div>
                         <h4 className="font-bold text-neutral-900">{item.title}</h4>
                         <p className="text-neutral-500">
-                          Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                          Qty: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && item.size.toLowerCase() !== 'no size' && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                         </p>
                         {item.gstRate !== undefined && item.gstRate !== null && (
                           <span className="inline-block mt-0.5 text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">

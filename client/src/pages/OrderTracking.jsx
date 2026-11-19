@@ -492,7 +492,7 @@ const OrderTracking = () => {
                       <div>
                         <h4 className="font-bold text-neutral-900 text-sm line-clamp-1">{item.title}</h4>
                         <p className="text-neutral-500 text-xs mt-0.5">
-                          Quantity: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
+                          Quantity: <span className="font-numeric font-bold text-neutral-800">{item.quantity}</span> {item.size && item.size.toLowerCase() !== 'no size' && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}
                         </p>
                       </div>
                     </div>

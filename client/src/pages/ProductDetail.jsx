@@ -53,6 +53,12 @@ const ProductDetail = () => {
         // Derive initial color & size, respecting ?color= query param from swatches
         const queryColor = new URLSearchParams(window.location.search).get('color');
 
+        const noSizes = Boolean(
+          prod.hasSizes === false ||
+          (Array.isArray(prod.sizes) && prod.sizes.length === 1 && prod.sizes[0].toLowerCase() === 'no size') ||
+          (Array.isArray(prod.sizes) && prod.sizes.length === 0 && (!prod.variants || prod.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')))
+        );
+
         if (prod.variants && prod.variants.length > 0) {
           let chosenVariant = null;
           if (queryColor) {
@@ -64,9 +70,13 @@ const ProductDetail = () => {
             chosenVariant = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
           }
           setSelectedColor(chosenVariant.color || '');
-          setSelectedSize(chosenVariant.size || '');
+          setSelectedSize(noSizes ? '' : (chosenVariant.size && chosenVariant.size.toLowerCase() !== 'no size' ? chosenVariant.size : ''));
         } else {
-          if (prod.sizes && prod.sizes.length > 0) setSelectedSize(prod.sizes[0]);
+          if (!noSizes && prod.sizes && prod.sizes.length > 0 && prod.sizes[0].toLowerCase() !== 'no size') {
+            setSelectedSize(prod.sizes[0]);
+          } else {
+            setSelectedSize('');
+          }
           if (queryColor) setSelectedColor(queryColor);
           else if (prod.colors && prod.colors.length > 0) setSelectedColor(prod.colors[0]);
         }
@@ -100,12 +110,19 @@ const ProductDetail = () => {
   }, [product?._id, selectedColor, selectedSize]);
 
   // Safe variant stock derivation before early returns
+  const isNoSizeProduct = Boolean(
+    product &&
+    (product.hasSizes === false ||
+      (Array.isArray(product.sizes) && product.sizes.length === 1 && product.sizes[0].toLowerCase() === 'no size') ||
+      (Array.isArray(product.sizes) && product.sizes.length === 0 && (!product.variants || product.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard'))))
+  );
+
   const hasVariants = Boolean(product?.variants && product.variants.length > 0);
   const currentVariant = hasVariants
     ? product.variants.find(
         (v) =>
           (!selectedColor || !v.color || v.color.trim().toLowerCase() === (selectedColor || '').trim().toLowerCase()) &&
-          (!selectedSize || !v.size || v.size.trim().toLowerCase() === (selectedSize || '').trim().toLowerCase())
+          (isNoSizeProduct || !selectedSize || !v.size || v.size.trim().toLowerCase() === (selectedSize || '').trim().toLowerCase())
       )
     : null;
 
@@ -274,11 +291,14 @@ const ProductDetail = () => {
     ? Array.from(new Set(product.variants.map((v) => v.color).filter(Boolean)))
     : product.colors || [];
 
-  const allSizes = hasVariants
-    ? Array.from(new Set(product.variants.map((v) => v.size).filter(Boolean)))
-    : product.sizes || [];
+  const allSizes = !isNoSizeProduct
+    ? (hasVariants
+        ? Array.from(new Set(product.variants.map((v) => v.size).filter(s => Boolean(s) && s.toLowerCase() !== 'no size')))
+        : (product.sizes || []).filter(s => Boolean(s) && s.toLowerCase() !== 'no size'))
+    : [];
 
   const getFinalSize = () => {
+    if (isNoSizeProduct) return '';
     return selectedSize || (product?.sizes?.[0] || (product?.variants?.[0]?.size || ''));
   };
 
@@ -319,8 +339,9 @@ const ProductDetail = () => {
     }
   };
 
+  const variantDescriptor = [selectedColor, !isNoSizeProduct ? selectedSize : null].filter(Boolean).join(' • ');
   const whatsappMessage = encodeURIComponent(
-    `Hi Friends Collections! I am inquiring about "${product.title}" (${selectedColor ? selectedColor + ' - ' : ''}${selectedSize || 'standard'}) priced at ₹${product.salePrice || product.price}. Is it available for delivery?`
+    `Hi Friends Collections! I am inquiring about "${product.title}" (${variantDescriptor || 'available'}) priced at ₹${product.salePrice || product.price}. Is it available for delivery?`
   );
 
   return (
@@ -546,7 +567,7 @@ const ProductDetail = () => {
                             setSelectedColor(color);
                             setAdded(false);
                             setIsProcessing(false);
-                            if (hasVariants && product?.variants?.length > 0) {
+                            if (!isNoSizeProduct && hasVariants && product?.variants?.length > 0) {
                               const variantsForColor = product.variants.filter(
                                 (v) => (v.color || '').trim().toLowerCase() === color.trim().toLowerCase()
                               );
@@ -680,7 +701,9 @@ const ProductDetail = () => {
                     <div className="flex items-center gap-2.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 animate-ping" />
                       <span className="text-xs font-bold">
-                        Out of Stock in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize || 'this selection'}
+                        {isNoSizeProduct
+                          ? `Out of Stock${selectedColor ? ` in ${selectedColor}` : ''}`
+                          : `Out of Stock in ${selectedColor ? `${selectedColor} • ` : ''}${selectedSize || 'this selection'}`}
                       </span>
                     </div>
                     <button
@@ -694,12 +717,28 @@ const ProductDetail = () => {
                 ) : currentStock <= 3 ? (
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-xs animate-pulse">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Hurry, Only <strong className="font-numeric font-bold">{currentStock}</strong> Left in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize}!
+                    {isNoSizeProduct ? (
+                      <>
+                        Hurry, Only <strong className="font-numeric font-bold">{currentStock}</strong> Left{selectedColor ? ` in ${selectedColor}` : ''}!
+                      </>
+                    ) : (
+                      <>
+                        Hurry, Only <strong className="font-numeric font-bold">{currentStock}</strong> Left in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize}!
+                      </>
+                    )}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    In Stock & Ready for Dispatch (<strong className="font-numeric font-bold">{currentStock}</strong> available in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize})
+                    {isNoSizeProduct ? (
+                      <>
+                        In Stock & Ready for Dispatch (<strong className="font-numeric font-bold">{currentStock}</strong> available{selectedColor ? ` in ${selectedColor}` : ''})
+                      </>
+                    ) : (
+                      <>
+                        In Stock & Ready for Dispatch (<strong className="font-numeric font-bold">{currentStock}</strong> available in {selectedColor ? `${selectedColor} • ` : ''}{selectedSize})
+                      </>
+                    )}
                   </span>
                 )}
               </div>
@@ -733,7 +772,9 @@ const ProductDetail = () => {
                 {isOutOfStock ? (
                   <div className="space-y-2.5">
                     <div className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-neutral-100 text-neutral-500 uppercase tracking-wider text-center border border-neutral-200">
-                      Out of Stock in {selectedColor ? `${selectedColor} - ` : ''}{selectedSize || 'this option'}
+                      {isNoSizeProduct
+                        ? `Out of Stock${selectedColor ? ` in ${selectedColor}` : ''}`
+                        : `Out of Stock in ${selectedColor ? `${selectedColor} - ` : ''}${selectedSize || 'this option'}`}
                     </div>
 
                     {/* Notify Me Button */}

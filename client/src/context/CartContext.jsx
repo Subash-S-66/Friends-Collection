@@ -237,7 +237,11 @@ export const CartProvider = ({ children }) => {
   const addToCart = useCallback((product, quantity = 1, size = '', color = '') => {
     if (!product) return false;
 
-    const cleanSize = (size || '').toString().trim();
+    const isNoSize = product.hasSizes === false ||
+      (Array.isArray(product.sizes) && product.sizes.length === 1 && product.sizes[0].toLowerCase() === 'no size') ||
+      (Array.isArray(product.sizes) && product.sizes.length === 0 && (!product.variants || product.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')));
+
+    const cleanSize = isNoSize || (size || '').toString().toLowerCase() === 'no size' ? '' : (size || '').toString().trim();
     const cleanColor = (color || '').toString().trim();
     const targetSize = norm(cleanSize);
     const targetColor = norm(cleanColor);
@@ -297,7 +301,9 @@ export const CartProvider = ({ children }) => {
       resolvedVariantImage = product.images?.[0] || '';
     }
 
-    const resolvedSize = cleanSize || (match?.size ? match.size.trim() : (product.sizes?.[0] || ''));
+    const resolvedSize = isNoSize
+      ? ''
+      : (cleanSize || (match?.size && match.size.toLowerCase() !== 'no size' ? match.size.trim() : (product.sizes?.[0] && product.sizes[0].toLowerCase() !== 'no size' ? product.sizes[0] : '')));
     const resolvedColor = cleanColor || (match?.color ? match.color.trim() : (product.colors?.[0] || ''));
 
     const prodId = String(product._id || product);

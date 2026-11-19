@@ -77,6 +77,7 @@ const ProductManager = () => {
   const [salePrice, setSalePrice] = useState('');
   const [gstRate, setGstRate] = useState('');
   const [customGstInput, setCustomGstInput] = useState('');
+  const [hasSizes, setHasSizes] = useState(true);
   const [selectedSizes, setSelectedSizes] = useState(['S', 'M', 'L', 'XL']);
   const [selectedColors, setSelectedColors] = useState(['Maroon']);
   const [customSizeInput, setCustomSizeInput] = useState('');
@@ -370,6 +371,7 @@ const ProductManager = () => {
     setSalePrice('');
     setGstRate('');
     setCustomGstInput('');
+    setHasSizes(true);
 
     const isKidsMode = initialGender === 'kids';
     const initialSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
@@ -426,22 +428,33 @@ const ProductManager = () => {
       setCustomGstInput('');
     }
 
+    const isNoSizeExplicit = prod.hasSizes === false ||
+      (Array.isArray(prod.sizes) && prod.sizes.length === 1 && prod.sizes[0].toLowerCase() === 'no size') ||
+      (Array.isArray(prod.sizes) && prod.sizes.length === 0 && (!prod.variants || prod.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')));
+    const hasSizesActive = !isNoSizeExplicit;
+    setHasSizes(hasSizesActive);
+
     const isKidsMode = prodGender === 'kids';
     const baseList = isKidsMode ? KIDS_SIZES : ADULT_SIZES;
     const defaultSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
 
-    const prodSizes = prod.sizes && prod.sizes.length > 0
-      ? prod.sizes
-      : (prod.variants && prod.variants.length > 0
-          ? Array.from(new Set(prod.variants.map((v) => v.size).filter(Boolean)))
-          : []);
+    if (hasSizesActive) {
+      const prodSizes = prod.sizes && prod.sizes.length > 0
+        ? prod.sizes.filter(s => s && s.toLowerCase() !== 'no size' && s.toLowerCase() !== 'standard')
+        : (prod.variants && prod.variants.length > 0
+            ? Array.from(new Set(prod.variants.map((v) => v.size).filter(s => Boolean(s) && s.toLowerCase() !== 'no size' && s.toLowerCase() !== 'standard')))
+            : []);
 
-    const finalSizes = prodSizes.length > 0 ? prodSizes : defaultSizes;
-    setSelectedSizes(finalSizes);
+      const finalSizes = prodSizes.length > 0 ? prodSizes : defaultSizes;
+      setSelectedSizes(finalSizes);
 
-    // Track any sizes not in base preset as custom sizes
-    const customFound = finalSizes.filter((s) => !baseList.includes(s));
-    setCustomSizesList(customFound);
+      // Track any sizes not in base preset as custom sizes
+      const customFound = finalSizes.filter((s) => !baseList.includes(s));
+      setCustomSizesList(customFound);
+    } else {
+      setSelectedSizes([]);
+      setCustomSizesList([]);
+    }
     setCustomSizeInput('');
 
     setSelectedColors(prod.colors && prod.colors.length > 0 ? prod.colors : ['Maroon']);
@@ -481,27 +494,38 @@ const ProductManager = () => {
       const sizes = prod.sizes && prod.sizes.length > 0 ? prod.sizes : (isKidsMode ? ['1-2', '2-3'] : ['Standard']);
       initialVariants = [];
       colors.forEach((c) => {
-        sizes.forEach((s) => {
+        if (hasSizesActive) {
+          sizes.forEach((s) => {
+            initialVariants.push({
+              color: c,
+              size: s,
+              stock: Math.max(1, Math.floor((prod.stock || 10) / (colors.length * sizes.length))),
+              sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`,
+              image: '',
+              images: []
+            });
+          });
+        } else {
           initialVariants.push({
             color: c,
-            size: s,
-            stock: Math.max(1, Math.floor((prod.stock || 10) / (colors.length * sizes.length))),
-            sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}-${s.replace(/[^A-Z0-9]/g, '')}`,
+            size: '',
+            stock: Math.max(1, Math.floor((prod.stock || 10) / colors.length)),
+            sku: `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '')}`,
             image: '',
             images: []
           });
-        });
+        }
       });
     }
     setVariants(initialVariants.length > 0 ? initialVariants.map(v => ({
       color: v.color || 'Standard',
-      size: v.size || (isKidsMode ? '1-2' : 'Standard'),
+      size: hasSizesActive ? (v.size || (isKidsMode ? '1-2' : 'Standard')) : '',
       stock: v.stock !== undefined ? v.stock : 5,
       sku: v.sku || '',
       image: v.image || '',
       images: Array.isArray(v.images) ? v.images : (v.image ? [v.image] : [])
     })) : [
-      { color: 'Standard', size: isKidsMode ? '1-2' : 'Standard', stock: prod.stock || 10, sku: '', image: '', images: [] }
+      { color: 'Standard', size: hasSizesActive ? (isKidsMode ? '1-2' : 'Standard') : '', stock: prod.stock || 10, sku: '', image: '', images: [] }
     ]);
 
     setTags(prod.tags && prod.tags.length > 0 ? prod.tags : ['new-arrival']);
@@ -513,6 +537,10 @@ const ProductManager = () => {
     setGender(newGender);
     setCategory('');
     setSubcategory('');
+
+    if (!hasSizes) {
+      return;
+    }
 
     if (newGender === 'kids') {
       const defaultKids = ['1-2', '2-3', '3-4', '4-5'];
@@ -588,11 +616,85 @@ const ProductManager = () => {
     setVariants((prev) => prev.filter((v) => v.size !== sizeToRemove));
   };
 
+  const toggleHasSizes = (enable) => {
+    if (enable) {
+      setHasSizes(true);
+      const isKidsMode = gender === 'kids';
+      const defaultSizes = isKidsMode ? ['1-2', '2-3', '3-4', '4-5'] : ['S', 'M', 'L', 'XL'];
+      setSelectedSizes(defaultSizes);
+
+      // Expand variants if needed
+      setVariants((prev) => {
+        const uniqueColors = Array.from(new Set(prev.map((v) => v.color?.trim()).filter(Boolean)));
+        const colorsToUse = uniqueColors.length > 0 ? uniqueColors : (selectedColors.length > 0 ? selectedColors : ['Maroon']);
+        const newRows = [];
+        colorsToUse.forEach((c) => {
+          defaultSizes.forEach((sz) => {
+            const cleanCol = c.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const cleanSz = sz.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            newRows.push({
+              color: c,
+              size: sz,
+              stock: '',
+              sku: `FC-${cleanCol || 'CLR'}-${cleanSz || 'STD'}`,
+              image: '',
+              images: []
+            });
+          });
+        });
+        return newRows.length > 0 ? newRows : prev;
+      });
+      toast.success('Sizes enabled for this dress.');
+    } else {
+      setHasSizes(false);
+      setSelectedSizes([]);
+      setCustomSizesList([]);
+      // In No Size mode, collapse variants by color (1 row per color) with size: ''
+      setVariants((prev) => {
+        const colorMap = new Map();
+        prev.forEach((v) => {
+          const c = (v.color || 'Standard').trim();
+          const curStock = parseInt(v.stock, 10) || 0;
+          if (colorMap.has(c)) {
+            const existing = colorMap.get(c);
+            existing.stock = (parseInt(existing.stock, 10) || 0) + curStock;
+            if (!existing.image && v.image) existing.image = v.image;
+            if ((!existing.images || existing.images.length === 0) && v.images?.length > 0) existing.images = v.images;
+          } else {
+            colorMap.set(c, {
+              color: c,
+              size: '',
+              stock: v.stock !== '' ? curStock : '',
+              sku: v.sku ? v.sku.replace(/-[A-Z0-9]+$/, '') : `FC-${c.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
+              image: v.image || '',
+              images: Array.isArray(v.images) ? v.images : []
+            });
+          }
+        });
+        const collapsed = Array.from(colorMap.values());
+        return collapsed.length > 0
+          ? collapsed
+          : [{ color: selectedColors[0] || 'Standard', size: '', stock: 5, sku: '', image: '', images: [] }];
+      });
+      toast.success('No Size mode enabled: Variants & stock are organized by color only.');
+    }
+  };
+
   const handleToggleSize = (size) => {
+    if (size === 'No Size') {
+      toggleHasSizes(false);
+      return;
+    }
+    if (!hasSizes) {
+      setHasSizes(true);
+      setSelectedSizes([size]);
+      toast.success(`Sizes enabled! Selected "${size}".`);
+      return;
+    }
     setSelectedSizes((prev) => {
       if (prev.includes(size)) {
         if (prev.length === 1) {
-          toast.error('At least one size must remain selected');
+          toast.info('To remove sizes completely, toggle "Product Sizing" OFF or click "No Size".');
           return prev;
         }
         return prev.filter((s) => s !== size);
@@ -604,7 +706,9 @@ const ProductManager = () => {
 
   // Derive unique sizes already present across current variants (or fallback to selectedSizes)
   const presentSizes = Array.from(new Set(variants.map((v) => v.size?.trim()).filter(Boolean)));
-  const referenceSizes = presentSizes.length > 0 ? presentSizes : (selectedSizes.length > 0 ? selectedSizes : ['S', 'M', 'L', 'XL']);
+  const referenceSizes = hasSizes
+    ? (presentSizes.length > 0 ? presentSizes : (selectedSizes.length > 0 ? selectedSizes : ['S', 'M', 'L', 'XL']))
+    : [];
 
   const distinctModalColors = Array.from(
     new Set([
@@ -615,7 +719,7 @@ const ProductManager = () => {
 
   // Calculate missing sizes for any color compared to existing present sizes
   const getMissingSizesForColor = (colorName) => {
-    if (!colorName || !colorName.trim()) return [];
+    if (!colorName || !colorName.trim() || !hasSizes) return [];
     const colLower = colorName.trim().toLowerCase();
     const existingSizesForCol = variants
       .filter((v) => (v.color || '').trim().toLowerCase() === colLower)
@@ -623,11 +727,43 @@ const ProductManager = () => {
     return referenceSizes.filter((sz) => !existingSizesForCol.includes(sz));
   };
 
-  // Auto-generate variants for a specific color using all present sizes without filling stock (leaves stock empty)
+  // Auto-generate variants for a specific color
   const handleAutoGenerateForColor = (colorName) => {
     const trimmed = (colorName || '').trim();
     if (!trimmed) {
       toast.error('Please enter a color name (e.g. Red, Navy Blue)');
+      return;
+    }
+
+    if (!hasSizes) {
+      const colLower = trimmed.toLowerCase();
+      const exists = variants.some((v) => (v.color || '').trim().toLowerCase() === colLower);
+      if (exists) {
+        toast.info(`Variant for color "${trimmed}" already exists.`);
+        return;
+      }
+      const cleanCol = trimmed.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const newRow = {
+        color: trimmed,
+        size: '',
+        stock: '',
+        sku: `FC-${cleanCol || 'CLR'}`,
+        image: '',
+        images: []
+      };
+      setVariants((prev) => [...prev, newRow]);
+      if (!selectedColors.includes(trimmed)) {
+        setSelectedColors((prev) => [...prev, trimmed]);
+      }
+      setColorImages((prev) => {
+        if (!prev.some((ci) => (ci.color || '').trim().toLowerCase() === colLower)) {
+          const defaultImg = allPhotoPool[prev.length]?.ref || allPhotoPool[0]?.ref || '';
+          return [...prev, { color: trimmed, image: defaultImg, images: defaultImg ? [defaultImg] : [] }];
+        }
+        return prev;
+      });
+      setQuickColorInput('');
+      toast.success(`Added color variant "${trimmed}"! Please enter stock.`);
       return;
     }
 
@@ -784,7 +920,13 @@ const ProductManager = () => {
     const fallbackSize = isKidsMode ? '1-2' : 'M';
     setVariants((prev) => [
       ...prev,
-      { color: selectedColors[0] || 'Standard', size: referenceSizes[0] || fallbackSize, stock: '', sku: '', image: '' }
+      {
+        color: selectedColors[0] || 'Standard',
+        size: hasSizes ? (referenceSizes[0] || fallbackSize) : '',
+        stock: '',
+        sku: '',
+        image: ''
+      }
     ]);
   };
 
@@ -814,7 +956,9 @@ const ProductManager = () => {
   const handleAutoGenerateVariants = () => {
     const existingMap = new Map();
     variants.forEach((v) => {
-      const k = `${(v.color || 'Standard').toLowerCase()}::${(v.size || 'Standard').toLowerCase()}`;
+      const k = hasSizes
+        ? `${(v.color || 'Standard').toLowerCase()}::${(v.size || 'Standard').toLowerCase()}`
+        : (v.color || 'Standard').toLowerCase();
       existingMap.set(k, v.stock);
     });
 
@@ -825,6 +969,38 @@ const ProductManager = () => {
       ])
     );
     const colors = allColors.length > 0 ? allColors : ['Standard'];
+
+    if (!hasSizes) {
+      const matrix = colors.map((color) => {
+        const k = color.toLowerCase();
+        const existingStock = existingMap.get(k);
+        return {
+          color,
+          size: '',
+          stock: existingStock !== undefined && existingStock !== '' ? existingStock : '',
+          sku: `FC-${color.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
+          image: ''
+        };
+      });
+      setVariants(matrix);
+
+      // Ensure all colors have a colorImages entry
+      setColorImages((prev) => {
+        const next = [...prev];
+        colors.forEach((col, idx) => {
+          const norm = col.toLowerCase();
+          if (!next.some((ci) => (ci.color || '').trim().toLowerCase() === norm)) {
+            const defaultImg = allPhotoPool[idx]?.ref || allPhotoPool[0]?.ref || '';
+            next.push({ color: col, image: defaultImg });
+          }
+        });
+        return next;
+      });
+
+      toast.success(`Generated ${matrix.length} color variants! Enter stock for each.`);
+      return;
+    }
+
     const sizes = referenceSizes.length > 0 ? referenceSizes : ['Standard'];
     const matrix = [];
 
@@ -1005,8 +1181,11 @@ const ProductManager = () => {
     );
     if (emptyStockIdx !== -1) {
       const emptyVar = variants[emptyStockIdx];
+      const varLabel = hasSizes
+        ? `"${emptyVar.color || 'Variant'} - ${emptyVar.size || 'Size'}"`
+        : `"${emptyVar.color || 'Variant'}"`;
       toast.error(
-        `Stock cannot be empty for variant "${emptyVar.color || 'Variant'} - ${emptyVar.size || 'Size'}". Please enter a stock quantity (0 is allowed if out of stock, but cannot be left empty).`,
+        `Stock cannot be empty for variant ${varLabel}. Please enter a stock quantity (0 is allowed if out of stock, but cannot be left empty).`,
         { duration: 6000, icon: '⚠️' }
       );
       return;
@@ -1016,7 +1195,8 @@ const ProductManager = () => {
     const invalidStockIdx = variants.findIndex((v) => isNaN(Number(v.stock)) || Number(v.stock) < 0);
     if (invalidStockIdx !== -1) {
       const invVar = variants[invalidStockIdx];
-      toast.error(`Invalid stock for variant "${invVar.color} - ${invVar.size}". Stock must be 0 or higher.`);
+      const varLabel = hasSizes ? `"${invVar.color} - ${invVar.size}"` : `"${invVar.color}"`;
+      toast.error(`Invalid stock for variant ${varLabel}. Stock must be 0 or higher.`);
       return;
     }
 
@@ -1048,13 +1228,19 @@ const ProductManager = () => {
       const effectiveGstToSave = gstRate === 'custom' ? customGstInput.trim() : gstRate;
       formData.append('gstRate', effectiveGstToSave === '' ? '' : effectiveGstToSave);
 
-      const distinctSizes = Array.from(
-        new Set([
-          ...variants.map((v) => v.size?.trim()).filter(Boolean),
-          ...selectedSizes
-        ])
-      );
-      formData.append('sizes', JSON.stringify(distinctSizes.length > 0 ? distinctSizes : ['Standard']));
+      formData.append('hasSizes', String(hasSizes));
+
+      if (hasSizes) {
+        const distinctSizes = Array.from(
+          new Set([
+            ...variants.map((v) => v.size?.trim()).filter(Boolean),
+            ...selectedSizes
+          ])
+        );
+        formData.append('sizes', JSON.stringify(distinctSizes.length > 0 ? distinctSizes : ['Standard']));
+      } else {
+        formData.append('sizes', JSON.stringify([]));
+      }
 
       const distinctColors = Array.from(
         new Set([
@@ -1085,7 +1271,7 @@ const ProductManager = () => {
           : (v.image ? [v.image] : []);
         return {
           color: (v.color || 'Standard').trim(),
-          size: (v.size || 'Standard').trim(),
+          size: hasSizes ? (v.size || 'Standard').trim() : '',
           stock: parseInt(v.stock, 10) || 0,
           sku: v.sku || '',
           image: v.image || customImgs[0] || '',
@@ -1490,6 +1676,11 @@ const ProductManager = () => {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-neutral-900 text-xs sm:text-sm">{prod.title}</p>
+                              {(prod.hasSizes === false || (Array.isArray(prod.sizes) && prod.sizes.length === 0)) && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  No Size
+                                </span>
+                              )}
                               {prod.isActive === false && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-200 text-neutral-700">
                                   Hidden
@@ -1635,7 +1826,7 @@ const ProductManager = () => {
                                           />
                                         )}
                                         <span className="font-semibold text-neutral-800 truncate">
-                                          {v.color || 'Standard'} • {v.size}
+                                          {v.size && v.size !== 'No Size' ? `${v.color || 'Standard'} • ${v.size}` : (v.color || 'Standard')}
                                         </span>
                                       </div>
                                       <span
@@ -2609,16 +2800,18 @@ const ProductManager = () => {
                   <div>
                     <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
                       <span>Variant-Level Inventory & Sizing</span>
-                      {gender === 'kids' && (
+                      {hasSizes && gender === 'kids' && (
                         <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
                           🧒 Kids Age Sizing (Years: 1-2, 2-3...)
                         </span>
                       )}
                     </h4>
                     <p className="text-[11px] text-neutral-500">
-                      {gender === 'kids'
-                        ? 'Select year-based sizes for kids or enter custom manual sizes below.'
-                        : 'Choose standard sizes and manage stock for each color/size variant.'}
+                      {hasSizes
+                        ? (gender === 'kids'
+                            ? 'Select year-based sizes for kids or enter custom manual sizes below.'
+                            : 'Choose standard sizes and manage stock for each color/size variant.')
+                        : 'No Size mode active: Manage variants and stock by color/pattern only (e.g. Sarees, Stoles).'}
                     </p>
                   </div>
                   <button
@@ -2626,57 +2819,138 @@ const ProductManager = () => {
                     onClick={handleAutoGenerateVariants}
                     className="text-xs font-bold text-primary hover:text-accent-700 underline self-start sm:self-auto cursor-pointer"
                   >
-                    Auto-Generate Matrix
+                    {hasSizes ? 'Auto-Generate Matrix' : 'Auto-Generate Color Variants'}
                   </button>
                 </div>
 
-                {/* Sizing Chips Selector */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
-                      {gender === 'kids' ? 'Select Kids Year-Based Sizes:' : 'Select Available Sizes:'}
-                    </span>
-                    <span className="text-[10px] text-neutral-400">
-                      {selectedSizes.length} sizes active
-                    </span>
+                {/* User-friendly Sizing Mode Toggle */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200/90 shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${
+                      hasSizes ? 'bg-primary-50 text-primary' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {hasSizes ? '📏' : '✨'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold text-neutral-900">Product Sizing</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          hasSizes ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}>
+                          {hasSizes ? 'Sizes Enabled (XS, S, M, L...)' : 'No Size (Sarees / Variants Only)'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        {hasSizes
+                          ? 'Customer will choose a size before buying (e.g. Kurtis, Shirts, Pants).'
+                          : 'For Sarees, Shawls, Accessories, Free-Size items. Shows stock only, no size options.'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableSizes.map((sz) => {
-                      const isSelected = selectedSizes.includes(sz);
-                      const isCustom = customSizesList.includes(sz);
-                      return (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => handleToggleSize(sz)}
-                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            isSelected
-                              ? 'bg-primary text-white shadow-xs ring-1 ring-primary'
-                              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-200'
-                          }`}
-                        >
-                          <span>{sz}</span>
-                          {isCustom && (
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveCustomSize(sz);
-                              }}
-                              className="hover:text-red-300 ml-0.5"
-                              title="Delete custom size"
-                            >
-                              <HiOutlineX className="w-3 h-3" />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={hasSizes}
+                      onClick={() => toggleHasSizes(!hasSizes)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        hasSizes ? 'bg-primary' : 'bg-neutral-300'
+                      }`}
+                      title={hasSizes ? 'Click to switch to No Size mode' : 'Click to enable sizing'}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          hasSizes ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                    <span className="text-xs font-bold text-neutral-700">
+                      {hasSizes ? 'Sizes On' : 'No Size'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Custom Manual Input - ONLY rendered when Department is Kids */}
-                {gender === 'kids' && (
+                {/* Sizing Chips Selector (Only when hasSizes is true) */}
+                {hasSizes ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider">
+                        {gender === 'kids' ? 'Select Kids Year-Based Sizes:' : 'Select Available Sizes:'}
+                      </span>
+                      <span className="text-[10px] text-neutral-400">
+                        {selectedSizes.length} sizes active
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {/* Prominent No Size option chip */}
+                      <button
+                        type="button"
+                        onClick={() => toggleHasSizes(false)}
+                        className="px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-300"
+                        title="Click to turn off sizes for sarees / one-size products"
+                      >
+                        <span>🚫 No Size</span>
+                      </button>
+
+                      {availableSizes.map((sz) => {
+                        const isSelected = selectedSizes.includes(sz);
+                        const isCustom = customSizesList.includes(sz);
+                        return (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => handleToggleSize(sz)}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? 'bg-primary text-white shadow-xs ring-1 ring-primary'
+                                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-200'
+                            }`}
+                          >
+                            <span>{sz}</span>
+                            {isCustom && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCustomSize(sz);
+                                }}
+                                className="hover:text-red-300 ml-0.5"
+                                title="Delete custom size"
+                              >
+                                <HiOutlineX className="w-3 h-3" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 text-amber-950 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">✨</span>
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950">
+                          No Size Mode Active (e.g. Sarees, Stoles, Accessories)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleHasSizes(true)}
+                        className="text-xs font-bold text-primary hover:text-accent-700 underline cursor-pointer"
+                      >
+                        + Enable Sizes
+                      </button>
+                    </div>
+                    <p className="text-xs text-amber-900/90 leading-relaxed">
+                      Sizes are turned off for this dress. On the live product page, customers will <strong>only see variants (colors/photos) and stock</strong>—no size options will be shown or asked.
+                    </p>
+                  </div>
+                )}
+
+                {/* Custom Manual Input - ONLY rendered when Department is Kids and Sizing is Active */}
+                {hasSizes && gender === 'kids' && (
                   <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
@@ -2744,14 +3018,18 @@ const ProductManager = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm">🎨</span>
                       <span className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
-                        Quick Add Color & Auto-Generate Sizes
+                        {hasSizes ? 'Quick Add Color & Auto-Generate Sizes' : 'Quick Add Color Variant'}
                       </span>
                       <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
-                        {referenceSizes.length} sizes present ({referenceSizes.join(', ')})
+                        {hasSizes
+                          ? `${referenceSizes.length} sizes present (${referenceSizes.join(', ')})`
+                          : '1 Variant per Color (No Size)'}
                       </span>
                     </div>
                     <span className="text-[10px] text-neutral-500">
-                      Auto-creates rows with empty stock (enter 0 if out of stock)
+                      {hasSizes
+                        ? 'Auto-creates rows with empty stock (enter 0 if out of stock)'
+                        : 'Adds color row with stock entry'}
                     </span>
                   </div>
 
@@ -2775,7 +3053,7 @@ const ProductManager = () => {
                       disabled={!quickColorInput.trim()}
                       className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer flex items-center gap-1.5"
                     >
-                      <span>⚡ Auto-Generate {referenceSizes.length} Sizes</span>
+                      <span>{hasSizes ? `⚡ Auto-Generate ${referenceSizes.length} Sizes` : '⚡ Add Color Variant'}</span>
                     </button>
                   </div>
                 </div>
@@ -2811,34 +3089,40 @@ const ProductManager = () => {
                             onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
                             className="flex-1 min-w-[100px] px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-medium"
                           />
-                          <select
-                            value={v.size}
-                            onChange={(e) => {
-                              if (e.target.value === '__custom__') {
-                                const val = window.prompt('Enter custom manual size (e.g. 1-2, 2-3, 18-24M):');
-                                if (val && val.trim()) {
-                                  const customVal = val.trim();
-                                  if (!customSizesList.includes(customVal)) {
-                                    setCustomSizesList((prev) => [...prev, customVal]);
+                          {hasSizes ? (
+                            <select
+                              value={v.size}
+                              onChange={(e) => {
+                                if (e.target.value === '__custom__') {
+                                  const val = window.prompt('Enter custom manual size (e.g. 1-2, 2-3, 18-24M):');
+                                  if (val && val.trim()) {
+                                    const customVal = val.trim();
+                                    if (!customSizesList.includes(customVal)) {
+                                      setCustomSizesList((prev) => [...prev, customVal]);
+                                    }
+                                    if (!selectedSizes.includes(customVal)) {
+                                      setSelectedSizes((prev) => [...prev, customVal]);
+                                    }
+                                    handleVariantChange(idx, 'size', customVal);
                                   }
-                                  if (!selectedSizes.includes(customVal)) {
-                                    setSelectedSizes((prev) => [...prev, customVal]);
-                                  }
-                                  handleVariantChange(idx, 'size', customVal);
+                                } else {
+                                  handleVariantChange(idx, 'size', e.target.value);
                                 }
-                              } else {
-                                handleVariantChange(idx, 'size', e.target.value);
-                              }
-                            }}
-                            className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold shrink-0"
-                          >
-                            {availableSizes.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                            {gender === 'kids' && (
-                              <option value="__custom__">+ Custom Size...</option>
-                            )}
-                          </select>
+                              }}
+                              className="w-24 px-2 py-2 rounded-xl border border-neutral-200 bg-neutral-50 font-bold shrink-0"
+                            >
+                              {availableSizes.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                              {gender === 'kids' && (
+                                <option value="__custom__">+ Custom Size...</option>
+                              )}
+                            </select>
+                          ) : (
+                            <span className="w-20 px-2 py-2 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-900 text-[10px] font-bold text-center shrink-0">
+                              No Size
+                            </span>
+                          )}
                           <div className="relative shrink-0">
                             <input
                               type="number"

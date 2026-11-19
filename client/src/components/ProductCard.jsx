@@ -65,6 +65,10 @@ const ProductCard = ({ product }) => {
     setIsAdding(true);
 
     try {
+      const isNoSize = product.hasSizes === false ||
+        (Array.isArray(product.sizes) && product.sizes.length === 1 && product.sizes[0].toLowerCase() === 'no size') ||
+        (Array.isArray(product.sizes) && product.sizes.length === 0 && (!product.variants || product.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')));
+
       // Pick first available in-stock variant or size, preferring active swatch color if selected
       let defaultSize = '';
       let defaultColor = selectedColorOverride || '';
@@ -83,7 +87,7 @@ const ProductCard = ({ product }) => {
           setNotifyOpen(true);
           return;
         }
-        defaultSize = inStock.size || '';
+        defaultSize = isNoSize ? '' : (inStock.size && inStock.size.toLowerCase() !== 'no size' ? inStock.size : '');
         defaultColor = inStock.color || '';
       } else {
         if (product.stock <= 0) {
@@ -91,7 +95,7 @@ const ProductCard = ({ product }) => {
           setNotifyOpen(true);
           return;
         }
-        defaultSize = product.sizes?.[0] || '';
+        defaultSize = isNoSize ? '' : (product.sizes?.[0] && product.sizes[0].toLowerCase() !== 'no size' ? product.sizes[0] : '');
         defaultColor = defaultColor || product.colors?.[0] || '';
       }
 
