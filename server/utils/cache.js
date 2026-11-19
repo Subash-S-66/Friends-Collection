@@ -37,7 +37,7 @@ const cacheMiddleware = (ttlSeconds = 60) => {
 
     if (cached && cached.expiresAt > now) {
       res.setHeader('X-Cache', 'HIT');
-      res.setHeader('Cache-Control', `public, max-age=${ttlSeconds}`);
+      res.setHeader('Cache-Control', 'no-cache');
       return res.json(cached.data);
     }
 
@@ -50,7 +50,7 @@ const cacheMiddleware = (ttlSeconds = 60) => {
           expiresAt: now + ttlSeconds * 1000
         });
         res.setHeader('X-Cache', 'MISS');
-        res.setHeader('Cache-Control', `public, max-age=${ttlSeconds}`);
+        res.setHeader('Cache-Control', 'no-cache');
       }
       return originalJson(data);
     };

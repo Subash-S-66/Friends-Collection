@@ -22,8 +22,8 @@ router.post('/reserve', optionalAuth, reserveCheckoutStock);
 router.post('/release-hold', optionalAuth, releaseCheckoutStock);
 router.get('/reservation/:sessionId', optionalAuth, getReservationStatus);
 router.post('/', orderLimiter, optionalAuth, placeOrder);
-router.get('/track/:orderId', authLimiter, trackOrder);
-router.get('/by-phone/:phone', authLimiter, getOrdersByPhone);
+router.get('/track/:orderId', authLimiter, optionalAuth, trackOrder);
+router.get('/by-phone/:phone', authLimiter, optionalAuth, getOrdersByPhone);
 
 // Sample Order for PDF Preview
 const SAMPLE_ORDER = {

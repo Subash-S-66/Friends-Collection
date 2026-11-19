@@ -431,6 +431,45 @@ export const CartProvider = ({ children }) => {
   const totalItems = availableItems.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = availableItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  // Dynamic store-wide shipping & free delivery settings
+  const [shippingFee, setShippingFee] = useState(79);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
+
+  const fetchShippingSettings = useCallback(async () => {
+    try {
+      const res = await API.get('/settings');
+      if (res.data?.shippingCharge) {
+        if (res.data.shippingCharge.amount !== undefined) {
+          setShippingFee(Number(res.data.shippingCharge.amount));
+        }
+        if (res.data.shippingCharge.freeAbove !== undefined) {
+          setFreeShippingThreshold(Number(res.data.shippingCharge.freeAbove));
+        }
+      }
+      if (res.data?.freeShippingThreshold !== undefined) {
+        setFreeShippingThreshold(Number(res.data.freeShippingThreshold));
+      }
+      if (res.data?.shippingFee !== undefined) {
+        setShippingFee(Number(res.data.shippingFee));
+      }
+    } catch (e) {
+      console.warn('Error fetching shipping settings in CartContext:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShippingSettings();
+  }, [fetchShippingSettings]);
+
+  useEffect(() => {
+    if (isCartOpen) {
+      fetchShippingSettings();
+    }
+  }, [isCartOpen, fetchShippingSettings]);
+
+  const isFreeShipping = subtotal >= freeShippingThreshold;
+  const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : shippingFee);
+
   // Guest address saving
   const getSavedAddress = () => {
     try {
@@ -460,6 +499,11 @@ export const CartProvider = ({ children }) => {
         refreshCartStock,
         totalItems,
         subtotal,
+        shippingFee,
+        freeShippingThreshold,
+        isFreeShipping,
+        shippingCharge,
+        fetchShippingSettings,
         isCartOpen,
         setIsCartOpen,
         isSyncing,

@@ -93,11 +93,26 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
 
     // Calculate authoritative shipping charge and global gstRate from store settings
     let freeShippingThreshold = 999;
+    let standardShippingFee = 79;
     let gstRate = 5;
     try {
-      const settings = await Settings.findOne();
-      if (settings?.freeShippingThreshold) {
-        freeShippingThreshold = Number(settings.freeShippingThreshold);
+      const shipSetting = await Settings.findOne({ key: 'shippingCharge' }).lean();
+      if (shipSetting?.value) {
+        if (shipSetting.value.freeAbove !== undefined) {
+          freeShippingThreshold = Number(shipSetting.value.freeAbove);
+        }
+        if (shipSetting.value.amount !== undefined) {
+          standardShippingFee = Number(shipSetting.value.amount);
+        }
+      } else {
+        const thresholdSetting = await Settings.findOne({ key: 'freeShippingThreshold' }).lean();
+        if (thresholdSetting?.value !== undefined) {
+          freeShippingThreshold = Number(thresholdSetting.value);
+        }
+        const feeSetting = await Settings.findOne({ key: 'shippingFee' }).lean();
+        if (feeSetting?.value !== undefined) {
+          standardShippingFee = Number(feeSetting.value);
+        }
       }
       const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
       if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
@@ -150,7 +165,7 @@ router.post('/create-order', orderLimiter, optionalAuth, async (req, res, next) 
       });
     }
 
-    const shippingCharge = subtotal >= freeShippingThreshold ? 0 : 79;
+    const shippingCharge = subtotal >= freeShippingThreshold ? 0 : standardShippingFee;
     const grandTotalPaise = Math.round((subtotal + shippingCharge) * 100);
     const totalGstAmount = Math.round(verifiedItems.reduce((sum, it) => sum + (it.gstAmount || 0), 0) * 100) / 100;
     const effectiveGstRate = (subtotal - totalGstAmount) > 0
@@ -482,7 +497,14 @@ router.post('/webhook', async (req, res) => {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
-    if (secret) {
+    // In production, webhook secret is strictly required to prevent forge attacks
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[SECURITY ALERT] Webhook received in production without RAZORPAY_WEBHOOK_SECRET configured.');
+        return res.status(500).send('Webhook secret not configured on server.');
+      }
+      console.warn('[WARNING] RAZORPAY_WEBHOOK_SECRET is not set. Webhooks running in development mode.');
+    } else {
       if (!signature) {
         return res.status(400).send('Missing x-razorpay-signature header');
       }
@@ -496,6 +518,7 @@ router.post('/webhook', async (req, res) => {
       const actualBuf = Buffer.from(signature, 'utf8');
 
       if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+        console.warn('[SECURITY ALERT] Webhook cryptographic signature mismatch.');
         return res.status(400).send('Invalid webhook signature');
       }
     }
@@ -509,12 +532,30 @@ router.post('/webhook', async (req, res) => {
       const razorpayPaymentId = payment?.id;
 
       if (razorpayOrderId && razorpayPaymentId) {
+        // Validate payment currency and status
+        if (payment.currency && payment.currency !== 'INR') {
+          console.warn(`[SECURITY ALERT] Webhook currency mismatch: ${payment.currency}`);
+          return res.status(400).send('Invalid currency');
+        }
+        if (payment.status && payment.status !== 'captured' && payment.status !== 'authorized') {
+          console.warn(`[SECURITY ALERT] Webhook payment not captured/authorized: ${payment.status}`);
+          return res.status(400).send('Invalid payment status');
+        }
+
         // Check if order was already confirmed by client-side /verify
         const existingOrder = await Order.findOne({ 'paymentDetails.razorpayPaymentId': razorpayPaymentId });
         if (!existingOrder) {
           const draft = await PaymentDraft.findOne({ razorpayOrderId, status: 'pending' });
           if (draft) {
-            // Deduct stock
+            // Strict Amount Parity Check: Verify amount paid matches draft grandTotalPaise
+            if (payment.amount && Number(payment.amount) !== Number(draft.grandTotalPaise)) {
+              console.warn(`[SECURITY ALERT] Webhook payment amount mismatch! Received: ${payment.amount}, Expected: ${draft.grandTotalPaise}`);
+              draft.status = 'failed';
+              draft.failureReason = 'Amount mismatch detected in webhook';
+              await draft.save();
+              return res.status(400).send('Amount mismatch');
+            }
+
             // Atomically deduct stock with OCC
             const deduction = await deductOrderStockAtomically(draft.items);
             if (deduction.success) {
@@ -546,6 +587,10 @@ router.post('/webhook', async (req, res) => {
                         timestamp: new Date()
                       }
                     ]
+                  },
+                  securityAudit: {
+                    ipAddress: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '').toString().slice(0, 50),
+                    userAgent: 'Razorpay-Webhook'
                   }
                 });
 

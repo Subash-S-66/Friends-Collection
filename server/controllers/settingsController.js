@@ -7,6 +7,20 @@ exports.getSettings = async (req, res, next) => {
     const settings = await Settings.find();
     const settingsObj = {};
     settings.forEach(s => { settingsObj[s.key] = s.value; });
+
+    // Always expose flat shippingFee and freeShippingThreshold for easy consumption across client & server
+    if (settingsObj.shippingCharge) {
+      if (settingsObj.shippingCharge.amount !== undefined) {
+        settingsObj.shippingFee = Number(settingsObj.shippingCharge.amount);
+      }
+      if (settingsObj.shippingCharge.freeAbove !== undefined) {
+        settingsObj.freeShippingThreshold = Number(settingsObj.shippingCharge.freeAbove);
+      }
+    } else {
+      settingsObj.shippingFee = 79;
+      settingsObj.freeShippingThreshold = 999;
+    }
+
     res.json(settingsObj);
   } catch (error) {
     next(error);
@@ -46,6 +60,52 @@ exports.updateSetting = async (req, res, next) => {
         await Settings.findOneAndUpdate({ key: 'storeVisitText' }, { value: storeVisitText }, { upsert: true });
       }
       return res.json({ message: 'Hero section updated successfully' });
+    }
+
+    // Support shippingCharge update and keep freeShippingThreshold / shippingFee in sync
+    if (req.params.key === 'shippingCharge' && typeof value === 'object' && value !== null) {
+      const sanitized = {
+        amount: Number(value.amount) >= 0 ? Number(value.amount) : 79,
+        freeAbove: Number(value.freeAbove) >= 0 ? Number(value.freeAbove) : 999
+      };
+      const setting = await Settings.findOneAndUpdate(
+        { key: 'shippingCharge' },
+        { value: sanitized },
+        { upsert: true, new: true }
+      );
+      await Settings.findOneAndUpdate(
+        { key: 'freeShippingThreshold' },
+        { value: sanitized.freeAbove },
+        { upsert: true }
+      );
+      await Settings.findOneAndUpdate(
+        { key: 'shippingFee' },
+        { value: sanitized.amount },
+        { upsert: true }
+      );
+      return res.json(setting);
+    }
+
+    if (req.params.key === 'freeShippingThreshold') {
+      const numVal = Number(value) >= 0 ? Number(value) : 999;
+      const existing = await Settings.findOne({ key: 'shippingCharge' }).lean();
+      const currentAmount = existing?.value?.amount !== undefined ? existing.value.amount : 79;
+      await Settings.findOneAndUpdate(
+        { key: 'shippingCharge' },
+        { value: { amount: currentAmount, freeAbove: numVal } },
+        { upsert: true }
+      );
+    }
+
+    if (req.params.key === 'shippingFee') {
+      const numVal = Number(value) >= 0 ? Number(value) : 79;
+      const existing = await Settings.findOne({ key: 'shippingCharge' }).lean();
+      const currentFreeAbove = existing?.value?.freeAbove !== undefined ? existing.value.freeAbove : 999;
+      await Settings.findOneAndUpdate(
+        { key: 'shippingCharge' },
+        { value: { amount: numVal, freeAbove: currentFreeAbove } },
+        { upsert: true }
+      );
     }
 
     const setting = await Settings.findOneAndUpdate(
@@ -124,6 +184,19 @@ exports.adminGetSettings = async (req, res, next) => {
     const settings = await Settings.find();
     const settingsObj = {};
     settings.forEach(s => { settingsObj[s.key] = s.value; });
+
+    if (settingsObj.shippingCharge) {
+      if (settingsObj.shippingCharge.amount !== undefined) {
+        settingsObj.shippingFee = Number(settingsObj.shippingCharge.amount);
+      }
+      if (settingsObj.shippingCharge.freeAbove !== undefined) {
+        settingsObj.freeShippingThreshold = Number(settingsObj.shippingCharge.freeAbove);
+      }
+    } else {
+      settingsObj.shippingFee = 79;
+      settingsObj.freeShippingThreshold = 999;
+    }
+
     res.json(settingsObj);
   } catch (error) {
     next(error);

@@ -102,6 +102,15 @@ exports.placeOrder = async (req, res, next) => {
       });
     }
 
+    // 0.1 Strict Security Enforcement: This endpoint ONLY processes Cash on Delivery (COD) orders.
+    // Online payments (Razorpay) MUST go through /api/payment/create-order and /api/payment/verify with cryptographic HMAC verification.
+    const requestedPaymentMethod = (req.body.paymentMethod || 'cod').toString().toLowerCase().trim();
+    if (requestedPaymentMethod !== 'cod') {
+      return res.status(400).json({
+        message: 'Online payments must be processed via the secure Razorpay payment gateway.'
+      });
+    }
+
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
     }
@@ -157,16 +166,37 @@ exports.placeOrder = async (req, res, next) => {
     // Optional Customer GST Number (uppercase & trimmed)
     customer.gstNumber = (customer.gstNumber || '').toString().trim().toUpperCase();
 
-    // Fetch store GST percentage from settings
+    // Fetch store shipping threshold and GST percentage from settings (Authoritative - unhackable)
     const Settings = require('../models/Settings');
+    let freeShippingThreshold = 999;
+    let standardShippingFee = 79;
     let gstRate = 5;
     try {
+      const shipSetting = await Settings.findOne({ key: 'shippingCharge' }).lean();
+      if (shipSetting?.value) {
+        if (shipSetting.value.freeAbove !== undefined) {
+          freeShippingThreshold = Number(shipSetting.value.freeAbove);
+        }
+        if (shipSetting.value.amount !== undefined) {
+          standardShippingFee = Number(shipSetting.value.amount);
+        }
+      } else {
+        const thresholdSetting = await Settings.findOne({ key: 'freeShippingThreshold' }).lean();
+        if (thresholdSetting?.value !== undefined) {
+          freeShippingThreshold = Number(thresholdSetting.value);
+        }
+        const feeSetting = await Settings.findOne({ key: 'shippingFee' }).lean();
+        if (feeSetting?.value !== undefined) {
+          standardShippingFee = Number(feeSetting.value);
+        }
+      }
+
       const invSettings = await Settings.findOne({ key: 'invoiceSettings' }).lean();
       if (invSettings && invSettings.value && invSettings.value.gstPercentage !== undefined) {
         gstRate = Number(invSettings.value.gstPercentage) || 0;
       }
     } catch (gErr) {
-      console.warn('Could not read gstRate from settings:', gErr);
+      console.warn('Could not read store settings for order:', gErr);
     }
 
     // Build order items and calculate total
@@ -180,8 +210,7 @@ exports.placeOrder = async (req, res, next) => {
       }
 
       // Check if Cash on Delivery is supported by this product
-      const requestedPaymentMethod = (req.body.paymentMethod || 'cod').toLowerCase();
-      if (requestedPaymentMethod === 'cod' && product.acceptCashOnDelivery === false) {
+      if (product.acceptCashOnDelivery === false) {
         return res.status(400).json({
           message: `Cash on Delivery is not available for "${product.title}". Please choose an online payment method or remove this item.`
         });
@@ -258,33 +287,30 @@ exports.placeOrder = async (req, res, next) => {
     }
 
     // Cash on Delivery (COD) Anti-Abuse Protections:
-    const requestedPaymentMethod = (req.body.paymentMethod || 'cod').toLowerCase();
-    if (requestedPaymentMethod === 'cod') {
-      // Rule A: Maximum COD Order Amount Limit (₹10,000 max for unverified cash orders)
-      const MAX_COD_AMOUNT = 10000;
-      if (totalAmount > MAX_COD_AMOUNT) {
-        return res.status(400).json({
-          message: `Cash on Delivery is limited to orders up to ₹${MAX_COD_AMOUNT.toLocaleString('en-IN')} for order security. Please choose an online payment method (Cards / UPI / Netbanking) for higher value orders.`
-        });
-      }
-
-      // Rule B: Active Unfulfilled COD Orders Limit (max 3 pending COD orders to block spam/bot attacks)
-      const activeCodCount = await Order.countDocuments({
-        $or: [
-          { 'customer.phone': cleanPhone },
-          { 'customer.email': cleanEmail },
-          ...(req.user?._id ? [{ user: req.user._id }] : [])
-        ],
-        paymentMethod: 'cod',
-        status: { $in: ['order_received', 'confirmed', 'processing', 'dispatched'] },
-        paymentStatus: { $ne: 'paid' }
+    // Rule A: Maximum COD Order Amount Limit (₹10,000 max for unverified cash orders)
+    const MAX_COD_AMOUNT = 10000;
+    if (totalAmount > MAX_COD_AMOUNT) {
+      return res.status(400).json({
+        message: `Cash on Delivery is limited to orders up to ₹${MAX_COD_AMOUNT.toLocaleString('en-IN')} for order security. Please choose an online payment method (Cards / UPI / Netbanking) for higher value orders.`
       });
+    }
 
-      if (activeCodCount >= 3) {
-        return res.status(429).json({
-          message: 'You currently have 3 active Cash on Delivery orders awaiting fulfillment. To prevent fraudulent order spamming, please wait for existing deliveries or complete payment online.'
-        });
-      }
+    // Rule B: Active Unfulfilled COD Orders Limit (max 3 pending COD orders to block spam/bot attacks)
+    const activeCodCount = await Order.countDocuments({
+      $or: [
+        { 'customer.phone': cleanPhone },
+        { 'customer.email': cleanEmail },
+        ...(req.user?._id ? [{ user: req.user._id }] : [])
+      ],
+      paymentMethod: 'cod',
+      status: { $in: ['order_received', 'confirmed', 'processing', 'dispatched'] },
+      paymentStatus: { $ne: 'paid' }
+    });
+
+    if (activeCodCount >= 3) {
+      return res.status(429).json({
+        message: 'You currently have 3 active Cash on Delivery orders awaiting fulfillment. To prevent fraudulent order spamming, please wait for existing deliveries or complete payment online.'
+      });
     }
 
     // Atomically deduct inventory with optimistic concurrency control (OCC).
@@ -325,22 +351,25 @@ exports.placeOrder = async (req, res, next) => {
         ? Math.round((totalGstAmount / (totalAmount - totalGstAmount)) * 10000) / 100
         : gstRate;
 
+      // Authoritative shipping charge calculation (cannot be tampered with by client)
+      const authoritativeShippingCharge = totalAmount >= freeShippingThreshold ? 0 : standardShippingFee;
+
       order = await Order.create({
         items: orderItems,
         customer,
         user: orderUserId,
         totalAmount,
-        shippingCharge: Number(shippingCharge),
+        shippingCharge: authoritativeShippingCharge,
         gstRate: effectiveOrderGstRate,
         gstAmount: totalGstAmount,
         status: 'order_received',
-        paymentStatus: req.body.paymentStatus || 'payment_pending',
-        paymentMethod: req.body.paymentMethod || 'cod',
-        paymentNotes: req.body.paymentNotes || '',
+        paymentStatus: 'payment_pending',
+        paymentMethod: 'cod',
+        paymentNotes: (req.body.paymentNotes || '').toString().slice(0, 500),
         tracking: {
           statusHistory: [{
             status: 'order_received',
-            message: 'Order placed & received at boutique. Awaiting admin confirmation.',
+            message: 'Order placed & received at boutique with Cash on Delivery. Awaiting admin review & confirmation.',
             location: 'Jamalia Boutique, Chennai',
             timestamp: new Date()
           }]
@@ -492,16 +521,47 @@ exports.trackOrder = async (req, res, next) => {
       return res.status(404).json({ message: 'Order not found. Please verify your Order ID.' });
     }
 
+    const isOwner = req.user && order.user && req.user._id.toString() === order.user.toString();
+    const isAdmin = req.user && req.user.role === 'admin';
+    let isPhoneMatched = false;
+
     if (phone) {
       const cleanInputPhone = phone.replace(/\s/g, '').replace(/^\+91/, '');
       const orderPhone = (order.customer?.phone || '').replace(/\s/g, '').replace(/^\+91/, '');
       const orderSecPhone = (order.customer?.secondaryPhone || '').replace(/\s/g, '').replace(/^\+91/, '');
-      if (cleanInputPhone !== orderPhone && cleanInputPhone !== orderSecPhone) {
+      if (cleanInputPhone && (cleanInputPhone === orderPhone || cleanInputPhone === orderSecPhone)) {
+        isPhoneMatched = true;
+      } else {
         return res.status(403).json({ message: 'Phone number does not match this order.' });
       }
     }
 
-    res.json(order);
+    const orderObj = order.toObject();
+    delete orderObj.securityAudit;
+    if (orderObj.paymentDetails) {
+      delete orderObj.paymentDetails.razorpaySignature;
+    }
+
+    // Mask sensitive PII for unverified guest viewers
+    if (!isAdmin && !isOwner && !isPhoneMatched) {
+      if (orderObj.customer) {
+        if (orderObj.customer.phone) {
+          orderObj.customer.phone = orderObj.customer.phone.slice(0, 2) + '******' + orderObj.customer.phone.slice(-2);
+        }
+        if (orderObj.customer.secondaryPhone) {
+          orderObj.customer.secondaryPhone = orderObj.customer.secondaryPhone.slice(0, 2) + '******' + orderObj.customer.secondaryPhone.slice(-2);
+        }
+        if (orderObj.customer.email) {
+          const parts = orderObj.customer.email.split('@');
+          orderObj.customer.email = (parts[0] || '').slice(0, 2) + '***@' + (parts[1] || '');
+        }
+        if (orderObj.customer.address) {
+          orderObj.customer.address.street = '*** (Provide mobile number to view full address) ***';
+        }
+      }
+    }
+
+    res.json(orderObj);
   } catch (error) {
     next(error);
   }
@@ -526,7 +586,37 @@ exports.getOrdersByPhone = async (req, res, next) => {
       ]
     }).sort({ createdAt: -1 });
 
-    res.json(orders);
+    const isAdmin = req.user && req.user.role === 'admin';
+    const isOwner = req.user && req.user.phone && req.user.phone.replace(/\D/g, '').slice(-10) === cleanPhone;
+
+    const sanitizedOrders = orders.map((o) => {
+      const obj = o.toObject();
+      delete obj.securityAudit;
+      if (obj.paymentDetails) {
+        delete obj.paymentDetails.razorpaySignature;
+      }
+      // Mask PII if viewer is not the authenticated owner or admin to prevent phone enumeration scraping
+      if (!isAdmin && !isOwner) {
+        if (obj.customer) {
+          if (obj.customer.phone) {
+            obj.customer.phone = obj.customer.phone.slice(0, 2) + '******' + obj.customer.phone.slice(-2);
+          }
+          if (obj.customer.secondaryPhone) {
+            obj.customer.secondaryPhone = obj.customer.secondaryPhone.slice(0, 2) + '******' + obj.customer.secondaryPhone.slice(-2);
+          }
+          if (obj.customer.email) {
+            const parts = obj.customer.email.split('@');
+            obj.customer.email = (parts[0] || '').slice(0, 2) + '***@' + (parts[1] || '');
+          }
+          if (obj.customer.address) {
+            obj.customer.address.street = '*** (Sign in to view full delivery address) ***';
+          }
+        }
+      }
+      return obj;
+    });
+
+    res.json(sanitizedOrders);
   } catch (error) {
     next(error);
   }

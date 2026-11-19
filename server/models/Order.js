@@ -84,8 +84,8 @@ const orderSchema = new mongoose.Schema({
     }]
   },
   securityAudit: {
-    ipAddress: { type: String, default: '' },
-    userAgent: { type: String, default: '' }
+    ipAddress: { type: String, default: '', select: false },
+    userAgent: { type: String, default: '', select: false }
   }
 }, { timestamps: true });
 

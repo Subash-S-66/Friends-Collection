@@ -28,7 +28,8 @@ const CartDrawer = () => {
     subtotal,
     isCartOpen,
     setIsCartOpen,
-    refreshCartStock
+    refreshCartStock,
+    freeShippingThreshold = 999
   } = useCart();
   const { confirm } = useConfirm();
   const [notifyModalState, setNotifyModalState] = useState({
@@ -50,9 +51,10 @@ const CartDrawer = () => {
     }
   };
 
-  const freeShippingThreshold = 999;
-  const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
-  const remainingForFree = freeShippingThreshold - subtotal;
+  const progressPercent = freeShippingThreshold > 0
+    ? Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))
+    : 100;
+  const remainingForFree = Math.max(0, freeShippingThreshold - subtotal);
 
 
   return (
