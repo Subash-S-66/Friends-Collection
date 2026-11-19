@@ -365,7 +365,7 @@ exports.placeOrder = async (req, res, next) => {
         tracking: {
           statusHistory: [{
             status: 'order_received',
-            message: 'Order placed & received at boutique with Cash on Delivery. Awaiting admin review & confirmation.',
+            message: 'Order placed successfully (Cash on Delivery).',
             location: 'Jamalia Boutique, Chennai',
             timestamp: new Date()
           }]
@@ -538,6 +538,24 @@ exports.trackOrder = async (req, res, next) => {
       delete orderObj.paymentDetails.razorpaySignature;
     }
 
+    // Mask sensitive PII (street address, email, phone) if requester is not authenticated owner, admin, or phone-verified
+    const shouldMaskPii = !isOwner && !isAdmin && !isPhoneMatched;
+    if (shouldMaskPii && orderObj.customer) {
+      if (orderObj.customer.address) {
+        orderObj.customer.address.street = '**** (Hidden for Privacy)';
+      }
+      if (orderObj.customer.email) {
+        const parts = orderObj.customer.email.split('@');
+        orderObj.customer.email = parts.length === 2 ? `${parts[0].slice(0, 2)}***@${parts[1]}` : '***';
+      }
+      if (orderObj.customer.phone) {
+        orderObj.customer.phone = `******${orderObj.customer.phone.slice(-4)}`;
+      }
+      if (orderObj.customer.secondaryPhone) {
+        orderObj.customer.secondaryPhone = `******${orderObj.customer.secondaryPhone.slice(-4)}`;
+      }
+    }
+
     res.json(orderObj);
   } catch (error) {
     next(error);
@@ -563,11 +581,25 @@ exports.getOrdersByPhone = async (req, res, next) => {
       ]
     }).sort({ createdAt: -1 });
 
+    const isOwnerOrAdmin =
+      (req.user && req.user.role === 'admin') ||
+      (req.user && req.user.phone && req.user.phone.replace(/\D/g, '').endsWith(cleanPhone));
+
     const sanitizedOrders = orders.map((o) => {
       const obj = o.toObject();
       delete obj.securityAudit;
       if (obj.paymentDetails) {
         delete obj.paymentDetails.razorpaySignature;
+      }
+      // Mask PII if lookup is unauthenticated to prevent scraping
+      if (!isOwnerOrAdmin && obj.customer) {
+        if (obj.customer.address) {
+          obj.customer.address.street = '**** (Hidden for Privacy)';
+        }
+        if (obj.customer.email) {
+          const parts = obj.customer.email.split('@');
+          obj.customer.email = parts.length === 2 ? `${parts[0].slice(0, 2)}***@${parts[1]}` : '***';
+        }
       }
       return obj;
     });

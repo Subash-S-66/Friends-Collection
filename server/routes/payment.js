@@ -372,7 +372,7 @@ router.post('/verify', orderLimiter, optionalAuth, async (req, res, next) => {
           statusHistory: [
             {
               status: 'order_received',
-              message: `Online payment of ₹${(draft.grandTotalPaise / 100).toLocaleString('en-IN')} received via Razorpay (Payment ID: ${razorpay_payment_id}). Order placed & received at boutique. Awaiting admin review & confirmation.`,
+              message: 'Order placed & payment verified.',
               location: 'Jamalia Boutique, Chennai',
               timestamp: new Date()
             }
@@ -582,7 +582,7 @@ router.post('/webhook', async (req, res) => {
                     statusHistory: [
                       {
                         status: 'order_received',
-                        message: `Payment received via Razorpay Webhook (Payment ID: ${razorpayPaymentId}). Order placed & received at boutique. Awaiting admin review & confirmation.`,
+                        message: 'Order placed & payment verified.',
                         location: 'Jamalia Boutique, Chennai',
                         timestamp: new Date()
                       }
@@ -685,15 +685,15 @@ router.post('/webhook', async (req, res) => {
             // Deduplicate status milestone so multiple webhooks don't flood the logs
             const alreadyLoggedConfirmed = order.tracking.statusHistory.some(h =>
               h.message && (
-                (refundId && h.message.includes(refundId) && h.message.includes('confirmed & completed')) ||
-                (h.message.includes('REFUNDED') && h.message.includes('confirmed & completed'))
+                (refundId && h.message.includes(refundId) && h.message.includes('completed')) ||
+                (h.message.includes('REFUNDED') && h.message.includes('completed'))
               )
             );
             if (!alreadyLoggedConfirmed) {
               order.tracking.statusHistory.push({
                 status: order.status,
-                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} confirmed & completed by bank (Refund ID: ${refundId || 'N/A'}${refundArn ? `, Bank ARN: ${refundArn}` : ''}). Payment marked as REFUNDED.`,
-                location: 'Razorpay / Bank Network',
+                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} completed & credited to your original payment account.`,
+                location: 'Jamalia Boutique',
                 timestamp: new Date()
               });
             }
@@ -708,14 +708,14 @@ router.post('/webhook', async (req, res) => {
             const alreadyLoggedProcessing = order.tracking.statusHistory.some(h =>
               h.message && (
                 (refundId && h.message.includes(refundId) && (h.message.includes('5 to 7 working days') || h.message.includes('under process'))) ||
-                (h.message.includes('initiated via Razorpay') && h.message.includes('5 to 7 working days'))
+                (h.message.includes('initiated') && h.message.includes('5 to 7 working days'))
               )
             );
             if (!alreadyLoggedProcessing) {
               order.tracking.statusHistory.push({
                 status: order.status,
-                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated via Razorpay (Refund ID: ${refundId || 'N/A'}). Refund under process — bank credit usually takes 5 to 7 working days.`,
-                location: 'Razorpay Dashboard',
+                message: `Refund of ₹${refundAmountRs.toLocaleString('en-IN')} initiated (Refund ID: ${refundId || 'N/A'}). Refund under process — bank credit usually takes 5 to 7 working days.`,
+                location: 'Jamalia Boutique',
                 timestamp: new Date()
               });
             }
@@ -743,13 +743,13 @@ router.post('/webhook', async (req, res) => {
             }
 
             const alreadyLoggedCancel = order.tracking.statusHistory.some(h =>
-              h.message && h.message.includes('inventory restocked due to')
+              h.message && h.message.toLowerCase().includes('order cancelled')
             );
             if (!alreadyLoggedCancel) {
               order.tracking.statusHistory.push({
                 status: 'cancelled',
-                message: 'Order automatically cancelled and inventory restocked due to initiated refund.',
-                location: 'Friends Collections Boutique',
+                message: 'Order cancelled.',
+                location: 'Jamalia Boutique',
                 timestamp: new Date()
               });
             }

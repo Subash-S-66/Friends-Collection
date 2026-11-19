@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { setGlobalAlertHandler } from '../utils/api';
 
 const AlertContext = createContext();
@@ -139,19 +139,26 @@ export const AlertProvider = ({ children }) => {
     });
   }, [showRateLimitAlert, showMailErrorAlert, showOtpErrorAlert, showStorageErrorAlert, showCustomAlert]);
 
-  return (
-    <AlertContext.Provider
-      value={{
-        alertState,
-        closeAlert,
-        showRateLimitAlert,
-        showMailErrorAlert,
-        showOtpErrorAlert,
-        showStorageErrorAlert,
-        showCustomAlert
-      }}
-    >
-      {children}
-    </AlertContext.Provider>
+  const value = useMemo(
+    () => ({
+      alertState,
+      closeAlert,
+      showRateLimitAlert,
+      showMailErrorAlert,
+      showOtpErrorAlert,
+      showStorageErrorAlert,
+      showCustomAlert
+    }),
+    [
+      alertState,
+      closeAlert,
+      showRateLimitAlert,
+      showMailErrorAlert,
+      showOtpErrorAlert,
+      showStorageErrorAlert,
+      showCustomAlert
+    ]
   );
+
+  return <AlertContext.Provider value={value}>{children}</AlertContext.Provider>;
 };

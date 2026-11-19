@@ -362,82 +362,86 @@ exports.deleteAddress = async (req, res, next) => {
   }
 };
 
-// @desc    Google OAuth login/register
+// @desc    Google OAuth login/register (Strict cryptographic verification)
 // @route   POST /api/auth/google
 exports.googleAuth = async (req, res, next) => {
   try {
-    const { credential, accessToken, userInfo } = req.body;
-    if (!credential && !accessToken && !userInfo) {
-      return res.status(400).json({ message: 'Google credential token or user profile is required' });
+    const { credential, accessToken } = req.body;
+    if (!credential && !accessToken) {
+      return res.status(400).json({ message: 'Google credential token or access token is required' });
     }
 
     let payload = null;
 
     if (credential) {
-      // Attempt verification via Google tokeninfo
+      // Cryptographically verify ID token with Google's OAuth2 tokeninfo service
       try {
-        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
         if (response.ok) {
           payload = await response.json();
+        } else {
+          return res.status(401).json({ message: 'Invalid or expired Google authentication token' });
         }
       } catch (err) {
-        console.warn('Google tokeninfo fetch failed, fallback to payload decode:', err.message);
+        console.error('Google token verification network error:', err.message);
+        return res.status(502).json({ message: 'Unable to verify Google credential with authentication servers. Please try again.' });
       }
 
-      // Fallback decoding if tokeninfo had network issues
-      if (!payload || !payload.email) {
-        try {
-          const base64Url = credential.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            Buffer.from(base64, 'base64')
-              .toString('utf-8')
-              .split('')
-              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          payload = JSON.parse(jsonPayload);
-        } catch (decodeErr) {
-          return res.status(400).json({ message: 'Invalid Google credential token' });
-        }
+      // Ensure email is verified by Google
+      if (!payload || (payload.email_verified !== 'true' && payload.email_verified !== true)) {
+        return res.status(400).json({ message: 'Google account email is not verified' });
+      }
+
+      // Verify audience if GOOGLE_CLIENT_ID is configured
+      const expectedClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+      if (expectedClientId && payload.aud && payload.aud !== expectedClientId) {
+        return res.status(401).json({ message: 'Google token audience mismatch' });
       }
     } else if (accessToken) {
-      // Attempt verification via Google OAuth2 userinfo
+      // Verify via Google OAuth2 UserInfo endpoint
       try {
         const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (response.ok) {
           payload = await response.json();
+        } else {
+          return res.status(401).json({ message: 'Invalid or expired Google access token' });
         }
       } catch (err) {
-        console.warn('Google userinfo fetch failed:', err.message);
+        console.error('Google userinfo verification error:', err.message);
+        return res.status(502).json({ message: 'Unable to verify Google profile. Please try again.' });
+      }
+
+      if (!payload || !payload.email || (payload.email_verified !== true && payload.email_verified !== 'true')) {
+        return res.status(400).json({ message: 'Google account email is not verified' });
       }
     }
 
-    if (!payload && userInfo && userInfo.email) {
-      payload = userInfo;
-    }
-
     if (!payload || !payload.email) {
-      return res.status(400).json({ message: 'Google authentication failed or missing verified email' });
+      return res.status(401).json({ message: 'Google authentication failed: unverified token' });
     }
 
     const { email, name, picture, sub: googleId } = payload;
-    if (!email) {
-      return res.status(400).json({ message: 'Google account does not have a verified email' });
-    }
+    const cleanEmail = email.toLowerCase().trim();
 
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: cleanEmail });
     if (user) {
-      if (!user.googleId) user.googleId = googleId;
+      // Security rule: Prevent Google OAuth from logging in as Admin without password
+      if (user.role === 'admin') {
+        return res.status(403).json({
+          message: 'Admin accounts must sign in using the dedicated Administrator credentials.'
+        });
+      }
+
+      if (!user.googleId && googleId) user.googleId = googleId;
       if (!user.avatar && picture) user.avatar = picture;
       user.isVerified = true;
       await user.save();
     } else {
       user = await User.create({
-        name: name || email.split('@')[0],
-        email: email.toLowerCase(),
+        name: name || cleanEmail.split('@')[0],
+        email: cleanEmail,
         googleId,
         avatar: picture || '',
         authProvider: 'google',
@@ -478,7 +482,11 @@ exports.requestVerificationToken = async (req, res, next) => {
       expiresAt
     });
 
-    console.log(`🔑 [AUTH OTP] 6-digit login token for ${cleanEmail}: ${token}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔑 [AUTH OTP] 6-digit login token for ${cleanEmail}: ${token}`);
+    } else {
+      console.log(`🔑 [AUTH OTP] 6-digit verification token generated for ${cleanEmail}`);
+    }
 
     // Dispatch branded email via Email Service (HTTP API or Nodemailer SMTP)
     try {
@@ -835,11 +843,13 @@ exports.requestEmailChange = async (req, res, next) => {
       expiresAt
     });
 
-    console.log(`\n================ [DUAL OTP EMAIL CHANGE] ================`);
-    console.log(`User: ${user.name} (${user._id})`);
-    console.log(`Current Email: ${currentEmail} -> OTP: [${oldEmailOtp}]`);
-    console.log(`New Email: ${cleanNewEmail} -> OTP: [${newEmailOtp}]`);
-    console.log(`=========================================================\n`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`\n================ [DUAL OTP EMAIL CHANGE] ================`);
+      console.log(`User: ${user.name} (${user._id})`);
+      console.log(`Current Email: ${currentEmail} -> OTP: [${oldEmailOtp}]`);
+      console.log(`New Email: ${cleanNewEmail} -> OTP: [${newEmailOtp}]`);
+      console.log(`=========================================================\n`);
+    }
 
     // Concurrently dispatch both emails
     try {

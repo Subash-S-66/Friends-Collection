@@ -387,18 +387,20 @@ const Contact = () => {
                   <HiOutlineMail className="w-4 h-4 text-emerald-600" />
                   <span>Sender Confirmation Email</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('business')}
-                  className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                    activeTab === 'business'
-                      ? 'bg-white text-primary border-t-2 border-primary shadow-xs'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
-                  }`}
-                >
-                  <HiOutlineMail className="w-4 h-4 text-amber-600" />
-                  <span>Boutique Business Email</span>
-                </button>
+                {submittedInquiry?.previews?.businessEmail && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('business')}
+                    className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                      activeTab === 'business'
+                        ? 'bg-white text-primary border-t-2 border-primary shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
+                    }`}
+                  >
+                    <HiOutlineMail className="w-4 h-4 text-amber-600" />
+                    <span>Boutique Business Email</span>
+                  </button>
+                )}
               </div>
 
               {activePreview?.previewUrl && (

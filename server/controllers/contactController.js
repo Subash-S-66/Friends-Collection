@@ -60,6 +60,8 @@ exports.submitInquiry = async (req, res, next) => {
     // 2. Send receipt acknowledgment email to sender
     const userResult = await sendContactInquiryConfirmationToUserEmail({ inquiry: inquiryData });
 
+    const isAdminRequester = req.user && req.user.role === 'admin';
+
     return res.status(200).json({
       success: true,
       message: 'Thank you! Your request has been safely received. A confirmation email has been dispatched to your inbox and our store team.',
@@ -72,13 +74,15 @@ exports.submitInquiry = async (req, res, next) => {
           previewUrl: userResult?.previewUrl || null,
           messageId: userResult?.messageId
         },
-        businessEmail: {
-          to: businessResult?.to || process.env.SUPPORT_EMAIL || process.env.BUSINESS_EMAIL || 'friends.collection.support@gmail.com',
-          subject: businessResult?.subject || `📩 [New Request #${inquiryData.inquiryId}] ${inquiryData.subject} from ${inquiryData.name}`,
-          html: businessResult?.html || '',
-          previewUrl: businessResult?.previewUrl || null,
-          messageId: businessResult?.messageId
-        }
+        ...(isAdminRequester ? {
+          businessEmail: {
+            to: businessResult?.to || process.env.SUPPORT_EMAIL || 'friends.collection.support@gmail.com',
+            subject: businessResult?.subject || `📩 [New Request #${inquiryData.inquiryId}] ${inquiryData.subject} from ${inquiryData.name}`,
+            html: businessResult?.html || '',
+            previewUrl: businessResult?.previewUrl || null,
+            messageId: businessResult?.messageId
+          }
+        } : {})
       }
     });
   } catch (error) {

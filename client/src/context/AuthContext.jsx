@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import API from '../utils/api';
 
 const AuthContext = createContext();
@@ -17,96 +17,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('fc_token');
-    const storedUser = localStorage.getItem('fc_user');
-    if (token && storedUser) {
-      // Verify token is still valid with backend
-      API.get('/auth/me').then(res => {
-        setUser(res.data);
-        localStorage.setItem('fc_user', JSON.stringify(res.data));
-      }).catch(() => {
-        logout();
-      }).finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  const login = async (email, password) => {
-    const res = await API.post('/auth/login', { email, password });
-    localStorage.setItem('fc_token', res.data.token);
-    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data;
-  };
-
-  const register = async (data) => {
-    const res = await API.post('/auth/register', data);
-    if (res.data?.token) {
-      localStorage.setItem('fc_token', res.data.token);
-      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
-    }
-    return res.data;
-  };
-
-  const loginWithGoogle = async (credentialOrPayload) => {
-    const payload =
-      typeof credentialOrPayload === 'string'
-        ? { credential: credentialOrPayload }
-        : credentialOrPayload;
-    const res = await API.post('/auth/google', payload);
-    localStorage.setItem('fc_token', res.data.token);
-    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data;
-  };
-
-  const requestToken = async (email) => {
-    const res = await API.post('/auth/request-token', { email });
-    return res.data;
-  };
-
-  const verifyToken = async (email, token, name) => {
-    const res = await API.post('/auth/verify-token', { email, token, name });
-    localStorage.setItem('fc_token', res.data.token);
-    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data;
-  };
-
-  const forgotPasswordRequest = async (email) => {
-    const res = await API.post('/auth/forgot-password-request', { email });
-    return res.data;
-  };
-
-  const forgotPasswordVerify = async ({ email, token, newPassword }) => {
-    const res = await API.post('/auth/forgot-password-verify', { email, token, newPassword });
-    if (res.data?.token) {
-      localStorage.setItem('fc_token', res.data.token);
-      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
-    }
-    return res.data;
-  };
-
-  const verifyEmailToken = async ({ email, token }) => {
-    const res = await API.post('/auth/verify-email-token', { email, token });
-    if (res.data?.token) {
-      localStorage.setItem('fc_token', res.data.token);
-      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
-    }
-    return res.data;
-  };
-
-  const resendVerification = async (email) => {
-    const res = await API.post('/auth/resend-verification', { email });
-    return res.data;
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await API.post('/auth/logout');
     } catch {
@@ -117,9 +28,101 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('fc_cart_guest');
     localStorage.removeItem('fc_cart');
     setUser(null);
-  };
+  }, []);
 
-  const logoutAllDevices = async () => {
+  useEffect(() => {
+    const token = localStorage.getItem('fc_token');
+    const storedUser = localStorage.getItem('fc_user');
+    if (token && storedUser) {
+      // Verify token is still valid with backend
+      API.get('/auth/me')
+        .then((res) => {
+          setUser(res.data);
+          localStorage.setItem('fc_user', JSON.stringify(res.data));
+        })
+        .catch(() => {
+          logout();
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [logout]);
+
+  const login = useCallback(async (email, password) => {
+    const res = await API.post('/auth/login', { email, password });
+    localStorage.setItem('fc_token', res.data.token);
+    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+    setUser(res.data.user);
+    return res.data;
+  }, []);
+
+  const register = useCallback(async (data) => {
+    const res = await API.post('/auth/register', data);
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
+    return res.data;
+  }, []);
+
+  const loginWithGoogle = useCallback(async (credentialOrPayload) => {
+    const payload =
+      typeof credentialOrPayload === 'string'
+        ? { credential: credentialOrPayload }
+        : credentialOrPayload;
+    const res = await API.post('/auth/google', payload);
+    localStorage.setItem('fc_token', res.data.token);
+    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+    setUser(res.data.user);
+    return res.data;
+  }, []);
+
+  const requestToken = useCallback(async (email) => {
+    const res = await API.post('/auth/request-token', { email });
+    return res.data;
+  }, []);
+
+  const verifyToken = useCallback(async (email, token, name) => {
+    const res = await API.post('/auth/verify-token', { email, token, name });
+    localStorage.setItem('fc_token', res.data.token);
+    localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+    setUser(res.data.user);
+    return res.data;
+  }, []);
+
+  const forgotPasswordRequest = useCallback(async (email) => {
+    const res = await API.post('/auth/forgot-password-request', { email });
+    return res.data;
+  }, []);
+
+  const forgotPasswordVerify = useCallback(async ({ email, token, newPassword }) => {
+    const res = await API.post('/auth/forgot-password-verify', { email, token, newPassword });
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
+    return res.data;
+  }, []);
+
+  const verifyEmailToken = useCallback(async ({ email, token }) => {
+    const res = await API.post('/auth/verify-email-token', { email, token });
+    if (res.data?.token) {
+      localStorage.setItem('fc_token', res.data.token);
+      localStorage.setItem('fc_user', JSON.stringify(res.data.user));
+      setUser(res.data.user);
+    }
+    return res.data;
+  }, []);
+
+  const resendVerification = useCallback(async (email) => {
+    const res = await API.post('/auth/resend-verification', { email });
+    return res.data;
+  }, []);
+
+  const logoutAllDevices = useCallback(async () => {
     try {
       await API.post('/auth/logout-all');
     } catch {
@@ -130,34 +133,36 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('fc_cart_guest');
     localStorage.removeItem('fc_cart');
     setUser(null);
-  };
+  }, []);
 
-  const updateUser = (updatedUser) => {
+  const updateUser = useCallback((updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem('fc_user', JSON.stringify(updatedUser));
-  };
+  }, []);
 
   // Global Auth Modal Controls (Popup for Login & Register)
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [authModalRedirect, setAuthModalRedirect] = useState('');
 
-  const openAuthModal = (mode = 'login', redirectTo = '') => {
+  const openAuthModal = useCallback((mode = 'login', redirectTo = '') => {
     setAuthModalMode(mode);
     setAuthModalRedirect(redirectTo);
     setAuthModalOpen(true);
-  };
+  }, []);
 
-  const closeAuthModal = () => {
+  const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
-  };
+  }, []);
 
-  const switchAuthMode = (mode) => {
+  const switchAuthMode = useCallback((mode) => {
     setAuthModalMode(mode);
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{
+  const isAdmin = user?.role === 'admin';
+
+  const value = useMemo(
+    () => ({
       user,
       loading,
       login,
@@ -172,15 +177,38 @@ export const AuthProvider = ({ children }) => {
       logout,
       logoutAllDevices,
       updateUser,
-      isAdmin: user?.role === 'admin',
+      isAdmin,
       authModalOpen,
       authModalMode,
       authModalRedirect,
       openAuthModal,
       closeAuthModal,
       switchAuthMode
-    }}>
-      {children}
-    </AuthContext.Provider>
+    }),
+    [
+      user,
+      loading,
+      login,
+      register,
+      loginWithGoogle,
+      requestToken,
+      verifyToken,
+      forgotPasswordRequest,
+      forgotPasswordVerify,
+      verifyEmailToken,
+      resendVerification,
+      logout,
+      logoutAllDevices,
+      updateUser,
+      isAdmin,
+      authModalOpen,
+      authModalMode,
+      authModalRedirect,
+      openAuthModal,
+      closeAuthModal,
+      switchAuthMode
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

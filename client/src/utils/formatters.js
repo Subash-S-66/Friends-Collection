@@ -135,3 +135,75 @@ export const getStatusColor = (status) => {
   };
   return colors[status] || 'info';
 };
+
+/**
+ * Filter and format status history milestones for customers:
+ * - Strips internal warehouse logs (e.g. "inventory restocked")
+ * - Cleans raw developer/webhook jargon into elegant consumer-facing updates
+ * - Deduplicates redundant status steps
+ */
+export const getCustomerMilestones = (statusHistory = []) => {
+  if (!Array.isArray(statusHistory)) return [];
+
+  const cleaned = [];
+  const seenKeys = new Set();
+
+  for (const h of statusHistory) {
+    if (!h || !h.message) continue;
+    let msg = h.message.trim();
+
+    // 1. Convert or discard internal inventory restock logs
+    if (/inventory restocked/i.test(msg) || /restocked back into/i.test(msg)) {
+      msg = 'Order cancelled.';
+    }
+
+    // 2. Clean up webhook / technical jargon into customer-friendly wording
+    if (/Payment received via Razorpay Webhook/i.test(msg) || /Online payment of .* received via Razorpay/i.test(msg)) {
+      msg = 'Order placed & payment verified.';
+    } else if (/Order placed & received at boutique with Cash on Delivery/i.test(msg)) {
+      msg = 'Order placed successfully (Cash on Delivery).';
+    } else if (/Refund of .* initiated via Razorpay/i.test(msg) || /Refund of .* initiated\./i.test(msg) || (/Refund of/i.test(msg) && /under process/i.test(msg))) {
+      const amtMatch = msg.match(/Refund of ₹[\d,.]+/i);
+      const amt = amtMatch ? amtMatch[0] : 'Refund';
+      const refMatch = msg.match(/\(Refund ID:\s*([^)]+)\)/i);
+      const refId = refMatch ? ` (${refMatch[1]})` : '';
+      msg = `${amt} initiated${refId}. Refund under process — bank credit usually takes 5 to 7 working days.`;
+    } else if (/Refund of .* confirmed & completed by bank/i.test(msg) || /Refund of .* successfully processed via Razorpay Dashboard/i.test(msg)) {
+      const amtMatch = msg.match(/Refund of ₹[\d,.]+/i);
+      const amt = amtMatch ? amtMatch[0] : 'Refund';
+      msg = `${amt} completed & credited to your original payment account.`;
+    } else if (/Order received & confirmed by admin/i.test(msg)) {
+      msg = 'Order confirmed & packed with boutique care.';
+    }
+
+    // 3. Category-based deduplication (placed, cancelled, refund, confirmed, shipped, delivered)
+    let dedupeKey = msg.toLowerCase();
+    if (dedupeKey.includes('order placed') || dedupeKey.includes('payment verified')) {
+      dedupeKey = 'milestone_placed';
+    } else if (dedupeKey.includes('order cancelled') || dedupeKey.includes('cancelled')) {
+      dedupeKey = 'milestone_cancelled';
+    } else if (dedupeKey.includes('refund') && dedupeKey.includes('initiated')) {
+      dedupeKey = 'milestone_refund_initiated';
+    } else if (dedupeKey.includes('refund') && (dedupeKey.includes('completed') || dedupeKey.includes('credited'))) {
+      dedupeKey = 'milestone_refund_completed';
+    } else if (dedupeKey.includes('confirmed') || dedupeKey.includes('packed')) {
+      dedupeKey = 'milestone_confirmed';
+    } else if (dedupeKey.includes('dispatched') || dedupeKey.includes('shipped')) {
+      dedupeKey = 'milestone_shipped';
+    } else if (dedupeKey.includes('delivered')) {
+      dedupeKey = 'milestone_delivered';
+    }
+
+    if (seenKeys.has(dedupeKey)) {
+      continue;
+    }
+    seenKeys.add(dedupeKey);
+
+    cleaned.push({
+      ...h,
+      message: msg
+    });
+  }
+
+  return cleaned;
+};

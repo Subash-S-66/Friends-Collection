@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import API from '../utils/api';
 import { getCachedSettings, setCachedSettings, parseShippingSettings } from '../utils/settings';
@@ -419,18 +419,20 @@ export const CartProvider = ({ children }) => {
   }, [user, saveToLocal]);
 
   // Available items (strictly in stock) vs out of stock items
-  const availableItems = items.filter(
-    (item) => (item.stock === undefined || item.stock > 0) && !item.isOutOfStock
+  const availableItems = useMemo(
+    () => items.filter((item) => (item.stock === undefined || item.stock > 0) && !item.isOutOfStock),
+    [items]
   );
-  const outOfStockItems = items.filter(
-    (item) => (item.stock !== undefined && item.stock <= 0) || item.isOutOfStock
+  const outOfStockItems = useMemo(
+    () => items.filter((item) => (item.stock !== undefined && item.stock <= 0) || item.isOutOfStock),
+    [items]
   );
   const outOfStockCount = outOfStockItems.length;
   const hasOutOfStockItems = outOfStockCount > 0;
 
   // Subtotal and total count include ONLY available in-stock items
-  const totalItems = availableItems.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = availableItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalItems = useMemo(() => availableItems.reduce((sum, item) => sum + item.quantity, 0), [availableItems]);
+  const subtotal = useMemo(() => availableItems.reduce((sum, item) => sum + item.price * item.quantity, 0), [availableItems]);
 
   // Dynamic store-wide shipping & free delivery settings (Synchronous cache-first, NO static 79/999)
   const initialSettings = parseShippingSettings(getCachedSettings());
@@ -482,48 +484,71 @@ export const CartProvider = ({ children }) => {
   const shippingCharge = subtotal === 0 ? 0 : (isFreeShipping ? 0 : (shippingFee ?? 0));
 
   // Guest address saving
-  const getSavedAddress = () => {
+  const getSavedAddress = useCallback(() => {
     try {
       const saved = localStorage.getItem(ADDRESS_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  const saveAddress = (address) => {
+  const saveAddress = useCallback((address) => {
     localStorage.setItem(ADDRESS_KEY, JSON.stringify(address));
-  };
+  }, []);
 
-  return (
-    <CartContext.Provider
-      value={{
-        items,
-        availableItems,
-        outOfStockItems,
-        outOfStockCount,
-        hasOutOfStockItems,
-        addToCart,
-        updateQuantity,
-        removeItem,
-        clearCart,
-        refreshCartStock,
-        totalItems,
-        subtotal,
-        shippingFee,
-        freeShippingThreshold,
-        settingsLoaded,
-        isFreeShipping,
-        shippingCharge,
-        fetchShippingSettings,
-        isCartOpen,
-        setIsCartOpen,
-        isSyncing,
-        getSavedAddress,
-        saveAddress
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+  const value = useMemo(
+    () => ({
+      items,
+      availableItems,
+      outOfStockItems,
+      outOfStockCount,
+      hasOutOfStockItems,
+      addToCart,
+      updateQuantity,
+      removeItem,
+      clearCart,
+      refreshCartStock,
+      totalItems,
+      subtotal,
+      shippingFee,
+      freeShippingThreshold,
+      settingsLoaded,
+      isFreeShipping,
+      shippingCharge,
+      fetchShippingSettings,
+      isCartOpen,
+      setIsCartOpen,
+      isSyncing,
+      getSavedAddress,
+      saveAddress
+    }),
+    [
+      items,
+      availableItems,
+      outOfStockItems,
+      outOfStockCount,
+      hasOutOfStockItems,
+      addToCart,
+      updateQuantity,
+      removeItem,
+      clearCart,
+      refreshCartStock,
+      totalItems,
+      subtotal,
+      shippingFee,
+      freeShippingThreshold,
+      settingsLoaded,
+      isFreeShipping,
+      shippingCharge,
+      fetchShippingSettings,
+      isCartOpen,
+      setIsCartOpen,
+      isSyncing,
+      getSavedAddress,
+      saveAddress
+    ]
   );
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

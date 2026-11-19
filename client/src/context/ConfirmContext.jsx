@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 
 const ConfirmContext = createContext();
@@ -207,18 +207,24 @@ export const ConfirmProvider = ({ children }) => {
     }
   }, [confirmState._downloadConfig]);
 
-  return (
-    <ConfirmContext.Provider
-      value={{
-        confirmState,
-        confirm,
-        confirmDownload,
-        handleConfirmAction,
-        handleCancel,
-        startDownloadSequence,
-      }}
-    >
-      {children}
-    </ConfirmContext.Provider>
+  const value = useMemo(
+    () => ({
+      confirmState,
+      confirm,
+      confirmDownload,
+      handleConfirmAction,
+      handleCancel,
+      startDownloadSequence
+    }),
+    [
+      confirmState,
+      confirm,
+      confirmDownload,
+      handleConfirmAction,
+      handleCancel,
+      startDownloadSequence
+    ]
   );
+
+  return <ConfirmContext.Provider value={value}>{children}</ConfirmContext.Provider>;
 };

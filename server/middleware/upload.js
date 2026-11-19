@@ -5,12 +5,24 @@ const path = require('path');
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = /\.(jpeg|jpg|png|webp|avif|heic|gif)$/i;
-  const isImage = file.mimetype.startsWith('image/') || allowedExtensions.test(file.originalname);
+  const allowedExtensions = /\.(jpe?g|png|webp|avif|heic|gif)$/i;
 
-  if (isImage) {
+  // Explicitly reject SVG files to prevent stored Cross-Site Scripting (XSS)
+  const isSvg =
+    (file.mimetype && file.mimetype.toLowerCase().includes('svg')) ||
+    /\.svg$/i.test(file.originalname);
+
+  if (isSvg) {
+    return cb(new Error('SVG files are not permitted for security reasons.'));
+  }
+
+  const hasValidExt = allowedExtensions.test(file.originalname);
+  const hasValidMime = file.mimetype && file.mimetype.startsWith('image/');
+
+  if (hasValidExt && hasValidMime) {
     return cb(null, true);
   }
+
   cb(new Error('Only high quality image files (JPEG, PNG, WEBP, AVIF, HEIC) are supported.'));
 };
 

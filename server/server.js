@@ -133,7 +133,8 @@ app.use('/uploads', async (req, res) => {
       const Banner = require('./models/Banner');
       const cleanPath = reqPath.replace(/^\//, '');
       if (cleanPath) {
-        const existsInBanners = await Banner.exists({ image: { $regex: cleanPath } });
+        const safePathRegex = cleanPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const existsInBanners = await Banner.exists({ image: { $regex: safePathRegex, $options: 'i' } });
         if (existsInBanners) isBanner = true;
       }
     } catch (e) {}
