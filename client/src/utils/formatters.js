@@ -12,13 +12,24 @@ export const PRODUCT_FALLBACK_1 = '/fallback-product-1.jpg';
 export const PRODUCT_FALLBACK_2 = '/fallback-product-2.jpg';
 export const CATEGORY_FALLBACK = '/fallback-product.jpg';
 
-export const getImageUrl = (path, fallback = '/fallback-product-1.jpg') => {
+export const getImageUrl = (path, fallback = '/fallback-product-1.jpg', width = 800) => {
   const isBanner =
     fallback === '/fallback-banner.webp' ||
     fallback === '/fallback-banner.png' ||
     fallback === '/fallback-banner.jpg' ||
     (typeof fallback === 'string' && fallback.toLowerCase().includes('banner')) ||
     (typeof path === 'string' && path.toLowerCase().includes('banner'));
+
+  const optimizeCloudinary = (url, targetWidth) => {
+    if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com') || !url.includes('/image/upload/')) {
+      return url;
+    }
+    if (url.includes('/image/upload/f_auto') || url.includes('/image/upload/w_') || url.includes('/image/upload/q_auto')) {
+      return url;
+    }
+    const finalWidth = targetWidth || (isBanner ? 1600 : 800);
+    return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,w_${finalWidth}/`);
+  };
 
   // Strict enforcement: For banners, ALWAYS use /fallback-banner.webp when image is missing or invalid.
   // Never use product fallbacks or anything else under any circumstance.
@@ -38,7 +49,9 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.jpg') => {
     ) {
       return BANNER_FALLBACK;
     }
-    if (cleanBanner.startsWith('http://') || cleanBanner.startsWith('https://')) return cleanBanner;
+    if (cleanBanner.startsWith('http://') || cleanBanner.startsWith('https://')) {
+      return optimizeCloudinary(cleanBanner, width || 1600);
+    }
 
     const apiUrl = import.meta.env.VITE_API_URL;
     if (apiUrl && cleanBanner.startsWith('/uploads')) {
@@ -64,7 +77,9 @@ export const getImageUrl = (path, fallback = '/fallback-product-1.jpg') => {
   if (clean.includes('logo.png') && !fallback.includes('logo')) {
     return effectiveFallback;
   }
-  if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
+    return optimizeCloudinary(clean, width || 800);
+  }
 
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl && clean.startsWith('/uploads')) {

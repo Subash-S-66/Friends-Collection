@@ -20,6 +20,7 @@ import ProductCard from '../components/ProductCard';
 import NotifyModal from '../components/NotifyModal';
 import { useCart } from '../context/CartContext';
 import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../utils/formatters';
+import { getCachedProduct, setCachedProduct } from '../utils/productCache';
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -41,63 +42,85 @@ const ProductDetail = () => {
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [isWaitlisted, setIsWaitlisted] = useState(false);
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
-      try {
-        const res = await API.get(`/products/${slug}`);
-        const prod = res.data;
-        setProduct(prod);
-        setActiveImageIndex(0);
+  const initProductState = (prod) => {
+    setProduct(prod);
+    setActiveImageIndex(0);
 
-        // Derive initial color & size, respecting ?color= query param from swatches
-        const queryColor = new URLSearchParams(window.location.search).get('color');
+    // Derive initial color & size, respecting ?color= query param from swatches
+    const queryColor = new URLSearchParams(window.location.search).get('color');
 
-        const noSizes = Boolean(
-          prod.hasSizes === false ||
-          (Array.isArray(prod.sizes) && prod.sizes.length === 1 && prod.sizes[0].toLowerCase() === 'no size') ||
-          (Array.isArray(prod.sizes) && prod.sizes.length === 0 && (!prod.variants || prod.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')))
+    const noSizes = Boolean(
+      prod.hasSizes === false ||
+      (Array.isArray(prod.sizes) && prod.sizes.length === 1 && prod.sizes[0].toLowerCase() === 'no size') ||
+      (Array.isArray(prod.sizes) && prod.sizes.length === 0 && (!prod.variants || prod.variants.every(v => !v.size || v.size.toLowerCase() === 'no size' || v.size.toLowerCase() === 'standard')))
+    );
+
+    if (prod.variants && prod.variants.length > 0) {
+      let chosenVariant = null;
+      if (queryColor) {
+        chosenVariant = prod.variants.find(
+          (v) => (v.color || '').trim().toLowerCase() === queryColor.trim().toLowerCase()
         );
-
-        if (prod.variants && prod.variants.length > 0) {
-          let chosenVariant = null;
-          if (queryColor) {
-            chosenVariant = prod.variants.find(
-              (v) => (v.color || '').trim().toLowerCase() === queryColor.trim().toLowerCase()
-            );
-          }
-          if (!chosenVariant) {
-            chosenVariant = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
-          }
-          setSelectedColor(chosenVariant.color || '');
-          setSelectedSize(noSizes ? '' : (chosenVariant.size && chosenVariant.size.toLowerCase() !== 'no size' ? chosenVariant.size : ''));
-        } else {
-          if (!noSizes && prod.sizes && prod.sizes.length > 0 && prod.sizes[0].toLowerCase() !== 'no size') {
-            setSelectedSize(prod.sizes[0]);
-          } else {
-            setSelectedSize('');
-          }
-          if (queryColor) setSelectedColor(queryColor);
-          else if (prod.colors && prod.colors.length > 0) setSelectedColor(prod.colors[0]);
-        }
-
-        // Fetch related products
-        if (prod.category?._id) {
-          const relRes = await API.get(`/products?category=${prod.category.slug}&limit=4`).catch(() => ({ data: { products: [] } }));
-          const relProducts = Array.isArray(relRes.data?.products)
-            ? relRes.data.products
-            : (Array.isArray(relRes.data) ? relRes.data : []);
-          setRelated(relProducts.filter((p) => p && p._id !== prod._id));
-        }
-      } catch (error) {
-        console.error('Error fetching product details:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+      if (!chosenVariant) {
+        chosenVariant = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
+      }
+      setSelectedColor(chosenVariant.color || '');
+      setSelectedSize(noSizes ? '' : (chosenVariant.size && chosenVariant.size.toLowerCase() !== 'no size' ? chosenVariant.size : ''));
+    } else {
+      if (!noSizes && prod.sizes && prod.sizes.length > 0 && prod.sizes[0].toLowerCase() !== 'no size') {
+        setSelectedSize(prod.sizes[0]);
+      } else {
+        setSelectedSize('');
+      }
+      if (queryColor) setSelectedColor(queryColor);
+      else if (prod.colors && prod.colors.length > 0) setSelectedColor(prod.colors[0]);
+    }
+  };
 
-    fetchProduct();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  useEffect(() => {
+    let isCancelled = false;
+
+    // Check fast client-side in-memory cache first (instant 0ms transition)
+    const cached = getCachedProduct(slug);
+    if (cached) {
+      initProductState(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // Fetch primary product details
+    API.get(`/products/${slug}`)
+      .then((res) => {
+        if (isCancelled) return;
+        const prod = res.data;
+        setCachedProduct(slug, prod);
+        initProductState(prod);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error('Error fetching product details:', error);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoading(false);
+      });
+
+    // Fetch related products in background (never blocks main product rendering)
+    API.get(`/products/${slug}/related`)
+      .then((relRes) => {
+        if (isCancelled) return;
+        const relProducts = Array.isArray(relRes.data) ? relRes.data : [];
+        setRelated(relProducts);
+      })
+      .catch(() => {});
+
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [slug]);
 
   // Check if current customer is waitlisted for this variant
@@ -400,11 +423,14 @@ const ProductDetail = () => {
                       }`}
                     >
                       <img
-                        src={getImageUrl(img, getFallbackForIndex(idx))}
+                        src={getImageUrl(img, getFallbackForIndex(idx), 160)}
                         alt={`View ${idx + 1}`}
                         onError={(e) => handleImageError(e, getFallbackForIndex(idx))}
                         className="w-full h-full object-cover object-top"
                         loading="lazy"
+                        decoding="async"
+                        width="80"
+                        height="106"
                       />
                     </button>
                   ))}
@@ -421,17 +447,19 @@ const ProductDetail = () => {
               <AnimatePresence mode="wait">
                 <motion.img
                   key={safeActiveImageIndex + '-' + (displayImages[safeActiveImageIndex] || '')}
-                  src={getImageUrl(displayImages[safeActiveImageIndex] || displayImages[0], getFallbackForIndex(safeActiveImageIndex))}
+                  src={getImageUrl(displayImages[safeActiveImageIndex] || displayImages[0], getFallbackForIndex(safeActiveImageIndex), 900)}
                   alt={product.title}
                   onError={(e) => handleImageError(e, getFallbackForIndex(safeActiveImageIndex))}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.15 }}
                   className={`w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 ${
                     product.stock <= 0 ? 'grayscale-[25%] opacity-90' : ''
                   }`}
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
                 />
               </AnimatePresence>
 

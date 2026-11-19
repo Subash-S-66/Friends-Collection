@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import NotifyModal from './NotifyModal';
 import { formatPrice, getDiscount, getImageUrl, handleImageError } from '../utils/formatters';
+import { prefetchProduct } from '../utils/productCache';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
@@ -157,11 +158,15 @@ const ProductCard = ({ product }) => {
           : 'border-accent-100 hover:border-accent-300'
       }`}
     >
-      <Link to={targetLink} className="flex flex-col h-full">
+      <Link
+        to={targetLink}
+        onMouseEnter={() => prefetchProduct(product.slug)}
+        className="flex flex-col h-full"
+      >
         {/* Image Container with 3:4 Aspect Ratio Guard */}
         <div className={`relative aspect-[3/4] w-full overflow-hidden bg-cream-dark ${isOutOfStock ? 'grayscale-[35%]' : ''}`}>
           <img
-            src={getImageUrl(primaryImage, '/fallback-product-1.jpg')}
+            src={getImageUrl(primaryImage, '/fallback-product-1.jpg', 500)}
             alt={product.title}
             onError={(e) => handleImageError(e, '/fallback-product-1.jpg')}
             className={`w-full h-full object-cover object-top ${
@@ -172,7 +177,7 @@ const ProductCard = ({ product }) => {
           />
           {hasHoverImage && !isOutOfStock && (
             <img
-              src={getImageUrl(hoverImage, '/fallback-product-2.jpg')}
+              src={getImageUrl(hoverImage, '/fallback-product-2.jpg', 500)}
               alt={`${product.title} hover view`}
               onError={(e) => handleImageError(e, '/fallback-product-2.jpg')}
               className="absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100 bg-white"
