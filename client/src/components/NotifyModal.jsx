@@ -4,7 +4,6 @@ import {
   HiOutlineBell,
   HiOutlineX,
   HiOutlineMail,
-  HiOutlinePhone,
   HiOutlineUser,
   HiOutlineCheck
 } from 'react-icons/hi';
@@ -19,7 +18,6 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
 
   // Form states
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [successDone, setSuccessDone] = useState(false);
@@ -30,7 +28,6 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
     if (user) {
       if (user.email) setEmail(user.email);
       if (user.name) setName(user.name);
-      if (user.phone) setPhone(user.phone);
     }
   }, [user, isOpen]);
 
@@ -58,12 +55,6 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
       return;
     }
 
-    const cleanPhone = phone.trim().replace(/[^\d+]/g, '');
-    if (cleanPhone && cleanPhone.replace(/\D/g, '').length < 10) {
-      toast.error('Please enter a valid 10-digit phone number');
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await API.post('/notifications/subscribe', {
@@ -71,7 +62,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
         color: selectedColor || '',
         size: selectedSize || '',
         email: targetEmail,
-        phone: cleanPhone,
+        phone: (user?.phone || '').trim(),
         name: (user?.name || name || '').trim()
       });
 
@@ -103,7 +94,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
           color: selectedColor || '',
           size: selectedSize || '',
           email: googleUser.email,
-          phone: phone.trim().replace(/[^\d+]/g, ''),
+          phone: (user?.phone || '').trim(),
           name: googleUser.name || ''
         });
         toast.success(`Waitlist confirmed for ${googleUser.name || googleUser.email}!`, { icon: '🔔' });
@@ -274,27 +265,6 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
               </div>
             )}
 
-            {/* Mobile / WhatsApp Number (for both guest & user) */}
-            <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1 flex items-center justify-between">
-                <span>Phone / WhatsApp Number</span>
-                <span className="text-[10px] font-normal text-neutral-400">Optional</span>
-              </label>
-              <div className="relative">
-                <HiOutlinePhone className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g. 9500757024"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-              <p className="text-[10px] text-neutral-400 mt-1">
-                Receive an optional SMS/WhatsApp alert when restocked
-              </p>
-            </div>
-
             {/* Name (if guest) */}
             {!user && (
               <div>
@@ -308,7 +278,7 @@ const NotifyModal = ({ isOpen, onClose, product, selectedColor, selectedSize, on
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Priya Sharma"
+                    placeholder="Enter your name"
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
                   />
                 </div>
